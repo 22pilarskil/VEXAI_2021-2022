@@ -16,20 +16,35 @@ def generate_path():
 	os.mkdir(new_path)
 	return new_path
 
-def read_video(VIDEO_PATH, FRAME_CAPTURE_RATE):
+def read_video(VIDEO_PATH, FRAME_CAPTURE_RATE, SIMMILAR_CUTOFF):
 	new_path = generate_path()
 	cap = cv2.VideoCapture(VIDEO_PATH)
 	success = cap.grab() 
 	print(success)
-	fno = 0
+        hashes = []
 	counter = 0
 	img_num = 0
+	
+	def test_image(img, newImageHash, img_num, hashes):
+                print('test')
+                if len(hashes) == 0:
+                        return True  
+                else:
+                        for oldImageHash in hashes:
+                                if abs(newImageHash - oldImageHash) < SIMMILAR_CUTOFF:
+                                        return False
+                        return True
+	
 	while success:
-		if True and counter % FRAME_CAPTURE_RATE == 0:
+		if counter % FRAME_CAPTURE_RATE == 0:
 			_, img = cap.retrieve()
-			cv2.imshow("images", img)
-			cv2.imwrite("{}/{}.jpg".format(new_path, img_num), img)
-			img_num += 1
+                        newImageHash = imagehash.average_hash(Image.fromarray(img))
+
+                        if test_image(img, newImageHash, img_num, hashes):
+                                hashes.append(newImageHash)
+                                cv2.imshow("image", img)
+                                cv2.imwrite("{}/{}.jpg".format(new_path, img_num), img)
+                                img_num += 1
 		counter = counter + 1
 		# read next frame
 		success = cap.grab()
@@ -41,5 +56,6 @@ if __name__ == "__main__":
 
 	VIDEO_PATH = "/Users/michaelpilarski/Desktop/data.mp4"
 	FRAME_CAPTURE_RATE = 30
+        SIMMILAR_CUTOFF = 5
 
-	read_video(VIDEO_PATH, FRAME_CAPTURE_RATE)
+	read_video(VIDEO_PATH, FRAME_CAPTURE_RATE, SIMMILAR_CUTOFF)
