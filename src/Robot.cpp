@@ -19,8 +19,8 @@ std::atomic<double> Robot::x = 0;
 Controller Robot::master(E_CONTROLLER_MASTER);
 Motor Robot::FL(11);
 Motor Robot::FR(20, true);
-Motor Robot::BL(15);
-Motor Robot::BR(18, true);
+Motor Robot::BL(15, true);
+Motor Robot::BR(18);
 
 void Robot::drive(void *ptr) {
 	while (true) {
