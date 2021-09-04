@@ -1,5 +1,7 @@
 #include "main.h"
 #include "Robot.h"
+#include "json.hpp"
+#include "Serial.h"
 #include <map>
 #include <cmath>
 #include <atomic>
@@ -21,6 +23,11 @@ Motor Robot::FL(11);
 Motor Robot::FR(20, true);
 Motor Robot::BL(15, true);
 Motor Robot::BR(18);
+
+void Robot::print(nlohmann::json msg) {
+	x = (float)x + 1;
+	lcd::print(1, "Received %f", (float)x);
+}
 
 void Robot::drive(void *ptr) {
 	while (true) {

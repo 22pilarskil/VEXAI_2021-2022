@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <deque>
+#include "json.hpp"
 using namespace pros;
 
 class Robot{
@@ -19,6 +20,7 @@ class Robot{
 
 		static void mecanum(int power, int strafe, int turn);
 		static void drive(void *ptr);
+		static void print(nlohmann::json msg);
 
 		static void start_task(std::string name, void (*func)(void *));
 		static bool task_exists(std::string name);
