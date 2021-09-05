@@ -6,8 +6,8 @@ import time
 print(ser.name)
 print(ser.isOpen())
 while True:    
-    #print(ser.readline().decode('ascii').strip('\n').strip('\r').split('#'))
-    time.sleep(.1)
+    print(ser.readline().decode('ascii').strip('\n').strip('\r').split('#'))
+    time.sleep(1)
     ser.write(("header" + "#" + json.dumps("yo") + "\n").encode('ascii', 'replace'))
 
 

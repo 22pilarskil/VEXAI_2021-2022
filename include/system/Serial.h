@@ -3,8 +3,8 @@
 
 #ifdef __cplusplus
 
-#include "json.hpp"
-#include "sync.h"
+#include "system/json.hpp"
+#include "system/sync.h"
 #include <functional>
 #include <queue>
 

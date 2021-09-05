@@ -1,7 +1,7 @@
 #include "main.h"
 #include "Robot.h"
-#include "json.hpp"
-#include "Serial.h"
+#include "system/json.hpp"
+#include "system/Serial.h"
 #include <map>
 #include <cmath>
 #include <atomic>
