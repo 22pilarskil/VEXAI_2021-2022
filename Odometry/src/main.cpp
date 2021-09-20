@@ -2,6 +2,7 @@
 #include <math.h>
 #include <vector>
 #include "mathutils.h"
+#include "Constants.h"
 
 
 std::vector<double> pos = {0, 0, 0};
@@ -16,6 +17,11 @@ double rotation = 0;
 double erPosLast = 0;
 double elPosLast = 0;
 double ebPosLast = 0;
+
+double axialToCenterDist;
+double lateralToCenterDist;
+double dwDiameter;
+double dwTicksPerRev;
 
 /**
  * Runs initialization code. This occurs as soon as the program is started.
@@ -68,8 +74,8 @@ std::vector<double> get_pos_estimate() {
 	double dl = elPos-elPosLast;
 	double db = ebPos-ebPosLast;
 
-	double dHeading = (dr-dl)/ Constants.OdometryConstants.DEAD_WHEEL_BASE_WIDTH;
-	double dx = db+(Constants.OdometryConstants.DEAD_WHEEL_TURN_RADIUS*dHeading);
+	double dHeading = (dr-dl)/(axialToCenterDist*2) ; //i'm assuming this should be the distance between the two axial dead wheels
+	double dx = db+(Constants.OdometryConstants.DEAD_WHEEL_TURN_RADIUS*dHeading); //which distance would this be??
 	double dy = (dr+dl)/2.0;
 
 	// Log.d(TAG, "dYaw: " + dHeading);
@@ -136,9 +142,9 @@ void setPose(std::vector<double> _pos) {
 }
 
 double encoder_to_distance(double ticks) {
-	double circumference = M_PI*Constants.OdometryConstants.DEAD_WHEEL_DIAMETER;
+	double circumference = M_PI*dwDiameter;
 	double circumferenceGeared = circumference* Constants.OdometryConstants.DEAD_WHEEL_GEARING;
-	double distance = circumferenceGeared * (ticks/ Constants.OdometryConstants.DEAD_WHEEL_TICKS_PER_REV);
+	double distance = circumferenceGeared * (ticks/dwTicksPerRev);
 	return distance;
 }
 
