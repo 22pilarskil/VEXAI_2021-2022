@@ -26,7 +26,7 @@ Motor Robot::BR(18);
 
 void Robot::print(nlohmann::json msg) {
 	x = (float)x + 1;
-	lcd::print(1, "Received %f", (float)x);
+	lcd::print(1, "Received %s %f", msg.dump(), (float)x);
 }
 
 void Robot::drive(void *ptr) {
