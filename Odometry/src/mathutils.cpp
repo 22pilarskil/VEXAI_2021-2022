@@ -1,86 +1,72 @@
-#include <math.h>
+#include "mathutils.hpp"
+//courtesy of the legend Eric Dong
+int mathutils::sgn(double n) {
+    return (n > 0) - (n < 0);
+}
 
-static int sgn(double n) {
-    if (MathUtils::equals(n, 0)) {
-        return 0;
-    } else if (n > 0) {
-        return 1;
-    } else {
-        return -1;
+double mathutils::sinDegrees(double deg) {
+    return std::sin(deg * TO_RAD);
+}
+
+double mathutils::cosDegrees(double deg) {
+    return std::cos(deg * TO_RAD);
+}
+
+double mathutils::tanDegrees(double deg) {
+    return std::tan(deg * TO_RAD);
+}
+
+double mathutils::clamp(double n, double low, double high) {
+    return std::max(low, std::min(high, n));
+}
+
+double mathutils::truncate(double n, int place) {
+    return ((double) ((int) (n * place))) / place;
+}
+
+bool mathutils::equals(double n, double m, double tolerance) {
+    return std::abs(n - m) < tolerance;
+}
+
+double mathutils::powRetainingSign(double base, double exp) {
+    return std::copysign(std::pow(base, exp), base);
+}
+
+double mathutils::wrap(double n, double min, double max) {
+    if (!equals(n, min) && n < min) {
+        n = max - (min - n);
+    } else if (!equals(n, max) && n > max) {
+        n = min + (n - max);
     }
+    return n;
 }
 
-static double sin_degrees(double  d) {
-    return sin(to_radians(d));
-}
-static double cos_degrees(double  d) {
-    return cos(to_radians(d));
-}
-static double tan_degrees(double d) { return tan(to_radians(d)); }
-static double clamp(double number, double lowerBound, double upperBound) {
-    return fmax(lowerBound, fmin(upperBound, number));
-}
-static double truncate(double d, int place) {
-    return (double) ((int)(d*place)) / place;
-}
-static bool equals(double d, double e) {
-    return equals(d,e,epsilon);
-}
-static bool equals(double d, double e, double tolerance) {
-    if (Double.isNaN(d) || Double.isNaN(e))
-        return false;
-    return abs(d-e) < tolerance;
-}
-static double pow_retaining_sign(double d, double power) {
-    if (abs(d) < 1e-14) {
-        return 0;
-    }
-    return copysign(pow(abs(d), power), d);
-}
-
-static double wrap(double d, double min, double max) {
-    if (!equals(d, min) &&d < min) {
-        d = max - (min - d);
-    } else if (!equals(d, max) && d > max) {
-        d = min + (d - max);
-    }
-    return d;
-}
-
-static double standard_deviation(int[] values) {
-    int len = values.length;
+double mathutils::standardDeviation(const std::vector<int>& values) {
     double mean = 0;
-    for (int i = 0; i < len; i++) {
-        mean += values[i];
+    for (auto const& i : values) {
+        mean += i;
     }
-    mean /= len;
-    double stddev = 0;
-    for (int i = 0; i < len; i++) {
-        double diff = values[i] - mean;
-        stddev += diff*diff;
+    mean /= values.size();
+    double sd = 0;
+    for (auto const& i : values) {
+        sd += std::pow(i - mean, 2);
     }
-    stddev /= len;
-    return sqrt(stddev);
+    sd /= values.size();
+    return std::sqrt(sd);
 }
-static double map(double value, double lower1, double upper1, double lower2, double upper2) {
-    return ((value-lower1)*(upper2-lower2)/(upper1-lower1))+lower2;
+
+double mathutils::map(double n, double low1, double high1, double low2, double high2) {
+    return ((n - low1) * (high2 - low2) / (high1 - low1)) + low2;
 }
-static double max_array(double[] array) {
-    double max = abs(array[0]);
-    for (double a : array) {
-        if (abs(a) > max) {
-            max = abs(a);
-        }
+
+double mathutils::maxArr(const std::vector<double>& vec) {
+    double max = std::numeric_limits<double>::min();
+    for (const auto& i : vec) {
+        max = std::max(i, max);
     }
     return max;
 }
-static double normalize(double angle) {
-    double newAngle = angle%(2*M_PI);
-    newAngle = (newAngle + 2*M_PI) % (2*M_PI);
 
-    return newAngle;
-}
-
-static double to_radians(double degrees) {
-    return degrees*M_PI/180;
+double mathutils::normalize(double angle) {
+    return fmod((fmod(angle, 2 * M_PI) + 2 * M_PI), (2 * M_PI));
 }
