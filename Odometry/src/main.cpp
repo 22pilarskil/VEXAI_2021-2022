@@ -34,7 +34,8 @@ double rotation = 0;
 double erPosLast = 0;
 double elPosLast = 0;
 double ebPosLast = 0;
-auto time = chrono::system_clock::now();
+auto time = chrono::system_clock::now(); //I don't know how time objects work, can someone please figure out delta time? 
+					//(it should update with every call to the get_pos_estimate() func)
 
 // void update() {
 // 	get_pos_estimate();
