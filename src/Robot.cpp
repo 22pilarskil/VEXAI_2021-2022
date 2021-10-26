@@ -19,10 +19,14 @@ std::map<std::string, std::unique_ptr<pros::Task>> Robot::tasks;
 std::atomic<double> Robot::x = 0;
 
 Controller Robot::master(E_CONTROLLER_MASTER);
-Motor Robot::FL(11);
-Motor Robot::FR(20, true);
-Motor Robot::BL(15, true);
-Motor Robot::BR(18);
+Motor Robot::FLT(2); //front left top
+Motor Robot::FLB(1, true); //front left bottom
+Motor Robot::FRT(9); //front right top
+Motor Robot::FRB(10, true); //front right bottom
+Motor Robot::BRT(20); //back right top
+Motor Robot::BRB(19, true); //back right bottom
+Motor Robot::BLT(11); //back left top
+Motor Robot::BLB(12, true); //back left botto
 
 void Robot::print(nlohmann::json msg) {
 	x = (float)x + 1;
@@ -55,10 +59,14 @@ void Robot::mecanum(int power, int strafe, int turn) {
 	double scalar = (true_max > 127) ? 127 / true_max : 1;
 	
 
-	FL = (power + strafe + turn) * scalar;
-	FR = (power - strafe - turn) * scalar;
-	BL = (power - strafe + turn) * scalar;
-	BR = (power + strafe - turn) * scalar;
+	FLT = (power + strafe + turn) * scalar;
+	FLB = (power + strafe + turn) * scalar;
+	FRT = (power - strafe - turn) * scalar;
+	FRB = (power - strafe - turn) * scalar;
+	BLT = (power - strafe + turn) * scalar;
+	BLB = (power - strafe + turn) * scalar;
+	BRT = (power + strafe - turn) * scalar;
+	BRB = (power + strafe - turn) * scalar;
 }
 
 void Robot::start_task(std::string name, void (*func)(void *)) {

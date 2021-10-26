@@ -10,10 +10,14 @@ using namespace pros;
 class Robot{
 	public:
 		static Controller master;
-		static Motor FL;
-		static Motor FR;
-		static Motor BL;
-		static Motor BR;
+		static Motor FLT;
+		static Motor FRT;
+		static Motor BLT;
+		static Motor BRT;
+		static Motor FLB;
+		static Motor FRB;
+		static Motor BLB;
+		static Motor BRB;
 		static std::atomic<double> x;
 
 		static std::map<std::string, std::unique_ptr<pros::Task>> tasks;
