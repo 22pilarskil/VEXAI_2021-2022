@@ -36,7 +36,7 @@ def convert_rgb_to_hsv(r, g, b):
     return color_hsv
 
 def determine_color(det):
-    bgr = color_image[int(det[1] + (float(det[3] - det[1]) * (2 / 10))):int(det[1] + (float(det[3] - det[1]) * (4.0 / 10))), int(det[0] + (float(det[2] - det[0]) * (4.0 / 10))):int(det[0] + (float(det[2] - det[0]) * (6.0 / 10)))]
+    bgr = color_image0[int(det[1] + (float(det[3] - det[1]) * (2 / 10))):int(det[1] + (float(det[3] - det[1]) * (4.0 / 10))), int(det[0] + (float(det[2] - det[0]) * (4.0 / 10))):int(det[0] + (float(det[2] - det[0]) * (6.0 / 10)))]
     bgr = np.mean(bgr, axis=(0,1))
     hsv = convert_rgb_to_hsv(bgr[2],bgr[1],bgr[0])
     if hsv[0]>=180 and hsv[0]<=240:
@@ -46,15 +46,15 @@ def determine_color(det):
     elif (hsv[0]>=0 and hsv[0]<20) or (hsv[0]>=320 and hsv[0]<=360):
         return -1
     return 3
-
 def determine_depth(det, do_depth_ring=False):
-    depth = []
-    for x in range(6):
-        for y in range(3):
-            depth.append(depth_frame.get_distance(int(det[0] + (float(det[2] - det[0]) * (float(x+3) / 10))),int(det[1] + (float(det[3] - det[1]) * (float(y+2) / 10)))))
-    depth = np.array(depth)
-    depth = depth[depth>0]
-    return np.mean(depth)
+    if not do_depth_ring and not det[5] == 2:
+        d = depth_image[int(det[1] + (float(det[3] - det[1]) * (2 / 10))):int(det[1] + (float(det[3] - det[1]) * (4.0 / 10))), int(det[0] + (float(det[2] - det[0]) * (4.0 / 10))):int(det[0] + (float(det[2] - det[0]) * (6.0 / 10)))]
+        d = d[d>0]
+        return np.mean(d)
+    elif do_depth_ring:
+        d = depth_image[int(det[1] + (float(det[3] - det[1]) * (2 / 10))):int(det[1] + (float(det[3] - det[1]) * (4.0 / 10))), int(det[0] + (float(det[2] - det[0]) * (4.0 / 10))):int(det[0] + (float(det[2] - det[0]) * (6.0 / 10)))]
+        return np.mean(d)
+    return -1
         
 model = attempt_load(PATH)
 device = torch.device("cuda" if torch.cuda.is_available() else 'cpu')
@@ -94,10 +94,18 @@ try:
             continue
 
         # Convert images to numpy arrays
+        depth_image = np.asanyarray(depth_frame.get_data())
         color_image = np.asanyarray(color_frame.get_data())
 
+        # Apply colormap on depth image (image must be converted to 8-bit per pixel first)
+        depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET)
+
+        depth_colormap_dim = depth_colormap.shape
+        color_colormap_dim = color_image.shape
+
         # If depth and color resolutions are different, resize color image to match depth image for display
-        color_image = cv2.resize(color_image, dsize=(640, 480), interpolation=cv2.INTER_AREA)
+        if depth_colormap_dim != color_colormap_dim:
+            color_image = cv2.resize(color_image, dsize=(depth_colormap_dim[1], depth_colormap_dim[0]), interpolation=cv2.INTER_AREA)
 
         color_image_t = torch.cuda.FloatTensor(color_image)
         color_image_t = torch.moveaxis(color_image_t, 2, 0)[None] / 255.0
@@ -105,19 +113,38 @@ try:
         pred = model(color_image_t)[0]
         conf_thres = .3
         pred = non_max_suppression(pred, conf_thres)
+
+        color_image0, depth_colormap0 = color_image, depth_colormap
         pred = pred[0]
         # tensor([[det1],[det2]])
-        pred[:,:4] = scale_coords(color_image_t.shape[2:], pred[:, :4], color_image.shape).round()
+        color_annotator = Annotator(color_image0, line_width=2, pil=not ascii)
+        depth_annotator = Annotator(depth_colormap0, line_width=2, pil=not ascii)
+        pred[:,:4] = scale_coords(color_image_t.shape[2:], pred[:, :4], color_image0.shape).round()
+        color = []
+        depth = []
 
         for i, det in enumerate(pred):
             if(det[5] == 0): # COLOR
                 pred[i, 5] = determine_color(det)
             else:
                 pred[i, 5] = 2
-            pred[i, 4] = determine_depth(det, do_depth_ring=do_depth_ring)
+            pred[i, 4] = determine_depth(det, do_depth_ring=do_depth_ring) * depth_frame.get_units()
 
-      
+            names = ["red-mogo","yellow-mogo", "blue-mogo","ring", "unknown_color"]
+            color_annotator.box_label(pred[i, :4], f'{names[int(pred[i, 5])+1]} {pred[i,4]:.2f}', color=colors(pred[i, 5], True))
+            depth_annotator.box_label(pred[i, :4], f'{names[int(pred[i, 5])+1]} {pred[i,4]:.2f}', color=colors(pred[i, 5], True))
+
+        color_image = color_annotator.result()
+        depth_colormap = depth_annotator.result()
+        
+        images = np.hstack((color_image, depth_colormap))
+
+        cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
+        cv2.imshow('RealSense', images)
         print(return_data(pred))
         print(time.time()-start)
+        cv2.waitKey(1)
+
 finally:
+
     pipeline.stop()
