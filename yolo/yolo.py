@@ -45,22 +45,18 @@ def determine_color(det):
         return 0
     elif (hsv[0]>=0 and hsv[0]<20) or (hsv[0]>=320 and hsv[0]<=360):
         return -1
-    else:
-        return 3
+    return 3
 
 def determine_depth(det, do_depth_ring=False):
-    if not do_depth_ring and det[5] == 1:
+    if not do_depth_ring and not det[5] == 2:
         d = depth_image[int(det[1] + (float(det[3] - det[1]) * (2 / 10))):int(det[1] + (float(det[3] - det[1]) * (4.0 / 10))), int(det[0] + (float(det[2] - det[0]) * (4.0 / 10))):int(det[0] + (float(det[2] - det[0]) * (6.0 / 10)))]
         d = d[d>0]
-        depth_annotator.box_label(xyxy, "")
-        color_annotator.box_label(xyxy, "")
         return np.mean(d)
     elif do_depth_ring:
         d = depth_image[int(det[1] + (float(det[3] - det[1]) * (2 / 10))):int(det[1] + (float(det[3] - det[1]) * (4.0 / 10))), int(det[0] + (float(det[2] - det[0]) * (4.0 / 10))):int(det[0] + (float(det[2] - det[0]) * (6.0 / 10)))]
         d = d[d>0]
-        depth_annotator.box_label(xyxy, "")
-        color_annotator.box_label(xyxy, "")
         return np.mean(d)
+    return -1
         
 model = attempt_load(PATH)
 device = torch.device("cuda" if torch.cuda.is_available() else 'cpu')
