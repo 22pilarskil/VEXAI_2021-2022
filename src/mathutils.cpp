@@ -1,4 +1,4 @@
-#include "mathutils.hpp"
+#include "mathutils.h"
 //courtesy of the legend Eric Dong
 int mathutils::sgn(double n) {
     return (n > 0) - (n < 0);
