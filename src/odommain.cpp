@@ -9,9 +9,6 @@
 using namespace std;
 
 //void update();
-void get_pos_estimate();
-void setPose(struct Position _pos);
-double encoder_to_distance(double ticks);
 
 Position pos;
 
