@@ -1,3 +1,4 @@
+
 #include "main.h"
 #include "Robot.h"
 #include "system/json.hpp"
@@ -59,8 +60,8 @@ void Robot::mecanum(int power, int strafe, int turn) {
 	double scalar = (true_max > 127) ? 127 / true_max : 1;
 	
 
-	FLT = (power + strafe + turn) * scalar;
-	FLB = (power + strafe + turn) * scalar;
+	FLT = -1*(power + strafe + turn) * scalar;
+	FLB = -1*(power + strafe + turn) * scalar;
 	FRT = (power - strafe - turn) * scalar;
 	FRB = (power - strafe - turn) * scalar;
 	BLT = (power - strafe + turn) * scalar;
