@@ -2,8 +2,9 @@
 #include <iostream>
 #include <chrono>
 //#include <ctime>
-#include "Constants.hpp"
-#include "mathutils.hpp"
+#include "Constants.h"
+#include "mathutils.h"
+#include "odommain.h"
 
 using namespace std;
 
@@ -12,12 +13,6 @@ void get_pos_estimate();
 void setPose(struct Position _pos);
 double encoder_to_distance(double ticks);
 
-struct Position
-{
-  double x;
-  double y;
-  double heading; 
-};
 Position pos;
 
 int main()
@@ -26,14 +21,6 @@ int main()
   cout << "X:" << pos.x << "\nY:" << pos.y << "\nHeading:" << pos.heading;
 }
 
-double v_x = 0;
-double v_y = 0;
-double v_angular = 0;
-double orientation = 0;
-double rotation = 0;
-double erPosLast = 0;
-double elPosLast = 0;
-double ebPosLast = 0;
 auto time = chrono::system_clock::now(); //I don't know how time objects work, can someone please figure out delta time? 
 					//(it should update with every call to the get_pos_estimate() func)
 
