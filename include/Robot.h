@@ -18,6 +18,7 @@ class Robot{
 		static Motor FRB;
 		static Motor BLB;
 		static Motor BRB;
+		static Motor roller;
 		static std::atomic<double> x;
 
 		static std::map<std::string, std::unique_ptr<pros::Task>> tasks;

@@ -28,6 +28,7 @@ Motor Robot::BRT(20); //back right top
 Motor Robot::BRB(19, true); //back right bottom
 Motor Robot::BLT(11); //back left top
 Motor Robot::BLB(12, true); //back left botto
+Motor Robot::roller(18);
 
 void Robot::print(nlohmann::json msg) {
 	x = (float)x + 1;
@@ -39,6 +40,18 @@ void Robot::drive(void *ptr) {
         int power = master.get_analog(ANALOG_LEFT_Y);
         int strafe = master.get_analog(ANALOG_LEFT_X);
         int turn = master.get_analog(ANALOG_RIGHT_X);
+		bool pressed = master.get_digital(DIGITAL_R1);
+		bool pressed2 = master.get_digital(DIGITAL_R2);
+
+		if (pressed){
+			roller=100;
+		}
+		else if(pressed2){
+			roller = -100;
+		}
+		else{
+			roller = 0;
+		}
         mecanum(power, strafe, turn);
         delay(5);
 	}
