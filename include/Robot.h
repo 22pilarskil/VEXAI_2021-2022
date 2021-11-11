@@ -23,14 +23,11 @@ class Robot{
 		static Motor BLB;
 		static Motor BRB;
 		static Motor roller;
-<<<<<<< HEAD
 		static Imu IMU;
 		static ADIEncoder LE;
 		static ADIEncoder RE;
 		static ADIEncoder BE;
 		
-=======
->>>>>>> d20369cd84004554067ba23ac7a3c394d5bc7bd0
 		static std::atomic<double> x;
 		static std::atomic<double> y;
 		static std::atomic<double> turn_offset_x;

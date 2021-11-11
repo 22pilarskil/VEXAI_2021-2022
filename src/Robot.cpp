@@ -26,10 +26,9 @@ Motor Robot::FRB(10, true); //front right bottom
 Motor Robot::BRT(20, true); //back right top
 Motor Robot::BRB(19); //back right bottom
 Motor Robot::BLT(11); //back left top
-<<<<<<< HEAD
 Motor Robot::BLB(12, true); //back left bottom
 Motor Robot::roller(18); //mechanism for ascending rings
-Imu Robot::IMU(2);
+Imu Robot::IMU(15);
 ADIEncoder Robot::LE(5, 6);
 ADIEncoder Robot::RE(3, 4);
 ADIEncoder Robot::BE(7, 8);
@@ -42,10 +41,6 @@ std::atomic<double> Robot::turn_offset_y = 0;
 double Robot::offset_back = 2.875;
 double Robot::offset_middle = 5.0;
 double Robot::wheel_circumference = 2.75 * M_PI;
-=======
-Motor Robot::BLB(12, true); //back left botto
-Motor Robot::roller(18);
->>>>>>> d20369cd84004554067ba23ac7a3c394d5bc7bd0
 
 void Robot::print(nlohmann::json msg) {
 	x = (float)x + 1;
@@ -98,14 +93,9 @@ void Robot::mecanum(int power, int strafe, int turn) {
 	double true_max = double(std::max(max, min));
 	double scalar = (true_max > 127) ? 127 / true_max : 1;
 	
-<<<<<<< HEAD
 	FLT = 0*(power + strafe + turn) * scalar;
 	FLB = 0*(power + strafe + turn) * scalar;
-=======
 
-	FLT = -1*(power + strafe + turn) * scalar;
-	FLB = -1*(power + strafe + turn) * scalar;
->>>>>>> d20369cd84004554067ba23ac7a3c394d5bc7bd0
 	FRT = (power - strafe - turn) * scalar;
 	FRB = (power - strafe - turn) * scalar;
 	BLT = (power - strafe + turn) * scalar;
@@ -163,6 +153,9 @@ void Robot::fps(void *ptr) {
         x = (float)x + global_dx;
 
         lcd::print(1, ("Y: %f - X: %f - IMU value: %f\n", (float)y, (float)x, IMU.get_rotation()));
+		//lcd::print(2, IMU.get_rotation);
+		lcd::print(2, ("uh"));
+
 
         last_y = cur_y;
         last_x = cur_x;
