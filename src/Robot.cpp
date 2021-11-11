@@ -1,3 +1,4 @@
+
 #include "main.h"
 #include "Robot.h"
 #include "system/json.hpp"
@@ -25,6 +26,7 @@ Motor Robot::FRB(10, true); //front right bottom
 Motor Robot::BRT(20, true); //back right top
 Motor Robot::BRB(19); //back right bottom
 Motor Robot::BLT(11); //back left top
+<<<<<<< HEAD
 Motor Robot::BLB(12, true); //back left bottom
 Motor Robot::roller(18); //mechanism for ascending rings
 Imu Robot::IMU(2);
@@ -40,6 +42,10 @@ std::atomic<double> Robot::turn_offset_y = 0;
 double Robot::offset_back = 2.875;
 double Robot::offset_middle = 5.0;
 double Robot::wheel_circumference = 2.75 * M_PI;
+=======
+Motor Robot::BLB(12, true); //back left botto
+Motor Robot::roller(18);
+>>>>>>> d20369cd84004554067ba23ac7a3c394d5bc7bd0
 
 void Robot::print(nlohmann::json msg) {
 	x = (float)x + 1;
@@ -54,6 +60,18 @@ void Robot::drive(void *ptr) {
         int power = master.get_analog(ANALOG_LEFT_Y);
         int strafe = master.get_analog(ANALOG_LEFT_X);
         int turn = master.get_analog(ANALOG_RIGHT_X);
+		bool pressed = master.get_digital(DIGITAL_R1);
+		bool pressed2 = master.get_digital(DIGITAL_R2);
+
+		if (pressed){
+			roller=100;
+		}
+		else if(pressed2){
+			roller = -100;
+		}
+		else{
+			roller = 0;
+		}
         mecanum(power, strafe, turn);
 		if(pressed == true) {
 			move = !move;
@@ -80,8 +98,14 @@ void Robot::mecanum(int power, int strafe, int turn) {
 	double true_max = double(std::max(max, min));
 	double scalar = (true_max > 127) ? 127 / true_max : 1;
 	
+<<<<<<< HEAD
 	FLT = 0*(power + strafe + turn) * scalar;
 	FLB = 0*(power + strafe + turn) * scalar;
+=======
+
+	FLT = -1*(power + strafe + turn) * scalar;
+	FLB = -1*(power + strafe + turn) * scalar;
+>>>>>>> d20369cd84004554067ba23ac7a3c394d5bc7bd0
 	FRT = (power - strafe - turn) * scalar;
 	FRB = (power - strafe - turn) * scalar;
 	BLT = (power - strafe + turn) * scalar;
