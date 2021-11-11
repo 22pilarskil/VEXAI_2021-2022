@@ -5,7 +5,11 @@
 #include <vector>
 #include <deque>
 #include "system/json.hpp"
+#include <atomic>
+#include <bits/stdc++.h> 
 using namespace pros;
+
+#define TO_RAD(n);
 
 class Robot{
 	public:
@@ -18,7 +22,20 @@ class Robot{
 		static Motor FRB;
 		static Motor BLB;
 		static Motor BRB;
+		static Motor roller;
+		static Imu IMU;
+		static ADIEncoder LE;
+		static ADIEncoder RE;
+		static ADIEncoder BE;
+		
 		static std::atomic<double> x;
+		static std::atomic<double> y;
+		static std::atomic<double> turn_offset_x;
+		static std::atomic<double> turn_offset_y;
+
+		static double offset_back;
+		static double offset_middle;
+		static double wheel_circumference; 
 
 		static std::map<std::string, std::unique_ptr<pros::Task>> tasks;
 
@@ -29,4 +46,6 @@ class Robot{
 		static void start_task(std::string name, void (*func)(void *));
 		static bool task_exists(std::string name);
 		static void kill_task(std::string name);
+
+		static void fps(void *ptr);
 };
