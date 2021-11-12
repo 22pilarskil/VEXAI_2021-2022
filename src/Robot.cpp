@@ -47,9 +47,6 @@ void Robot::print(nlohmann::json msg) {
 }
 
 void Robot::drive(void *ptr) {
-	
-	bool pressed = master.get_digital(DIGITAL_R1);
-	bool move = false;
 	while (true) {
         int power = master.get_analog(ANALOG_LEFT_Y);
         int strafe = master.get_analog(ANALOG_LEFT_X);
@@ -67,12 +64,6 @@ void Robot::drive(void *ptr) {
 			roller = 0;
 		}
         mecanum(power, strafe, turn);
-		if(pressed == true) {
-			move = !move;
-		}
-		if(move == true) {
-			roller = 20;
-		}
         delay(5);
 	}
 }
