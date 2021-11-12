@@ -10,7 +10,6 @@
 #include <chrono>
 #include <unordered_map>
 #include <deque>
-#include <bits/stdc++.h> 
 using namespace pros;
 using namespace std;
 
@@ -40,7 +39,7 @@ std::atomic<double> Robot::turn_offset_y = 0;
 
 double Robot::offset_back = 2.875;
 double Robot::offset_middle = 5.0;
-double Robot::wheel_circumference = 2.75 * M_PI;
+double Robot::wheel_circumference = 2.75 * 3.1415926;
 
 void Robot::print(nlohmann::json msg) {
 	x = (float)x + 1;
@@ -125,7 +124,7 @@ void Robot::fps(void *ptr) {
     double last_y = 0;
     double last_phi = 0;
     while (true) {
-        double cur_phi = TO_RAD(IMU.get_rotation());
+        double cur_phi = IMU.get_rotation() * 3.1415926 / 180;
         double dphi = cur_phi - last_phi;
 
         double cur_turn_offset_x = 360 * (offset_back * dphi) / wheel_circumference;
@@ -152,10 +151,11 @@ void Robot::fps(void *ptr) {
         y = (float)y + global_dy;
         x = (float)x + global_dx;
 
-        lcd::print(1, ("Y: %f - X: %f - IMU value: %f\n", (float)y, (float)x, IMU.get_rotation()));
-		//lcd::print(2, IMU.get_rotation);
-		lcd::print(2, ("uh"));
-
+        lcd::print(1, "Y: %f - X: %f", (float)y, (float)x);
+		
+		lcd::print(2, "IMU value: %f", IMU.get_heading());
+		lcd::print(3, "LE: %d RE: %d", LE.get_value(), RE.get_value());
+		lcd::print(4, "BE: %d", BE.get_value());
 
         last_y = cur_y;
         last_x = cur_x;

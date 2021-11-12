@@ -1,4 +1,3 @@
-#include "main.h"
 #include <map>
 #include <memory>
 #include <string>
@@ -6,10 +5,7 @@
 #include <deque>
 #include "system/json.hpp"
 #include <atomic>
-#include <bits/stdc++.h> 
 using namespace pros;
-
-#define TO_RAD(n);
 
 class Robot{
 	public:
