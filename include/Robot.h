@@ -23,6 +23,9 @@ class Robot{
 		static ADIEncoder LE;
 		static ADIEncoder RE;
 		static ADIEncoder BE;
+		static PD power_PD;
+		static PD strafe_PD;
+		static PD turn_PD;
 		
 		static std::atomic<double> x;
 		static std::atomic<double> y;
@@ -35,6 +38,7 @@ class Robot{
 
 		static std::map<std::string, std::unique_ptr<pros::Task>> tasks;
 
+		static void reset_PD();
 		static void mecanum(int power, int strafe, int turn);
 		static void drive(void *ptr);
 		static void print(nlohmann::json msg);
@@ -43,5 +47,7 @@ class Robot{
 		static bool task_exists(std::string name);
 		static void kill_task(std::string name);
 
+		static void brake(std::string mode);
 		static void fps(void *ptr);
+		static void move_to(std::vector<double> pose, std::vector<double> speeds, double stop_threshold = 30);
 };
