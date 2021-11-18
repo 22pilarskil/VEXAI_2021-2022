@@ -1,6 +1,8 @@
+#ifndef _PD
+#define _PD
 #include "main.h"
 
-class PD{
+class PD {
 	public:
 		double kp;
 		double kd;
@@ -18,3 +20,5 @@ class PD{
 		double get_value(double error);
 		void reset();
 };
+
+#endif

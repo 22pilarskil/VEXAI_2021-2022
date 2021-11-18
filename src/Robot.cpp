@@ -1,10 +1,9 @@
-
 #include "main.h"
 #include "Robot.h"
 #include "system/json.hpp"
 #include "system/Serial.h"
 #include "PD.h"
-#include "PD.cpp"
+// #include "PD.cpp"
 #include <map>
 #include <cmath>
 #include <atomic>
@@ -19,20 +18,27 @@ using namespace std;
 std::map<std::string, std::unique_ptr<pros::Task>> Robot::tasks;
 
 Controller Robot::master(E_CONTROLLER_MASTER);
-Motor Robot::FLT(2, true); //front left top
-Motor Robot::FLB(1); //front left bottom
-Motor Robot::FRT(9); //front right top
-Motor Robot::FRB(10, true); //front right bottom
-Motor Robot::BRT(20, true); //back right top
-Motor Robot::BRB(19); //back right bottom
-Motor Robot::BLT(11); //back left top
-Motor Robot::BLB(12, true); //back left bottom
-Motor Robot::roller(18); //mechanism for ascending rings
+// Motor Robot::FLT(2, true); //front left top
+// Motor Robot::FLB(1); //front left bottom
+// Motor Robot::FRT(9); //front right top
+// Motor Robot::FRB(10, true); //front right bottom
+// Motor Robot::BRT(20, true); //back right top
+// Motor Robot::BRB(19); //back right bottom
+// Motor Robot::BLT(11); //back left top
+// Motor Robot::BLB(12, true); //back left bottom
+// Motor Robot::roller(18); //mechanism for ascending rings
+Motor Robot::FR(17, true);
+Motor Robot::FL(8);
+Motor Robot::BR(3, true);
+Motor Robot::BL(10);
+
+
+
 Imu Robot::IMU(15);
 ADIEncoder Robot::LE(5, 6);
 ADIEncoder Robot::RE(3, 4);
 ADIEncoder Robot::BE(7, 8);
-PD Robot::power_PD(.19, 5, 0);
+PD Robot::power_PD(.32, 5, 0);
 PD Robot::strafe_PD(.17, .3, 0);
 PD Robot::turn_PD(1.2, 1, 0);
 
@@ -53,19 +59,20 @@ void Robot::print(nlohmann::json msg) {
     string msgS = msg.dump();
 	//lcd::print(1, "Received %s %f", msg.dump(), (float)x);
 	std::size_t found = msgS.find(",");
-	double depth = std::stod(msgS.substr(1,found-1));
-	double angle = std::stod(msgS.substr(found+1,msgS.size()-found-1));
+	double angle = std::stod(msgS.substr(1,found-1));
+	double depth = std::stod(msgS.substr(found+1,msgS.size()-found-1));
 	//lcd::print(5, "Degree %s", msgS.substr(1,found-1), (float)x);
 	//lcd::print(6, "Depth %s", msgS.substr(found+1,msgS.size()-found-2), (float)x);
 	double mogo_x = x + depth*(sin(angle * pi / 180));
 	double mogo_y = y + depth*(cos(angle * pi / 180));
 	//lcd::print(5, "depth %s", to_string(depth));
 	//lcd::print(6, "angle %s", to_string(angle));
-	lcd::print(5, "Mogo_x %s", to_string(mogo_x), (float)x);
-	lcd::print(6, "Mogo_y %s", to_string(mogo_y), (float)x);
-    std::vector<double> pos = {x, y+10, 0};
-	std::vector<double> speeds = {10, 10, 10};
-    move_to(pos, speeds);
+	//lcd::print(5, "Mogo_x %s", to_string(mogo_x), (float)x);
+	//lcd::print(6, "Mogo_y %s", to_string(mogo_y), (float)x);
+    std::vector<double> pos = {mogo_x, mogo_y+10, 0};
+    lcd::print(5, "DONE %d", mogo_x);
+    lcd::print(6, "DONE %d", mogo_y);
+    move_to(pos);
 	//mec_wrapper(0, 0, turn/10);
 }
 
@@ -82,7 +89,7 @@ void Robot::drive(void *ptr) {
         int turn = master.get_analog(ANALOG_RIGHT_X);
 		bool pressed = master.get_digital(DIGITAL_R1);
 		bool pressed2 = master.get_digital(DIGITAL_R2);
-
+		/*
 		if (pressed){
 			roller=100;
 		}
@@ -92,11 +99,37 @@ void Robot::drive(void *ptr) {
 		else{
 			roller = 0;
 		}
+		*/
         mecanum(power, strafe, turn);
         delay(5);
 	}
 }
 
+// void Robot::mecanum(int power, int strafe, int turn) {
+
+// 	int powers[] {
+// 		power + strafe + turn,
+// 		power - strafe - turn,
+// 		power - strafe + turn, 
+// 		power + strafe - turn
+// 	};
+
+// 	int max = *max_element(powers, powers + 4);
+// 	int min = abs(*min_element(powers, powers + 4));
+
+// 	double true_max = double(std::max(max, min));
+// 	double scalar = (true_max > 127) ? 127 / true_max : 1;
+	
+// 	FLT = 0*(power + strafe + turn) * scalar;
+// 	FLB = 0*(power + strafe + turn) * scalar;
+
+// 	FRT = (power - strafe - turn) * scalar;
+// 	FRB = (power - strafe - turn) * scalar;
+// 	BLT = (power - strafe + turn) * scalar;
+// 	BLB = (power - strafe + turn) * scalar;
+// 	BRT = (power + strafe - turn) * scalar;
+// 	BRB = (power + strafe - turn) * scalar;
+// }
 void Robot::mecanum(int power, int strafe, int turn) {
 
 	int powers[] {
@@ -111,17 +144,15 @@ void Robot::mecanum(int power, int strafe, int turn) {
 
 	double true_max = double(std::max(max, min));
 	double scalar = (true_max > 127) ? 127 / true_max : 1;
+	scalar = 1;
 	
-	FLT = 0*(power + strafe + turn) * scalar;
-	FLB = 0*(power + strafe + turn) * scalar;
 
-	FRT = (power - strafe - turn) * scalar;
-	FRB = (power - strafe - turn) * scalar;
-	BLT = (power - strafe + turn) * scalar;
-	BLB = (power - strafe + turn) * scalar;
-	BRT = (power + strafe - turn) * scalar;
-	BRB = (power + strafe - turn) * scalar;
+	FL = (power + strafe + turn) * scalar;
+	FR = (power - strafe - turn) * scalar;
+	BL = (power - strafe + turn) * scalar;
+	BR = (power + strafe - turn) * scalar;
 }
+
 
 void Robot::start_task(std::string name, void (*func)(void *)) {
 	if (!task_exists(name)) {
@@ -156,7 +187,7 @@ void Robot::fps(void *ptr) {
         turn_offset_x = (float)turn_offset_x + cur_turn_offset_x;
         turn_offset_y = (float)turn_offset_y + cur_turn_offset_y;
 
-        double cur_y = ((LE.get_value() - turn_offset_y) + (RE.get_value() + turn_offset_y)) / 2;
+        double cur_y = ((LE.get_value() - turn_offset_y) - (RE.get_value() + turn_offset_y)) / -2;
         double cur_x = BE.get_value() - turn_offset_x;
 
         double dy = cur_y - last_y;
@@ -191,29 +222,37 @@ void Robot::brake(std::string mode)
 
 	if (mode.compare("coast") == 0)
 	{
-		FLT.set_brake_mode(E_MOTOR_BRAKE_COAST);
-		FLB.set_brake_mode(E_MOTOR_BRAKE_COAST);
-		FRT.set_brake_mode(E_MOTOR_BRAKE_COAST);
-        FRB.set_brake_mode(E_MOTOR_BRAKE_COAST);
-		BLT.set_brake_mode(E_MOTOR_BRAKE_COAST);
-        BLB.set_brake_mode(E_MOTOR_BRAKE_COAST);
-		BRT.set_brake_mode(E_MOTOR_BRAKE_COAST);
-        BRB.set_brake_mode(E_MOTOR_BRAKE_COAST);
+		//FLT.set_brake_mode(E_MOTOR_BRAKE_COAST);
+		//FLB.set_brake_mode(E_MOTOR_BRAKE_COAST);
+		//FRT.set_brake_mode(E_MOTOR_BRAKE_COAST);
+        //FRB.set_brake_mode(E_MOTOR_BRAKE_COAST);
+		//BLT.set_brake_mode(E_MOTOR_BRAKE_COAST);
+        //BLB.set_brake_mode(E_MOTOR_BRAKE_COAST);
+		//BRT.set_brake_mode(E_MOTOR_BRAKE_COAST);
+        //BRB.set_brake_mode(E_MOTOR_BRAKE_COAST);
+		FR.set_brake_mode(E_MOTOR_BRAKE_COAST);
+		FL.set_brake_mode(E_MOTOR_BRAKE_COAST);
+		BL.set_brake_mode(E_MOTOR_BRAKE_COAST);
+		BR.set_brake_mode(E_MOTOR_BRAKE_COAST);
 	}
 	else if (mode.compare("hold") == 0)
 	{
-		FLT.set_brake_mode(E_MOTOR_BRAKE_HOLD);
-        FLB.set_brake_mode(E_MOTOR_BRAKE_HOLD);
-		FRT.set_brake_mode(E_MOTOR_BRAKE_HOLD);
-        FRB.set_brake_mode(E_MOTOR_BRAKE_HOLD);
-		BLT.set_brake_mode(E_MOTOR_BRAKE_HOLD);
-        BLB.set_brake_mode(E_MOTOR_BRAKE_HOLD);
-		BRT.set_brake_mode(E_MOTOR_BRAKE_HOLD);
-        BRB.set_brake_mode(E_MOTOR_BRAKE_HOLD);
+		// FLT.set_brake_mode(E_MOTOR_BRAKE_HOLD);
+        // FLB.set_brake_mode(E_MOTOR_BRAKE_HOLD);
+		// FRT.set_brake_mode(E_MOTOR_BRAKE_HOLD);
+        // FRB.set_brake_mode(E_MOTOR_BRAKE_HOLD);
+		// BLT.set_brake_mode(E_MOTOR_BRAKE_HOLD);
+        // BLB.set_brake_mode(E_MOTOR_BRAKE_HOLD);
+		// BRT.set_brake_mode(E_MOTOR_BRAKE_HOLD);
+        // BRB.set_brake_mode(E_MOTOR_BRAKE_HOLD);
+        FL.set_brake_mode(E_MOTOR_BRAKE_HOLD);
+        FR.set_brake_mode(E_MOTOR_BRAKE_HOLD);
+        BL.set_brake_mode(E_MOTOR_BRAKE_HOLD);
+        BR.set_brake_mode(E_MOTOR_BRAKE_HOLD);
 	}
-	else FLT = FLB = FRB  =FRB = BLT = BLB = BRT = BRB = 0;
+	else FL = FR = BL = BR = 0;
 }
-void Robot::move_to(std::vector<double> pose, std::vector<double> speeds, double stop_threshold) 
+void Robot::move_to(std::vector<double> pose) 
 {
     double new_y = pose[0];
     double new_x = pose[1];
@@ -245,16 +284,14 @@ void Robot::move_to(std::vector<double> pose, std::vector<double> speeds, double
         double sum = 0;
         for (int i = 0; i < motion.size(); i++) sum += motion[i];
         double motion_average = sum / 10;
-        lcd::print(7, "%d %f", int(motion_average < stop_threshold), motion_average);
-        if (motion_average < stop_threshold && time > 100) break;
 
         last_x = x;
         last_y = y;
 
         double phi = (IMU.get_rotation()) * pi / 180;
-        double power = power_PD.get_value(y_error * std::cos(phi) + x_error * std::sin(phi)) * speeds[0];
-        double strafe = strafe_PD.get_value(x_error * std::cos(phi) - y_error * std::sin(phi)) * speeds[1];
-        double turn = turn_PD.get_value(imu_error) * speeds[2];
+        double power = power_PD.get_value(y_error * std::cos(phi) + x_error * std::sin(phi));
+        double strafe = strafe_PD.get_value(x_error * std::cos(phi) - y_error * std::sin(phi));
+        double turn = turn_PD.get_value(imu_error);
         mecanum(power, strafe, turn);
         /* Using our PD objects we use the error on each of our degrees of freedom (axial, lateral, and turning movement)
         to obtain speeds to input into Robot::mecanum. We perform a rotation matrix calculation to translate our y and x
@@ -268,14 +305,10 @@ void Robot::move_to(std::vector<double> pose, std::vector<double> speeds, double
 
         delay(5);
         time += 5;
-
-
     }
     reset_PD();
     lcd::print(6, "DONE %d", counter_global);
     counter_global ++;
-    brake("stop");
-    //lcd::print(6, "DONE");
     brake("stop");
 }
 

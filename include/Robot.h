@@ -1,9 +1,12 @@
+#ifndef _Robot
+#define _Robot
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 #include <deque>
 #include "system/json.hpp"
+#include "PD.h"
 #include <atomic>
 using namespace pros;
 
@@ -18,7 +21,12 @@ class Robot{
 		static Motor FRB;
 		static Motor BLB;
 		static Motor BRB;
-		static Motor roller;
+		static Motor FR;
+		static Motor FL;
+		static Motor BR;
+		static Motor BL;
+
+		// static Motor roller;
 		static Imu IMU;
 		static ADIEncoder LE;
 		static ADIEncoder RE;
@@ -47,7 +55,9 @@ class Robot{
 		static bool task_exists(std::string name);
 		static void kill_task(std::string name);
 
+		static void mecanumT(int power, int strafe, int turn);
 		static void brake(std::string mode);
 		static void fps(void *ptr);
-		static void move_to(std::vector<double> pose, std::vector<double> speeds, double stop_threshold = 30);
+		static void move_to(std::vector<double> pose);
 };
+#endif
