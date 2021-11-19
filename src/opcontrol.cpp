@@ -15,6 +15,7 @@ void opcontrol() {
 	Robot::IMU.reset();
 	delay(3000);
 	Robot::start_task("FPS", Robot::fps);
+	Robot::start_task("MOVETO", Robot::move_to);
 	// delay(1000);
 	// lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "Config not found!");
 

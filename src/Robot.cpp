@@ -44,13 +44,16 @@ PD Robot::turn_PD(1.2, 1, 0);
 
 std::atomic<double> Robot::y = 0;
 std::atomic<double> Robot::x = 0;
+std::atomic<double> Robot::new_x = 0;
+std::atomic<double> Robot::new_y = 0;
+std::atomic<double> Robot::heading = 0;
 std::atomic<double> Robot::turn_offset_x = 0;
 std::atomic<double> Robot::turn_offset_y = 0;
 
 double Robot::offset_back = 2.875;
 double Robot::offset_middle = 5.0;
-double Robot::wheel_circumference = 2.75 * 3.1415926;
 double pi = 3.141592653589793238;
+double Robot::wheel_circumference = 2.75 * pi;
 
 int counter_global = 0;
 
@@ -59,20 +62,20 @@ void Robot::print(nlohmann::json msg) {
     string msgS = msg.dump();
 	//lcd::print(1, "Received %s %f", msg.dump(), (float)x);
 	std::size_t found = msgS.find(",");
-	double angle = std::stod(msgS.substr(1,found-1));
-	double depth = std::stod(msgS.substr(found+1,msgS.size()-found-1));
+	double depth = std::stod(msgS.substr(1,found-1));
+	double angle = std::stod(msgS.substr(found+1,msgS.size()-found-1));
 	//lcd::print(5, "Degree %s", msgS.substr(1,found-1), (float)x);
 	//lcd::print(6, "Depth %s", msgS.substr(found+1,msgS.size()-found-2), (float)x);
-	double mogo_x = x + depth*(sin(angle * pi / 180));
-	double mogo_y = y + depth*(cos(angle * pi / 180));
+	double new_x_ = (float)x + depth*(sin(angle * pi / 180))*.25*100*360/2.75/pi;
+	double new_y_ = (float)y + depth*(cos(angle * pi / 180))*.25*100*360/2.75/pi;
+    double heading_ = IMU.get_rotation() + angle;
 	//lcd::print(5, "depth %s", to_string(depth));
 	//lcd::print(6, "angle %s", to_string(angle));
 	//lcd::print(5, "Mogo_x %s", to_string(mogo_x), (float)x);
 	//lcd::print(6, "Mogo_y %s", to_string(mogo_y), (float)x);
-    std::vector<double> pos = {mogo_x, mogo_y+10, 0};
-    lcd::print(5, "DONE %d", mogo_x);
-    lcd::print(6, "DONE %d", mogo_y);
-    move_to(pos);
+    lcd::print(5, "X: %f", (float)new_x_);
+    lcd::print(6, "Y: %f", (float)new_y_);
+    lcd::print(7, "Heading: %f", (float)heading_);
 	//mec_wrapper(0, 0, turn/10);
 }
 
@@ -252,11 +255,8 @@ void Robot::brake(std::string mode)
 	}
 	else FL = FR = BL = BR = 0;
 }
-void Robot::move_to(std::vector<double> pose) 
+void Robot::move_to(void *ptr) 
 {
-    double new_y = pose[0];
-    double new_x = pose[1];
-    double heading = pose[2];
 
 
     std::deque<double> motion;
@@ -276,7 +276,7 @@ void Robot::move_to(std::vector<double> pose)
     example, moving to -358 deg would require almost a full 360 degree turn from 1 degree, but from its equivalent of -359
     deg, it only takes a minor shift in position */
 
-    while (abs(y_error) > 10 || abs(x_error) > 10 || abs(imu_error) > 1)
+    while (true)
     { /* while Robot::y, Robot::x and IMU heading are all more than the specified margin away from the target */
 
         if ((int)motion.size() == 10) motion.pop_front();
@@ -306,10 +306,6 @@ void Robot::move_to(std::vector<double> pose)
         delay(5);
         time += 5;
     }
-    reset_PD();
-    lcd::print(6, "DONE %d", counter_global);
-    counter_global ++;
-    brake("stop");
 }
 
 
