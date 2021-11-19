@@ -37,6 +37,9 @@ class Robot{
 		
 		static std::atomic<double> x;
 		static std::atomic<double> y;
+		static std::atomic<double> new_x;
+		static std::atomic<double> new_y;
+		static std::atomic<double> heading;
 		static std::atomic<double> turn_offset_x;
 		static std::atomic<double> turn_offset_y;
 
@@ -58,6 +61,6 @@ class Robot{
 		static void mecanumT(int power, int strafe, int turn);
 		static void brake(std::string mode);
 		static void fps(void *ptr);
-		static void move_to(std::vector<double> pose);
+		static void move_to(void *ptr);
 };
 #endif
