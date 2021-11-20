@@ -58,15 +58,13 @@ double Robot::wheel_circumference = 2.75 * pi;
 int counter_global = 0;
 
 
-void Robot::print(nlohmann::json msg) {
-    x = (float)x + 1;
+void Robot::receive(nlohmann::json msg) {
+
     string msgS = msg.dump();
-    //lcd::print(1, "Received %s %f", msg.dump(), (float)x);
     std::size_t found = msgS.find(",");
+
     double depth = std::stod(msgS.substr(1,found-1));
-
     double angle = std::stod(msgS.substr(found+1,msgS.size()-found-1));
-
     heading = (IMU.get_rotation() - angle);
 
     if (abs(angle) < 5){
@@ -74,13 +72,8 @@ void Robot::print(nlohmann::json msg) {
         new_y = (float)new_y + change * cos(IMU.get_rotation()*pi/180);
         new_x = (float)new_x + change * cos(IMU.get_rotation()*pi/180);
     }
-    //lcd::print(5, "depth %s", to_string(depth));
-    //lcd::print(6, "angle %s", to_string(angle));
-    //lcd::print(5, "Mogo_x %s", to_string(mogo_x), (float)x);
-    //lcd::print(6, "Mogo_y %s", to_string(mogo_y), (float)x);
     lcd::print(5, "X: %f Y: %f", (float)new_x, (float)new_y);
     lcd::print(6, "Heading: %f Angle: %f", (float)heading, (float)angle);
-    //mec_wrapper(0, 0, turn/10);
 }
 
 void Robot::reset_PD() {
@@ -263,16 +256,8 @@ void Robot::move_to(void *ptr)
 {
 
 
-    std::deque<double> motion;
-
     double y_error = new_y - y;
     double x_error = -(new_x - x);
-    int coefficient = 0;
-    double last_x = x;
-    double last_y = y;
-    std::string powered = "intakes";
-
-    int time = 0;
 
     double heading2 = (heading < 0) ? heading + 360 : heading - 360;
     double imu_error = -(IMU.get_rotation() - heading);
@@ -282,15 +267,6 @@ void Robot::move_to(void *ptr)
 
     while (true)
     { /* while Robot::y, Robot::x and IMU heading are all more than the specified margin away from the target */
-
-        if ((int)motion.size() == 10) motion.pop_front();
-        motion.push_back(abs(last_x - x) + abs(last_y - y));
-        double sum = 0;
-        for (int i = 0; i < motion.size(); i++) sum += motion[i];
-        double motion_average = sum / 10;
-
-        last_x = x;
-        last_y = y;
 
         double phi = (IMU.get_rotation()) * pi / 180;
         double power = power_PD.get_value(y_error * std::cos(phi) + x_error * std::sin(phi));
@@ -310,7 +286,6 @@ void Robot::move_to(void *ptr)
         /* Recalculating our error by subtracting components of our current position vector from target position vector */
 
         delay(5);
-        time += 5;
     }
 }
 

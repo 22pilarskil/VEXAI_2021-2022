@@ -52,7 +52,7 @@ class Robot{
 		static void reset_PD();
 		static void mecanum(int power, int strafe, int turn);
 		static void drive(void *ptr);
-		static void print(nlohmann::json msg);
+		static void receive(nlohmann::json msg);
 
 		static void start_task(std::string name, void (*func)(void *));
 		static bool task_exists(std::string name);

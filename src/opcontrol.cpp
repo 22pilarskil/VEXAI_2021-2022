@@ -8,7 +8,7 @@ using namespace pros;
 void opcontrol() {
 	lcd::initialize();
 	serial_initialize();
-	lib7405x::Serial::Instance()->onReceive("header", Robot::print);
+	lib7405x::Serial::Instance()->onReceive("header", Robot::receive);
 	delay(100);
 	serial_initialize();
 	// Robot::start_task("DRIVE", Robot::drive);
