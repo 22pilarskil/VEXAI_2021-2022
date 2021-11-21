@@ -54,7 +54,12 @@ double Robot::offset_middle = 5.0;
 double pi = 3.141592653589793238;
 double Robot::wheel_circumference = 2.75 * pi;
 
-int counter_global = 0;
+
+
+double angle_threshold = 5;
+double depth_threshold1 = 200;
+double depth_threshold2 = 50;
+double depth_coefficient = 0.2;
 
 
 void Robot::receive(nlohmann::json msg) {
@@ -64,30 +69,28 @@ void Robot::receive(nlohmann::json msg) {
 
     double lidar_depth = std::stod(msgS.substr(1, found - 1));
     double angle = std::stod(msgS.substr(found + 1, msgS.size() - found - 1));
-    double depth = dist.get();
+    double phi = IMU.get_rotation() * pi / 180;
+    double depth;
+
     heading = (IMU.get_rotation() - angle);
+    bool movement_over = false;
 
-    if (abs(angle) < 5){
-    	double phi = IMU.get_rotation() * pi / 180;
-        double change = depth / 5;
-        new_y = (float)new_y + change * cos(phi);
-        new_x = (float)new_x - change * sin(phi);
-        if (depth < 200){
-        	lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "header#stop");
-        	int counter = 0;
-        	while (depth > 50){
-        		depth = dist.get();
-        		double phi = IMU.get_rotation() * pi / 180;
-		        double change = depth / 5;
-		        new_y = (float)new_y + change * cos(phi);
-		        new_x = (float)new_x - change * sin(phi);
-		        counter++;
-		        lcd::print(7, "%d", counter);
-		        delay(5);
-        	}
-        	lcd::print(7, "DONE");
+    if (abs(angle) < angle_threshold){
+    	do {
+    		depth = dist.get();
+	        double change = depth * depth_coefficient;
+	        new_y = (float)new_y + change * cos(phi);
+	        new_x = (float)new_x - change * sin(phi);
+	        if (depth < depth_threshold1 && !movement_over){
+	        	lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "header#stop");
+	        	movement_over = true;
+	        }
+	    } while (depth < depth_threshold1 && depth > depth_threshold2);
+    }
 
-        }
+    if (movement_over){
+    	new_y = (float)y;
+    	new_x = (float)x;
     }
     lcd::print(5, "X: %f Y: %f", (float)new_x, (float)new_y);
     lcd::print(6, "Heading: %f Angle: %f", (float)heading, (float)angle);
@@ -200,9 +203,6 @@ void Robot::fps(void *ptr) {
 
         double cur_turn_offset_x = 360 * (offset_back * dphi) / wheel_circumference;
         double cur_turn_offset_y = 360 * (offset_middle * dphi) / wheel_circumference;
-        /* Calculate how much the encoders have turned as a result of turning ONLY in order to
-        isolate readings representing lateral or axial movement from readings representing
-        turning in place */
 
         turn_offset_x = turn_offset_x + cur_turn_offset_x;
         turn_offset_y = turn_offset_y + cur_turn_offset_y;
@@ -215,9 +215,6 @@ void Robot::fps(void *ptr) {
 
         double global_dy = dy * std::cos(cur_phi) + dx * std::sin(cur_phi);
         double global_dx = dx * std::cos(cur_phi) - dy * std::sin(cur_phi);
-        /* Apply rotation matrix to dx and dy to calculate global_dy and global_dx. Is required because if the Robot moves
-        on an orientation that is not a multiple of 90 (i.e. 22 degrees), x and y encoder values do not correspond
-        exclusively to either x or y movement, but rather a little bit of both */
 
         y = (float)y + global_dy;
         x = (float)x + global_dx;
@@ -232,9 +229,6 @@ void Robot::fps(void *ptr) {
         last_phi = cur_phi;
 
         delay(5);
-        /* All of these calculations assume that the Robot is moving in a straight line at all times. However, while this
-        is not always the case, a delay of 5 milliseconds between each calculation makes dx and dy (distance traveled on
-        x and y axes) so small that any curvature is insignificant. */
     }
 }
 void Robot::brake(std::string mode)
@@ -274,19 +268,14 @@ void Robot::brake(std::string mode)
 }
 void Robot::move_to(void *ptr) 
 {
-
-
     double y_error = new_y - y;
     double x_error = new_x - x;
 
     double heading2 = (heading < 0) ? heading + 360 : heading - 360;
     double imu_error = -(IMU.get_rotation() - heading);
-    /* Calculate inverse headings (i.e. 1 deg = -359 deg), then find which heading is closer to current heading. For
-    example, moving to -358 deg would require almost a full 360 degree turn from 1 degree, but from its equivalent of -359
-    deg, it only takes a minor shift in position */
 
     while (true)
-    { /* while Robot::y, Robot::x and IMU heading are all more than the specified margin away from the target */
+    { 
 
         double phi = (IMU.get_rotation()) * pi / 180;
         double power = power_PD.get_value(y_error * std::cos(phi) + x_error * std::sin(phi));
@@ -294,15 +283,10 @@ void Robot::move_to(void *ptr)
         double turn = turn_PD.get_value(imu_error);
         turn = (abs(turn) < 15) ? turn : abs(turn)/turn * 15;
         mecanum(power, strafe, turn);
-        /* Using our PD objects we use the error on each of our degrees of freedom (axial, lateral, and turning movement)
-        to obtain speeds to input into Robot::mecanum. We perform a rotation matrix calculation to translate our y and x
-        error to the same coordinate plane as Robot::y and Robot::x to ensure that the errors we are using are indeed
-        proportional/compatible with Robot::y and Robot::x */
 
         imu_error = -(IMU.get_rotation() - heading);
         y_error = new_y - y;
         x_error = -(new_x - x);
-        /* Recalculating our error by subtracting components of our current position vector from target position vector */
 
         delay(5);
     }
