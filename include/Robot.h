@@ -34,14 +34,13 @@ class Robot{
 		static PD power_PD;
 		static PD strafe_PD;
 		static PD turn_PD;
+		static Distance dist;
 		
 		static std::atomic<double> x;
 		static std::atomic<double> y;
 		static std::atomic<double> new_x;
 		static std::atomic<double> new_y;
 		static std::atomic<double> heading;
-		static std::atomic<double> turn_offset_x;
-		static std::atomic<double> turn_offset_y;
 
 		static double offset_back;
 		static double offset_middle;

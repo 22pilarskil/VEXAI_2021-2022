@@ -8,7 +8,6 @@ using namespace pros;
 void opcontrol() {
 	lcd::initialize();
 	serial_initialize();
-	lib7405x::Serial::Instance()->onReceive("header", Robot::receive);
 	delay(100);
 	serial_initialize();
 	// Robot::start_task("DRIVE", Robot::drive);
@@ -16,8 +15,8 @@ void opcontrol() {
 	delay(3000);
 	Robot::start_task("FPS", Robot::fps);
 	Robot::start_task("MOVETO", Robot::move_to);
+	lib7405x::Serial::Instance()->onReceive("header", Robot::receive);
 	// delay(1000);
-	// lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "Config not found!");
 
 
 

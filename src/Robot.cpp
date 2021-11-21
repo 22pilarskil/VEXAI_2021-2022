@@ -41,14 +41,13 @@ ADIEncoder Robot::BE(7, 8);
 PD Robot::power_PD(.32, 5, 0);
 PD Robot::strafe_PD(.17, .3, 0);
 PD Robot::turn_PD(2.4, 1, 0);
+Distance Robot::dist(9);
 
 std::atomic<double> Robot::y = 0;
 std::atomic<double> Robot::x = 0;
 std::atomic<double> Robot::new_x = 0;
 std::atomic<double> Robot::new_y = 0;
 std::atomic<double> Robot::heading = 0;
-std::atomic<double> Robot::turn_offset_x = 0;
-std::atomic<double> Robot::turn_offset_y = 0;
 
 double Robot::offset_back = 2.875;
 double Robot::offset_middle = 5.0;
@@ -63,14 +62,32 @@ void Robot::receive(nlohmann::json msg) {
     string msgS = msg.dump();
     std::size_t found = msgS.find(",");
 
-    double depth = std::stod(msgS.substr(1,found-1));
-    double angle = std::stod(msgS.substr(found+1,msgS.size()-found-1));
+    double lidar_depth = std::stod(msgS.substr(1, found - 1));
+    double angle = std::stod(msgS.substr(found + 1, msgS.size() - found - 1));
+    double depth = dist.get();
     heading = (IMU.get_rotation() - angle);
 
     if (abs(angle) < 5){
-        double change = ((depth/500 * 10 > 50) ? depth/500 * 10 : 50);
-        new_y = (float)new_y + change * cos(IMU.get_rotation()*pi/180);
-        new_x = (float)new_x + change * cos(IMU.get_rotation()*pi/180);
+    	double phi = IMU.get_rotation() * pi / 180;
+        double change = depth / 5;
+        new_y = (float)new_y + change * cos(phi);
+        new_x = (float)new_x - change * sin(phi);
+        if (depth < 200){
+        	lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "header#stop");
+        	int counter = 0;
+        	while (depth > 50){
+        		depth = dist.get();
+        		double phi = IMU.get_rotation() * pi / 180;
+		        double change = depth / 5;
+		        new_y = (float)new_y + change * cos(phi);
+		        new_x = (float)new_x - change * sin(phi);
+		        counter++;
+		        lcd::print(7, "%d", counter);
+		        delay(5);
+        	}
+        	lcd::print(7, "DONE");
+
+        }
     }
     lcd::print(5, "X: %f Y: %f", (float)new_x, (float)new_y);
     lcd::print(6, "Heading: %f Angle: %f", (float)heading, (float)angle);
@@ -174,8 +191,11 @@ void Robot::fps(void *ptr) {
     double last_x = 0;
     double last_y = 0;
     double last_phi = 0;
+    double turn_offset_y = 0;
+    double turn_offset_x = 0;
+
     while (true) {
-        double cur_phi = IMU.get_rotation() * 3.1415926 / 180;
+        double cur_phi = IMU.get_rotation() * pi / 180;
         double dphi = cur_phi - last_phi;
 
         double cur_turn_offset_x = 360 * (offset_back * dphi) / wheel_circumference;
@@ -184,8 +204,8 @@ void Robot::fps(void *ptr) {
         isolate readings representing lateral or axial movement from readings representing
         turning in place */
 
-        turn_offset_x = (float)turn_offset_x + cur_turn_offset_x;
-        turn_offset_y = (float)turn_offset_y + cur_turn_offset_y;
+        turn_offset_x = turn_offset_x + cur_turn_offset_x;
+        turn_offset_y = turn_offset_y + cur_turn_offset_y;
 
         double cur_y = ((LE.get_value() - turn_offset_y) - (RE.get_value() + turn_offset_y)) / -2;
         double cur_x = BE.get_value() - turn_offset_x;
@@ -203,10 +223,10 @@ void Robot::fps(void *ptr) {
         x = (float)x + global_dx;
 
         lcd::print(1,"Y: %f - X: %f", (float)y, (float)x, IMU.get_rotation());
-        
         lcd::print(2, "IMU value: %f", IMU.get_heading());
         lcd::print(3, "LE: %d RE: %d", LE.get_value(), RE.get_value());
         lcd::print(4, "BE: %d", BE.get_value());
+
         last_y = cur_y;
         last_x = cur_x;
         last_phi = cur_phi;
@@ -257,7 +277,7 @@ void Robot::move_to(void *ptr)
 
 
     double y_error = new_y - y;
-    double x_error = -(new_x - x);
+    double x_error = new_x - x;
 
     double heading2 = (heading < 0) ? heading + 360 : heading - 360;
     double imu_error = -(IMU.get_rotation() - heading);
@@ -280,7 +300,6 @@ void Robot::move_to(void *ptr)
         proportional/compatible with Robot::y and Robot::x */
 
         imu_error = -(IMU.get_rotation() - heading);
-        lcd::print(7, "IMU error: %f", (float)imu_error);
         y_error = new_y - y;
         x_error = -(new_x - x);
         /* Recalculating our error by subtracting components of our current position vector from target position vector */
