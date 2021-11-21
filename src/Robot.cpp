@@ -69,7 +69,7 @@ void Robot::receive(nlohmann::json msg) {
 
     double lidar_depth = std::stod(msgS.substr(1, found - 1));
     double angle = std::stod(msgS.substr(found + 1, msgS.size() - found - 1));
-    double phi = IMU.get_rotation() * pi / 180;
+    double phi = IMU.get_rotation() * pi / 180; //should this be IMU.get_rotation() or heading?
     double depth;
 
     heading = (IMU.get_rotation() - angle);
