@@ -8,11 +8,12 @@ from utils.general import non_max_suppression, scale_coords
 from utils.plots import Annotator, colors
 import time
 import colorsys
-PATH = "best.pt"
+PATH = "/home/vexai/VEXAI_2021-2022/yolo/best.pt"
 do_depth_ring = False
+from serial_test import Coms
 
 
-def return_data(mogos, find="all", colors=[-1,0,1]):
+def return_data(mogos, find="all", colors=[-1,0,1], close_thresh=200):
     # Takes in data in the order: [det:[x,y,x,y,dist,color (-1 = red, 0 = yellow, 1 = blue)], det[], .., det[]]
     if find=="all":
         if not colors == [-1,0,1]:
@@ -21,6 +22,23 @@ def return_data(mogos, find="all", colors=[-1,0,1]):
                     del mogos[i]
         return mogos
     if find=="close":
+        mogos[mogos != mogos] = 0 #set all nans to 0
+        det_0 = mogos[mogos[:,4] == 0] #all zeros
+        det_no0 = mogos[mogos[:,4] != 0] #all non-zeros
+
+        if int(det_0.shape[0])>0:  #if there are zeros, find max width bounding box
+            close_0 = det_0[torch.argmax((det_0[:,2] - det_0[:,0]), dim=0)]
+            if close_0[2]-close_0[0] > close_thresh:
+                return close_0
+            else:
+                if(det_no0.shape[0]>0):
+                    return det_no0[torch.argmin(det_no0[:,4], dim=0)]
+                else:
+                    return close_0            
+        else:
+            return det_no0[torch.argmin(det_no0[:,4], dim=0)]
+
+
         mogos.sort(key=lambda x:x[4])
         for mogo in mogos:
             if mogo[5] in colors:
@@ -45,16 +63,30 @@ def determine_color(det):
         return 0
     elif (hsv[0]>=0 and hsv[0]<20) or (hsv[0]>=320 and hsv[0]<=360):
         return -1
-    return 3
+    return 2
+    
 
 def determine_depth(det, do_depth_ring=False):
-    depth = []
-    for x in range(6):
-        for y in range(3):
-            depth.append(depth_frame.get_distance(int(det[0] + (float(det[2] - det[0]) * (float(x+3) / 10))),int(det[1] + (float(det[3] - det[1]) * (float(y+2) / 10)))))
-    depth = np.array(depth)
-    depth = depth[depth>0]
-    return np.mean(depth)
+    if not do_depth_ring and not det[5] == 2:
+        d = depth_image[int(det[1] + (float(det[3] - det[1]) * (2 / 10))):int(det[1] + (float(det[3] - det[1]) * (4.0 / 10))), int(det[0] + (float(det[2] - det[0]) * (4.0 / 10))):int(det[0] + (float(det[2] - det[0]) * (6.0 / 10)))]
+        d = d[d>0]
+        return np.mean(d)
+    elif do_depth_ring:
+        d = depth_image[int(det[1] + (float(det[3] - det[1]) * (2 / 10))):int(det[1] + (float(det[3] - det[1]) * (4.0 / 10))), int(det[0] + (float(det[2] - det[0]) * (4.0 / 10))):int(det[0] + (float(det[2] - det[0]) * (6.0 / 10)))]
+        return np.mean(d)
+    return -1
+
+def degree(det):
+    pixel_degree = 0.109375
+    center = 320
+    diff = center - (det[2] + det[0]) / 2
+    angle = diff*pixel_degree
+    return angle
+
+def mindepth(pred):
+    return np.argmin(pred[:,4], axis=0)
+           
+    
         
 model = attempt_load(PATH)
 device = torch.device("cuda" if torch.cuda.is_available() else 'cpu')
@@ -81,7 +113,7 @@ else:
 # Start streaming
 pipeline.start(config)
 
-
+comm = Coms()
 try:
     while True:
         start = time.time()
@@ -94,10 +126,18 @@ try:
             continue
 
         # Convert images to numpy arrays
+        depth_image = np.asanyarray(depth_frame.get_data())
         color_image = np.asanyarray(color_frame.get_data())
 
+        # Apply colormap on depth image (image must be converted to 8-bit per pixel first)
+        depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET)
+
+        depth_colormap_dim = depth_colormap.shape
+        color_colormap_dim = color_image.shape
+
         # If depth and color resolutions are different, resize color image to match depth image for display
-        color_image = cv2.resize(color_image, dsize=(640, 480), interpolation=cv2.INTER_AREA)
+        if depth_colormap_dim != color_colormap_dim:
+            color_image = cv2.resize(color_image, dsize=(depth_colormap_dim[1], depth_colormap_dim[0]), interpolation=cv2.INTER_AREA)
 
         color_image_t = torch.cuda.FloatTensor(color_image)
         color_image_t = torch.moveaxis(color_image_t, 2, 0)[None] / 255.0
@@ -105,19 +145,39 @@ try:
         pred = model(color_image_t)[0]
         conf_thres = .3
         pred = non_max_suppression(pred, conf_thres)
+
+        color_image0, depth_colormap0 = color_image, depth_colormap
         pred = pred[0]
+        
         # tensor([[det1],[det2]])
-        pred[:,:4] = scale_coords(color_image_t.shape[2:], pred[:, :4], color_image.shape).round()
+        color_annotator = Annotator(color_image0, line_width=2, pil=not ascii)
+        depth_annotator = Annotator(depth_colormap0, line_width=2, pil=not ascii)
+        pred[:,:4] = scale_coords(color_image_t.shape[2:], pred[:, :4], color_image0.shape).round()
+        color = []
+        depth = []
 
         for i, det in enumerate(pred):
             if(det[5] == 0): # COLOR
                 pred[i, 5] = determine_color(det)
             else:
-                pred[i, 5] = 2
-            pred[i, 4] = determine_depth(det, do_depth_ring=do_depth_ring)
+                pred[i, 5] = 3
+            pred[i, 4] = determine_depth(det, do_depth_ring=do_depth_ring) * depth_frame.get_units()
 
-      
-        print(return_data(pred))
-        print(time.time()-start)
+        names = ["red-mogo","yellow-mogo", "blue-mogo", "unknown_color", "ring"]
+        if int(pred.shape[0])>0:
+            det = return_data(pred, find="close", colors=[-1,0,1])
+            
+            if len(det)>0:
+                turn_angle = degree(det)
+                if not turn_angle == None:
+                    comm.send("header", [float(det[4]), float(turn_angle)])
+                else:
+                    comm.send("header", [0,0])
+            else:
+                comm.send("header", [0,0])
+        else:
+            comm.send("header", [0,0])
+
 finally:
+
     pipeline.stop()

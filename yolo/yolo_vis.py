@@ -9,9 +9,14 @@ from utils.general import non_max_suppression, scale_coords
 from utils.plots import Annotator, colors
 import time
 import colorsys
-PATH = "best.pt"
+PATH = "/home/vexai/VEXAI_2021-2022/yolo/best.pt"
 do_depth_ring = False
 from serial_test import Coms
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--display", metavar="display", type=int, default=1)
+args = parser.parse_args()
 
 
 def return_data(mogos, find="all", colors=[-1,0,1], close_thresh=200):
@@ -78,13 +83,12 @@ def determine_depth(det, do_depth_ring=False):
         return np.mean(d)
     return -1
 
-def degree_test(det):
+def degree(det):
     pixel_degree = 0.109375
     center = 320
     diff = center - (det[2] + det[0]) / 2
     angle = diff*pixel_degree
-    print("AIF", angle)
-    print("DIF ", diff)
+    return angle
 
 def mindepth(pred):
     return np.argmin(pred[:,4], axis=0)
@@ -115,8 +119,14 @@ else:
 
 # Start streaming
 pipeline.start(config)
-
-comm = Coms()
+while True:
+    try:
+        comm = Coms()
+    except: 
+        continue
+    else:
+        break
+    
 try:
     while True:
         start = time.time()
@@ -177,29 +187,48 @@ try:
                 
                 color_annotator.box_label(det[:4], f'{names[int(det[5])+1]} {det[4]:.2f}', color=colors(det[5], True))
                 depth_annotator.box_label(det[:4], f'{names[int(det[5])+1]} {det[4]:.2f}', color=colors(det[5], True))
-                print((float((det[0] + det[2]) / 2) - 320) / 320)
-                comm.send("header", (float((det[0] + det[2]) / 2) - 320) / 320)
+             
+                turn_angle = degree(det)
+                print("Turn angle {}".format(turn_angle))
+                print("Depth {}".format(det[4]))
+                if not turn_angle == None:
+                    try:
+                        comm.send("header", [float(det[4]), float(turn_angle)])
+                    except:
+                        while True:
+                            try:
+                                print("resetting")
+                                comm.send("header", [float(det[4]), float(turn_angle)])
+                            except: 
+                                continue
+                            else:
+                                break
+    
+                else:
+                    comm.send("header", [0,0])
             else:
-                comm.send("header", 0)
+                comm.send("header", [0,0])
         else:
-            comm.send("header", 0)
+            comm.send("header", [0,0])
         try:
-            print(comm.read())
+            length = comm.read()
+            print("reading comm {}".format(length))
+            if (length > 1): 
+                while (comm.read() == 1):
+                     print("waiting")
         except:
             print("no data")
         color_image = color_annotator.result()
         depth_colormap = depth_annotator.result()
         
         images = np.hstack((color_image, depth_colormap))
-
-        cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
-        cv2.imshow('RealSense', images)
-        print(return_data(pred))
-        if len(pred) > 0:
-            degree_test(pred[0])
+        if args.display:
+            cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
+            cv2.imshow('RealSense', images)
         print(time.time()-start)
         cv2.waitKey(1)
 
 finally:
 
     pipeline.stop()
+
