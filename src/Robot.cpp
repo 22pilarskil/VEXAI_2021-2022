@@ -32,16 +32,15 @@ Motor Robot::FL(8);
 Motor Robot::BR(3, true);
 Motor Robot::BL(10);
 
-
-
 Imu Robot::IMU(15);
 ADIEncoder Robot::LE(5, 6);
 ADIEncoder Robot::RE(3, 4);
 ADIEncoder Robot::BE(7, 8);
+Distance Robot::dist(9);
+
 PD Robot::power_PD(.32, 5, 0);
 PD Robot::strafe_PD(.17, .3, 0);
 PD Robot::turn_PD(2.4, 1, 0);
-Distance Robot::dist(9);
 
 std::atomic<double> Robot::y = 0;
 std::atomic<double> Robot::x = 0;
@@ -54,16 +53,16 @@ double Robot::offset_middle = 5.0;
 double pi = 3.141592653589793238;
 double Robot::wheel_circumference = 2.75 * pi;
 
-
-
 double angle_threshold = 5;
 double depth_threshold1 = 200;
 double depth_threshold2 = 50;
-double depth_coefficient = 0.2;
+double depth_coefficient1 = .2;
+double depth_coefficient2 = .02;
 
 
 void Robot::receive(nlohmann::json msg) {
 
+	double depth_coefficient = depth_coefficient1;
     string msgS = msg.dump();
     std::size_t found = msgS.find(",");
 
@@ -82,15 +81,18 @@ void Robot::receive(nlohmann::json msg) {
 	        new_y = (float)new_y + change * cos(phi);
 	        new_x = (float)new_x - change * sin(phi);
 	        if (depth < depth_threshold1 && !movement_over){
-	        	lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "header#stop");
+	        	lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#stop#");
 	        	movement_over = true;
 	        }
+	        delay(5);
+	        depth_coefficient = depth_coefficient2;
 	    } while (depth < depth_threshold1 && depth > depth_threshold2);
     }
 
     if (movement_over){
     	new_y = (float)y;
     	new_x = (float)x;
+    	lcd::print(7, "MOGO REACHED");
     }
     lcd::print(5, "X: %f Y: %f", (float)new_x, (float)new_y);
     lcd::print(6, "Heading: %f Angle: %f", (float)heading, (float)angle);
@@ -164,7 +166,7 @@ void Robot::mecanum(int power, int strafe, int turn) {
 
     double true_max = double(std::max(max, min));
     double scalar = (true_max > 127) ? 127 / true_max : 1;
-    scalar = 1;
+    scalar = 1; //try removing this line
     
 
     FL = (power + strafe + turn) * scalar;
@@ -220,7 +222,7 @@ void Robot::fps(void *ptr) {
         x = (float)x + global_dx;
 
         lcd::print(1,"Y: %f - X: %f", (float)y, (float)x, IMU.get_rotation());
-        lcd::print(2, "IMU value: %f", IMU.get_heading());
+        lcd::print(2, "IMU value: %f", IM   U.get_heading());
         lcd::print(3, "LE: %d RE: %d", LE.get_value(), RE.get_value());
         lcd::print(4, "BE: %d", BE.get_value());
 
