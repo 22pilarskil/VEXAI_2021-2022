@@ -9,9 +9,9 @@ from utils.general import non_max_suppression, scale_coords
 from utils.plots import Annotator, colors
 import time
 import colorsys
-PATH = "/home/vexai/VEXAI_2021-2022/yolo/best.pt"
+PATH = "/home/vexai/VEXAI_2021-2022/python/yolo/best.pt"
 do_depth_ring = False
-from serial_test import Coms
+
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -119,14 +119,14 @@ else:
 
 # Start streaming
 pipeline.start(config)
-while True:
-    try:
-        comm = Coms()
-    except: 
-        continue
-    else:
-        break
-    
+
+comm = None
+try:
+    from serial_test import Coms
+    comm = Coms()
+except:
+    pass
+
 try:
     while True:
         start = time.time()
@@ -179,6 +179,7 @@ try:
 
         names = ["red-mogo","yellow-mogo", "blue-mogo", "unknown_color", "ring"]
         print(pred.shape)
+  
         if int(pred.shape[0])>0:
             print(pred)
             det = return_data(pred, find="close", colors=[-1,0,1])
@@ -195,14 +196,15 @@ try:
                     try:
                         comm.send("header", [float(det[4]), float(turn_angle)])
                     except:
-                        while True:
-                            try:
-                                print("resetting")
-                                comm.send("header", [float(det[4]), float(turn_angle)])
-                            except: 
-                                continue
-                            else:
-                                break
+                        try:
+                            print("Attempting reconnect")
+                            from serial_test import Coms
+                            comm = Coms()
+                            comm.send("header", [float(det[4]), float(turn_angle)])
+                            print("here")
+                        except Exception as e:
+                            print(e)
+                            continue
     
                 else:
                     comm.send("header", [0,0])
@@ -210,23 +212,25 @@ try:
                 comm.send("header", [0,0])
         else:
             comm.send("header", [0,0])
+
         try:
             length = comm.read()
             print("reading comm {}".format(length))
             if (length > 1): 
-                while (comm.read() == 1):
-                     print("waiting")
+               print(comm.read())
+               while (comm.read() == 1): # TODO: This is stupid! We really shouldn't be stopping our camera when we hit a mogo, that's just silly. Maybe we do this in an actual match when the mogo obscures the camera, but for testing it really just causes the robot to die randomly.
+                 print("waiting")
         except:
             print("no data")
-        color_image = color_annotator.result()
-        depth_colormap = depth_annotator.result()
+    color_image = color_annotator.result()
+    depth_colormap = depth_annotator.result()
         
-        images = np.hstack((color_image, depth_colormap))
-        if args.display:
-            cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
-            cv2.imshow('RealSense', images)
-        print(time.time()-start)
-        cv2.waitKey(1)
+    images = np.hstack((color_image, depth_colormap))
+    if args.display:
+        cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
+        cv2.imshow('RealSense', images)
+    print(time.time()-start)
+    cv2.waitKey(1)
 
 finally:
 
