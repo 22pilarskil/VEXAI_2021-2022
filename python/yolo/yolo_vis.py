@@ -8,7 +8,9 @@ from utils.experimental import attempt_load
 from utils.general import non_max_suppression, scale_coords
 from utils.plots import Annotator, colors
 from utils.serial_test import Coms
+from utils.data import return_data, determine_color, determine_depth, degree
 import time
+import os
 
 PATH = os.getcwd() + "/models/best.pt"
 do_depth_ring = False
@@ -45,9 +47,9 @@ else:
 # Start streaming
 pipeline.start(config)
 
-comm = None
+comm = Coms()
 try:
-    comm = Coms()
+    comm.open()
 except:
     pass
 
@@ -102,28 +104,29 @@ try:
 
         data = [0, 0]
   
-        if int(pred.shape[0])>0:
-            det = return_data(pred, find="close", colors=[-1,0,1])
+        if int(pred.shape[0]) > 0:
+            det = return_data(pred, find="close", colors=[-1, 0, 1])
 
-            if len(det)>0:
+            if len(det) > 0:
                 
                 if args.display:
-                    color_annotator.box_label(det[:4], f'{names[int(det[5])+1]} {det[4]:.2f}', color=colors(det[5], True))
-                    depth_annotator.box_label(det[:4], f'{names[int(det[5])+1]} {det[4]:.2f}', color=colors(det[5], True))
+                    color_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(det[5], True))
+                    depth_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(det[5], True))
              
                 turn_angle = degree(det)
-                print("Turn angle {}, Depth {}".format(turn_angle, det[4]))
                 if not turn_angle == None:
                     data = [float(det[4]), float(turn_angle)]
         
         try:
+            print("Depth: {}, Turn angle: {}".format(data[0], data[1]))
             comm.send("header", data)
             if (comm.read("stop")): 
-               while (not comm.read("continue")): 
-                 print("waiting")
+                print("Awaiting \"continue\" signal")
+                while (not comm.read("continue")): 
+                    pass
         except:
             try:
-                comm = Coms()
+                comm.open()
             except Exception as e:
                 print(e)
 
@@ -134,10 +137,9 @@ try:
         cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
         cv2.imshow('RealSense', images)
 
-    print(time.time()-start)
+    print("Time elapsed: {}".format(time.time() - start))
     cv2.waitKey(1)
 
 finally:
-
     pipeline.stop()
 
