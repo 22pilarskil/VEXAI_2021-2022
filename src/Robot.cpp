@@ -31,11 +31,15 @@ Motor Robot::FR(17, true);
 Motor Robot::FL(8);
 Motor Robot::BR(3, true);
 Motor Robot::BL(10);
+Motor Robot::angler(17);
+Motor Robot::conveyor(18);
 
 Imu Robot::IMU(15);
 ADIEncoder Robot::LE(5, 6);
 ADIEncoder Robot::RE(3, 4);
 ADIEncoder Robot::BE(7, 8);
+ADIDigitalOut Robot::piston(2);
+ADIAnalogIn Robot::potentiometer(1);
 Distance Robot::dist(9);
 
 PD Robot::power_PD(.32, 5, 0);
@@ -109,20 +113,28 @@ void Robot::drive(void *ptr) {
         int power = master.get_analog(ANALOG_LEFT_Y);
         int strafe = master.get_analog(ANALOG_LEFT_X);
         int turn = master.get_analog(ANALOG_RIGHT_X);
-        bool pressed = master.get_digital(DIGITAL_R1);
-        bool pressed2 = master.get_digital(DIGITAL_R2);
-        /*
-        if (pressed){
-            roller=100;
-        }
-        else if(pressed2){
-            roller = -100;
-        }
-        else{
-            roller = 0;
-        }
-        */
-        mecanum(power, strafe, turn);
+
+        bool angler_forward = master.get_digital(DIGITAL_L1);
+        bool angler_backward = master.get_digital(DIGITAL_L2);
+
+        bool piston_open = master.get_digital(DIGITAL_A);
+        bool piston_close = master.get_digital(DIGITAL_B);
+
+        bool conveyor_forward = master.get_digital(DIGITAL_R1);
+        bool conveyor_backward = master.get_digital(DIGITAL_R2);
+
+        if (angler_forward) angler = 50;
+        else if (angler_backward) angler = -50;
+        else angler = 0;
+
+        if (piston_open) piston.set_value(true);
+        else if (piston_close) piston.set_value(false);
+        
+        if (conveyor_forward) conveyor = 100;
+        else if (conveyor_backward) conveyor = -100;
+        else conveyor = 0;
+        
+        //mecanum(power, strafe, turn);
         delay(5);
     }
 }
@@ -222,9 +234,10 @@ void Robot::fps(void *ptr) {
         x = (float)x + global_dx;
 
         lcd::print(1,"Y: %f - X: %f", (float)y, (float)x, IMU.get_rotation());
-        lcd::print(2, "IMU value: %f", IM   U.get_heading());
-        lcd::print(3, "LE: %d RE: %d", LE.get_value(), RE.get_value());
-        lcd::print(4, "BE: %d", BE.get_value());
+        // lcd::print(2, "IMU value: %f", IMU.get_heading());
+        // lcd::print(3, "LE: %d RE: %d", LE.get_value(), RE.get_value());
+        // lcd::print(4, "BE: %d", BE.get_value());
+        lcd::print(2, "Potentiometer: %d", potentiometer.get_value());
 
         last_y = cur_y;
         last_x = cur_x;
@@ -270,25 +283,20 @@ void Robot::brake(std::string mode)
 }
 void Robot::move_to(void *ptr) 
 {
-    double y_error = new_y - y;
-    double x_error = new_x - x;
-
-    double heading2 = (heading < 0) ? heading + 360 : heading - 360;
-    double imu_error = -(IMU.get_rotation() - heading);
-
     while (true)
     { 
+
+        double imu_error = -(IMU.get_rotation() - heading);
+        double y_error = new_y - y;
+        double x_error = -(new_x - x);
 
         double phi = (IMU.get_rotation()) * pi / 180;
         double power = power_PD.get_value(y_error * std::cos(phi) + x_error * std::sin(phi));
         double strafe = strafe_PD.get_value(x_error * std::cos(phi) - y_error * std::sin(phi));
         double turn = turn_PD.get_value(imu_error);
         turn = (abs(turn) < 15) ? turn : abs(turn)/turn * 15;
-        mecanum(power, strafe, turn);
 
-        imu_error = -(IMU.get_rotation() - heading);
-        y_error = new_y - y;
-        x_error = -(new_x - x);
+        mecanum(power, strafe, turn);
 
         delay(5);
     }

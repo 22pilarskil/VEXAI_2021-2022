@@ -25,6 +25,8 @@ class Robot{
 		static Motor FL;
 		static Motor BR;
 		static Motor BL;
+		static Motor angler;
+		static Motor conveyor;
 
 		// static Motor roller;
 		static Imu IMU;
@@ -35,6 +37,8 @@ class Robot{
 		static PD strafe_PD;
 		static PD turn_PD;
 		static Distance dist;
+		static ADIDigitalOut piston;
+		static ADIAnalogIn potentiometer;
 		
 		static std::atomic<double> x;
 		static std::atomic<double> y;
