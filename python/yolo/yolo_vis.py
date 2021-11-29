@@ -95,10 +95,10 @@ try:
 
         for i, det in enumerate(pred):
             if(det[5] == 0): # COLOR
-                pred[i, 5] = determine_color(det)
+                pred[i, 5] = determine_color(det, color_image)
             else:
                 pred[i, 5] = 3
-            pred[i, 4] = determine_depth(det, do_depth_ring=do_depth_ring) * depth_frame.get_units()
+            pred[i, 4] = determine_depth(det, depth_image, do_depth_ring=do_depth_ring) * depth_frame.get_units()
 
         names = ["red-mogo","yellow-mogo", "blue-mogo", "unknown_color", "ring"]
 
