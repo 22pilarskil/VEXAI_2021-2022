@@ -35,3 +35,9 @@ def switch_cameras(pipeline, oconfig, camera, target_camera=''):
     except:
         pipeline.start(oconfig)
         return -1
+
+def start_camera(device_number):
+    pipeline = rs.pipeline()
+    config = initialize_config(pipeline, device_number)
+    pipeline.start(config)
+    return [pipeline, config]
