@@ -1,5 +1,6 @@
 import colorsys
 import numpy as np
+import torch
 
 
 def return_data(mogos, find="all", colors=[-1, 0, 1], close_thresh=200):
@@ -43,7 +44,7 @@ def convert_rgb_to_hsv(r, g, b):
     color_hsv = (color_h, color_s, color_v)
     return color_hsv
 
-def determine_color(det):
+def determine_color(det, color_image):
     bgr = color_image[int(det[1] + (float(det[3] - det[1]) * (2 / 10))):int(det[1] + (float(det[3] - det[1]) * (4.0 / 10))), int(det[0] + (float(det[2] - det[0]) * (4.0 / 10))):int(det[0] + (float(det[2] - det[0]) * (6.0 / 10)))]
     bgr = np.mean(bgr, axis=(0,1))
     hsv = convert_rgb_to_hsv(bgr[2],bgr[1],bgr[0])
@@ -56,7 +57,7 @@ def determine_color(det):
     return 2
     
 
-def determine_depth(det, do_depth_ring=False):
+def determine_depth(det, depth_image, do_depth_ring=False):
     if not do_depth_ring and not det[5] == 2:
         d = depth_image[int(det[1] + (float(det[3] - det[1]) * (2 / 10))):int(det[1] + (float(det[3] - det[1]) * (4.0 / 10))), int(det[0] + (float(det[2] - det[0]) * (4.0 / 10))):int(det[0] + (float(det[2] - det[0]) * (6.0 / 10)))]
         d = d[d > 0]

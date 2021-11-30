@@ -27,6 +27,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else 'cpu')
 model.to(device)
 names = model.module.names if hasattr(model, 'module') else model.names
 
+camera = 'd435'
 # Configure depth and color streams
 pipeline = rs.pipeline()
 config = rs.config()
@@ -98,7 +99,7 @@ try:
                 pred[i, 5] = determine_color(det, color_image)
             else:
                 pred[i, 5] = 3
-            pred[i, 4] = determine_depth(det, depth_image, do_depth_ring=do_depth_ring) * depth_frame.get_units()
+            pred[i, 4] = determine_depth(det, depth_image) * depth_frame.get_units()
 
         names = ["red-mogo","yellow-mogo", "blue-mogo", "unknown_color", "ring"]
 
@@ -119,9 +120,10 @@ try:
         
         try:
             print("Depth: {}, Turn angle: {}".format(data[0], data[1]))
-            comm.send("header", data)
+            comm.send("mogo", data)
             if (comm.read("stop")): 
                 print("Awaiting \"continue\" signal")
+                camera = switch_cameras(pipeline, config, camera)
                 while (not comm.read("continue")): 
                     pass
         except:

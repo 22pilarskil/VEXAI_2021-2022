@@ -23,6 +23,7 @@ class Coms:
     
     def read(self, signal):
         msg = self.ser.readline().decode('ascii').strip('\n').strip('\r').split("#")
+        print(msg)
         if signal in msg: return True
         return False
 
