@@ -8,6 +8,7 @@ from utils.general import non_max_suppression, scale_coords
 from utils.plots import Annotator, colors
 from utils.serial_test import Coms
 from utils.data import return_data, determine_color, determine_depth, degree
+from utils.camera import switch_cameras, initialize_config
 import time
 import os, sys
 
@@ -27,45 +28,16 @@ model.to(device)
 names = model.module.names if hasattr(model, 'module') else model.names
 
 # Configure depth and color streams
-pipeline_l515 = rs.pipeline()
-pipeline_d435 = rs.pipeline()
 
-config_l515 = rs.config()
-config_l515.enable_device('f1181409')
+pipeline = rs.pipeline()
 
-config_d435 = rs.config()
-config_d435.enable_device('048522072643')
-
-# Get device product line for setting a supporting resolution
-pipeline_wrapper_l515 = rs.pipeline_wrapper(pipeline_l515)
-pipeline_wrapper_d435 = rs.pipeline_wrapper(pipeline_d435)
-pipeline_profile_l515 = config_l515.resolve(pipeline_wrapper_l515)
-pipeline_profile_d435 = config_d435.resolve(pipeline_wrapper_d435)
-device_l515 = pipeline_profile_l515.get_device()
-device_d435 = pipeline_profile_d435.get_device()
-device_product_line_l515 = str(device_l515.get_info(rs.camera_info.product_line))
-device_product_line_d435 = str(device_d435.get_info(rs.camera_info.product_line))
-
-config_l515.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
-config_d435.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
-
-if device_product_line_l515 == 'L500':
-    config_l515.enable_stream(rs.stream.color, 960, 540, rs.format.bgr8, 30)
-else:
-    config_l515.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
-
-
-if device_product_line_d435 == 'L500':
-    config_d435.enable_stream(rs.stream.color, 960, 540, rs.format.bgr8, 30)
-else:
-    config_d435.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+config = initialize_config(pipeline, 'f1181409')
+camera = 'l515'
 
 # Start streaming
-pipeline_l515.start(config_l515)
-pipeline_d435.start(config_d435)
+pipeline.start(config)
 
 try:
-    pipeline = pipeline_l515
     cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
     switch = time.time()
     while True:
@@ -85,12 +57,13 @@ try:
 
         if time.time()-switch >= 10:
             print("switching")
-            if pipeline == pipeline_d435:
+            camera = switch_cameras(pipeline, config, camera)
+            if camera == 'l515':
                 print("switched to l515")
-                pipeline = pipeline_l515
-            elif pipeline == pipeline_l515:
+            if camera == 'd435':
                 print("switched to d435")
-                pipeline = pipeline_d435
+            if camera == -1:
+                print("failed to switch. Falling back...")
             switch = time.time()
 
 finally:
