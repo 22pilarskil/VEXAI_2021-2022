@@ -18,19 +18,15 @@ using namespace std;
 std::map<std::string, std::unique_ptr<pros::Task>> Robot::tasks;
 
 Controller Robot::master(E_CONTROLLER_MASTER);
-// Motor Robot::FLT(2, true); //front left top
-// Motor Robot::FLB(1); //front left bottom
-// Motor Robot::FRT(9); //front right top
-// Motor Robot::FRB(10, true); //front right bottom
-// Motor Robot::BRT(20, true); //back right top
-// Motor Robot::BRB(19); //back right bottom
-// Motor Robot::BLT(11); //back left top
-// Motor Robot::BLB(12, true); //back left bottom
-// Motor Robot::roller(18); //mechanism for ascending rings
-Motor Robot::FR(17, true);
-Motor Robot::FL(8);
-Motor Robot::BR(3, true);
-Motor Robot::BL(10);
+Motor Robot::FLT(2, true); //front left top
+Motor Robot::FLB(1); //front left bottom
+Motor Robot::FRT(9); //front right top
+Motor Robot::FRB(10, true); //front right bottom
+Motor Robot::BRT(20, true); //back right top
+Motor Robot::BRB(19); //back right bottom
+Motor Robot::BLT(11); //back left top
+Motor Robot::BLB(12, true); //back left bottom
+
 Motor Robot::angler(17);
 Motor Robot::conveyor(18);
 
@@ -64,9 +60,9 @@ double depth_coefficient1 = .2;
 double depth_coefficient2 = .02;
 
 
-void Robot::receive(nlohmann::json msg) {
+void Robot::receive_mogo(nlohmann::json msg) {
 
-	double depth_coefficient = depth_coefficient1;
+    double depth_coefficient = depth_coefficient1;
     string msgS = msg.dump();
     std::size_t found = msgS.find(",");
 
@@ -79,24 +75,24 @@ void Robot::receive(nlohmann::json msg) {
     bool movement_over = false;
 
     if (abs(angle) < angle_threshold){
-    	do {
-    		depth = dist.get();
-	        double change = depth * depth_coefficient;
-	        new_y = (float)new_y + change * cos(phi);
-	        new_x = (float)new_x - change * sin(phi);
-	        if (depth < depth_threshold1 && !movement_over){
-	        	lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#stop#");
-	        	movement_over = true;
-	        }
-	        delay(5);
-	        depth_coefficient = depth_coefficient2;
-	    } while (depth < depth_threshold1 && depth > depth_threshold2);
+        do {
+            depth = dist.get();
+            double change = depth * depth_coefficient;
+            new_y = (float)new_y + change * cos(phi);
+            new_x = (float)new_x - change * sin(phi);
+            if (depth < depth_threshold1 && !movement_over){
+                lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#stop#");
+                movement_over = true;
+            }
+            delay(5);
+            depth_coefficient = depth_coefficient2;
+        } while (depth < depth_threshold1 && depth > depth_threshold2);
     }
 
     if (movement_over){
-    	new_y = (float)y;
-    	new_x = (float)x;
-    	lcd::print(7, "MOGO REACHED");
+        new_y = (float)y;
+        new_x = (float)x;
+        lcd::print(7, "MOGO REACHED");
     }
     lcd::print(5, "X: %f Y: %f", (float)new_x, (float)new_y);
     lcd::print(6, "Heading: %f Angle: %f", (float)heading, (float)angle);
@@ -110,6 +106,7 @@ void Robot::reset_PD() {
 
 void Robot::drive(void *ptr) {
     while (true) {
+        lcd::print(1,"Potentiometer %d", potentiometer.get_value());
         int power = master.get_analog(ANALOG_LEFT_Y);
         int strafe = master.get_analog(ANALOG_LEFT_X);
         int turn = master.get_analog(ANALOG_RIGHT_X);
@@ -119,12 +116,22 @@ void Robot::drive(void *ptr) {
 
         bool piston_open = master.get_digital(DIGITAL_A);
         bool piston_close = master.get_digital(DIGITAL_B);
-
+ 
         bool conveyor_forward = master.get_digital(DIGITAL_R1);
         bool conveyor_backward = master.get_digital(DIGITAL_R2);
 
-        if (angler_forward) angler = 50;
-        else if (angler_backward) angler = -50;
+        if (angler_forward){
+            while(potentiometer.get_value()<3710){
+                angler = 50;
+            }   
+            angler = 0;
+        } 
+        else if (angler_backward){
+            while(potentiometer.get_value()>2330){
+                angler = -50;
+            }
+            angler = 0;
+        } 
         else angler = 0;
 
         if (piston_open) piston.set_value(true);
@@ -134,57 +141,35 @@ void Robot::drive(void *ptr) {
         else if (conveyor_backward) conveyor = -100;
         else conveyor = 0;
         
-        //mecanum(power, strafe, turn);
+        mecanum(power, strafe, turn);
         delay(5);
     }
 }
 
-// void Robot::mecanum(int power, int strafe, int turn) {
-
-//  int powers[] {
-//      power + strafe + turn,
-//      power - strafe - turn,
-//      power - strafe + turn, 
-//      power + strafe - turn
-//  };
-
-//  int max = *max_element(powers, powers + 4);
-//  int min = abs(*min_element(powers, powers + 4));
-
-//  double true_max = double(std::max(max, min));
-//  double scalar = (true_max > 127) ? 127 / true_max : 1;
-    
-//  FLT = 0*(power + strafe + turn) * scalar;
-//  FLB = 0*(power + strafe + turn) * scalar;
-
-//  FRT = (power - strafe - turn) * scalar;
-//  FRB = (power - strafe - turn) * scalar;
-//  BLT = (power - strafe + turn) * scalar;
-//  BLB = (power - strafe + turn) * scalar;
-//  BRT = (power + strafe - turn) * scalar;
-//  BRB = (power + strafe - turn) * scalar;
-// }
 void Robot::mecanum(int power, int strafe, int turn) {
 
-    int powers[] {
-        power + strafe + turn,
-        power - strafe - turn,
-        power - strafe + turn, 
-        power + strafe - turn
-    };
+ int powers[] {
+     power + strafe + turn,
+     power - strafe - turn,
+     power - strafe + turn, 
+     power + strafe - turn
+ };
 
-    int max = *max_element(powers, powers + 4);
-    int min = abs(*min_element(powers, powers + 4));
+ int max = *max_element(powers, powers + 4);
+ int min = abs(*min_element(powers, powers + 4));
 
-    double true_max = double(std::max(max, min));
-    double scalar = (true_max > 127) ? 127 / true_max : 1;
-    scalar = 1; //try removing this line
+ double true_max = double(std::max(max, min));
+ double scalar = (true_max > 127) ? 127 / true_max : 1;
     
+ FLT = 0*(power + strafe + turn) * scalar;
+ FLB = 0*(power + strafe + turn) * scalar;
 
-    FL = (power + strafe + turn) * scalar;
-    FR = (power - strafe - turn) * scalar;
-    BL = (power - strafe + turn) * scalar;
-    BR = (power + strafe - turn) * scalar;
+ FRT = (power - strafe - turn) * scalar;
+ FRB = (power - strafe - turn) * scalar;
+ BLT = (power - strafe + turn) * scalar;
+ BLB = (power - strafe + turn) * scalar;
+ BRT = (power + strafe - turn) * scalar;
+ BRB = (power + strafe - turn) * scalar;
 }
 
 
@@ -233,11 +218,11 @@ void Robot::fps(void *ptr) {
         y = (float)y + global_dy;
         x = (float)x + global_dx;
 
-        lcd::print(1,"Y: %f - X: %f", (float)y, (float)x, IMU.get_rotation());
+        //lcd::print(1,"Y: %f - X: %f", (float)y, (float)x, IMU.get_rotation());
         // lcd::print(2, "IMU value: %f", IMU.get_heading());
         // lcd::print(3, "LE: %d RE: %d", LE.get_value(), RE.get_value());
         // lcd::print(4, "BE: %d", BE.get_value());
-        lcd::print(2, "Potentiometer: %d", potentiometer.get_value());
+        //lcd::print(2, "Potentiometer: %d", potentiometer.get_value());
 
         last_y = cur_y;
         last_x = cur_x;
@@ -251,35 +236,29 @@ void Robot::brake(std::string mode)
 
     if (mode.compare("coast") == 0)
     {
-        //FLT.set_brake_mode(E_MOTOR_BRAKE_COAST);
-        //FLB.set_brake_mode(E_MOTOR_BRAKE_COAST);
-        //FRT.set_brake_mode(E_MOTOR_BRAKE_COAST);
-        //FRB.set_brake_mode(E_MOTOR_BRAKE_COAST);
-        //BLT.set_brake_mode(E_MOTOR_BRAKE_COAST);
-        //BLB.set_brake_mode(E_MOTOR_BRAKE_COAST);
-        //BRT.set_brake_mode(E_MOTOR_BRAKE_COAST);
-        //BRB.set_brake_mode(E_MOTOR_BRAKE_COAST);
-        FR.set_brake_mode(E_MOTOR_BRAKE_COAST);
-        FL.set_brake_mode(E_MOTOR_BRAKE_COAST);
-        BL.set_brake_mode(E_MOTOR_BRAKE_COAST);
-        BR.set_brake_mode(E_MOTOR_BRAKE_COAST);
+        FLT.set_brake_mode(E_MOTOR_BRAKE_COAST);
+        FLB.set_brake_mode(E_MOTOR_BRAKE_COAST);
+        FRT.set_brake_mode(E_MOTOR_BRAKE_COAST);
+        FRB.set_brake_mode(E_MOTOR_BRAKE_COAST);
+        BLT.set_brake_mode(E_MOTOR_BRAKE_COAST);
+        BLB.set_brake_mode(E_MOTOR_BRAKE_COAST);
+        BRT.set_brake_mode(E_MOTOR_BRAKE_COAST);
+        BRB.set_brake_mode(E_MOTOR_BRAKE_COAST);
+
     }
     else if (mode.compare("hold") == 0)
     {
-        // FLT.set_brake_mode(E_MOTOR_BRAKE_HOLD);
-        // FLB.set_brake_mode(E_MOTOR_BRAKE_HOLD);
-        // FRT.set_brake_mode(E_MOTOR_BRAKE_HOLD);
-        // FRB.set_brake_mode(E_MOTOR_BRAKE_HOLD);
-        // BLT.set_brake_mode(E_MOTOR_BRAKE_HOLD);
-        // BLB.set_brake_mode(E_MOTOR_BRAKE_HOLD);
-        // BRT.set_brake_mode(E_MOTOR_BRAKE_HOLD);
-        // BRB.set_brake_mode(E_MOTOR_BRAKE_HOLD);
-        FL.set_brake_mode(E_MOTOR_BRAKE_HOLD);
-        FR.set_brake_mode(E_MOTOR_BRAKE_HOLD);
-        BL.set_brake_mode(E_MOTOR_BRAKE_HOLD);
-        BR.set_brake_mode(E_MOTOR_BRAKE_HOLD);
+        FLT.set_brake_mode(E_MOTOR_BRAKE_HOLD);
+        FLB.set_brake_mode(E_MOTOR_BRAKE_HOLD);
+        FRT.set_brake_mode(E_MOTOR_BRAKE_HOLD);
+        FRB.set_brake_mode(E_MOTOR_BRAKE_HOLD);
+        BLT.set_brake_mode(E_MOTOR_BRAKE_HOLD);
+        BLB.set_brake_mode(E_MOTOR_BRAKE_HOLD);
+        BRT.set_brake_mode(E_MOTOR_BRAKE_HOLD);
+        BRB.set_brake_mode(E_MOTOR_BRAKE_HOLD);
+
     }
-    else FL = FR = BL = BR = 0;
+    else FLT = FLB= FRT = FRB= BLT = BLB = BRT = BRB= 0;
 }
 void Robot::move_to(void *ptr) 
 {

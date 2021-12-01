@@ -21,14 +21,10 @@ class Robot{
 		static Motor FRB;
 		static Motor BLB;
 		static Motor BRB;
-		static Motor FR;
-		static Motor FL;
-		static Motor BR;
-		static Motor BL;
+
 		static Motor angler;
 		static Motor conveyor;
 
-		// static Motor roller;
 		static Imu IMU;
 		static ADIEncoder LE;
 		static ADIEncoder RE;
@@ -55,7 +51,7 @@ class Robot{
 		static void reset_PD();
 		static void mecanum(int power, int strafe, int turn);
 		static void drive(void *ptr);
-		static void receive(nlohmann::json msg);
+		static void receive_mogo(nlohmann::json msg);
 
 		static void start_task(std::string name, void (*func)(void *));
 		static bool task_exists(std::string name);
