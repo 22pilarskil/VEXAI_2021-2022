@@ -48,8 +48,8 @@ std::atomic<double> Robot::new_x = 0;
 std::atomic<double> Robot::new_y = 0;
 std::atomic<double> Robot::heading = 0;
 
-double Robot::offset_back = 2.875;
-double Robot::offset_middle = 5.0;
+double Robot::offset_back = 5.75;
+double Robot::offset_middle = 9.0;
 double pi = 3.141592653589793238;
 double Robot::wheel_circumference = 2.75 * pi;
 
