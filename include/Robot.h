@@ -21,6 +21,10 @@ class Robot{
 		static Motor FRB;
 		static Motor BLB;
 		static Motor BRB;
+		static Motor FR;
+		static Motor FL;
+		static Motor BR;
+		static Motor BL;
 
 		static Motor angler;
 		static Motor conveyor;

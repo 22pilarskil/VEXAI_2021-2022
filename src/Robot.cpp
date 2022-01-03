@@ -18,25 +18,8 @@ using namespace std;
 std::map<std::string, std::unique_ptr<pros::Task>> Robot::tasks;
 
 Controller Robot::master(E_CONTROLLER_MASTER);
-Motor Robot::FLT(2, true); //front left top
-Motor Robot::FLB(1); //front left bottom
-Motor Robot::FRT(9); //front right top
-Motor Robot::FRB(10, true); //front right bottom
-Motor Robot::BRT(20, true); //back right top
-Motor Robot::BRB(19); //back right bottom
-Motor Robot::BLT(11); //back left top
-Motor Robot::BLB(12, true); //back left bottom
 
-Motor Robot::angler(17);
-Motor Robot::conveyor(18);
 
-Imu Robot::IMU(15);
-ADIEncoder Robot::LE(5, 6);
-ADIEncoder Robot::RE(3, 4);
-ADIEncoder Robot::BE(7, 8);
-ADIDigitalOut Robot::piston(2);
-ADIAnalogIn Robot::potentiometer(1);
-Distance Robot::dist(9);
 
 PD Robot::power_PD(.32, 5, 0);
 PD Robot::strafe_PD(.17, .3, 0);
@@ -48,8 +31,42 @@ std::atomic<double> Robot::new_x = 0;
 std::atomic<double> Robot::new_y = 0;
 std::atomic<double> Robot::heading = 0;
 
+
+/* 
+//24 inch declarations
 double Robot::offset_back = 5.75;
 double Robot::offset_middle = 9.0;
+Motor Robot::FLT(2, true); //front left top
+Motor Robot::FLB(1); //front left bottom
+Motor Robot::FRT(9); //front right top
+Motor Robot::FRB(10, true); //front right bottom
+Motor Robot::BRT(20, true); //back right top
+Motor Robot::BRB(19); //back right bottom
+Motor Robot::BLT(11); //back left top
+Motor Robot::BLB(12, true); //back left bottom
+*/
+
+ADIAnalogIn Robot::potentiometer(1);
+ADIDigitalOut Robot::piston(2);
+Motor Robot::angler(17);
+Motor Robot::conveyor(18);
+
+
+//test bot declarations
+Imu Robot::IMU(15);
+ADIEncoder Robot::LE(5, 6);
+ADIEncoder Robot::RE(3, 4);
+ADIEncoder Robot::BE(7, 8);
+Distance Robot::dist(9);
+Motor Robot::FR(17, true);
+Motor Robot::FL(8);
+Motor Robot::BR(3, true);
+Motor Robot::BL(10);
+double Robot::offset_back = 2.875;
+double Robot::offset_middle = 5.0;
+
+
+
 double pi = 3.141592653589793238;
 double Robot::wheel_circumference = 2.75 * pi;
 
@@ -120,19 +137,21 @@ void Robot::drive(void *ptr) {
         bool conveyor_forward = master.get_digital(DIGITAL_R1);
         bool conveyor_backward = master.get_digital(DIGITAL_R2);
 
-        if (angler_forward){
-            while(potentiometer.get_value()<3710){
-                angler = 50;
-            }   
-            angler = 0;
-        } 
-        else if (angler_backward){
-            while(potentiometer.get_value()>2330){
-                angler = -50;
-            }
-            angler = 0;
-        } 
-        else angler = 0;
+
+        // tune this
+        // if (angler_forward){
+        //     while(potentiometer.get_value()<3710){
+        //         angler = 50;
+        //     }   
+        //     angler = 0;
+        // } 
+        // else if (angler_backward){
+        //     while(potentiometer.get_value()>2330){
+        //         angler = -50;
+        //     }
+        //     angler = 0;
+        // } 
+        // else angler = 0;
 
         if (piston_open) piston.set_value(true);
         else if (piston_close) piston.set_value(false);
@@ -148,28 +167,32 @@ void Robot::drive(void *ptr) {
 
 void Robot::mecanum(int power, int strafe, int turn) {
 
- int powers[] {
-     power + strafe + turn,
-     power - strafe - turn,
-     power - strafe + turn, 
-     power + strafe - turn
- };
+    int powers[] {
+        power + strafe + turn,
+        power - strafe - turn,
+        power - strafe + turn, 
+        power + strafe - turn
+    };
 
- int max = *max_element(powers, powers + 4);
- int min = abs(*min_element(powers, powers + 4));
+    int max = *max_element(powers, powers + 4);
+    int min = abs(*min_element(powers, powers + 4));
 
- double true_max = double(std::max(max, min));
- double scalar = (true_max > 127) ? 127 / true_max : 1;
-    
- FLT = 0*(power + strafe + turn) * scalar;
- FLB = 0*(power + strafe + turn) * scalar;
+    double true_max = double(std::max(max, min));
+    double scalar = (true_max > 127) ? 127 / true_max : 1;
 
- FRT = (power - strafe - turn) * scalar;
- FRB = (power - strafe - turn) * scalar;
- BLT = (power - strafe + turn) * scalar;
- BLB = (power - strafe + turn) * scalar;
- BRT = (power + strafe - turn) * scalar;
- BRB = (power + strafe - turn) * scalar;
+    // FLT = powers[0] * scalar;
+    // FLB = powers[0] * scalar;
+    // FRT = powers[1] * scalar;
+    // FRB = powers[1] * scalar;
+    // BLT = powers[2] * scalar;
+    // BLB = powers[2] * scalar;
+    // BRT = powers[3] * scalar;
+    // BRB = powers[3] * scalar;
+
+    FL = powers[0] * scalar;
+    FR = powers[1] * scalar;
+    BL = powers[2] * scalar;
+    BR = powers[3] * scalar;
 }
 
 
@@ -218,8 +241,8 @@ void Robot::fps(void *ptr) {
         y = (float)y + global_dy;
         x = (float)x + global_dx;
 
-        //lcd::print(1,"Y: %f - X: %f", (float)y, (float)x, IMU.get_rotation());
-        // lcd::print(2, "IMU value: %f", IMU.get_heading());
+        lcd::print(1,"Y: %f - X: %f", (float)y, (float)x, IMU.get_rotation());
+        lcd::print(2, "IMU value: %f", IMU.get_heading());
         // lcd::print(3, "LE: %d RE: %d", LE.get_value(), RE.get_value());
         // lcd::print(4, "BE: %d", BE.get_value());
         //lcd::print(2, "Potentiometer: %d", potentiometer.get_value());
