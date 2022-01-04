@@ -302,6 +302,35 @@ void Robot::move_to(void *ptr)
 
         delay(5);
     }
+    
+    double string_to_double(std::string boogaloo)
+    {
+	    int decPointIndex = boogaloo.find(".");
+	    std::string wholeNumber = boogaloo.substr(0, decPointIndex);
+	    std::string decimalNumber = boogaloo.substr(decPointIndex + 1, boogaloo.length());
+
+ 	    std::string wholeNumberRev = "";
+    	for (int i = wholeNumber.length()-1; i > -1; i--)
+    	{
+        		wholeNumberRev += wholeNumber[i];
+  	    }
+
+	    wholeNumber = wholeNumberRev;
+
+	    double wholeNumberConv = 0;
+	    for (int i = 0; i < wholeNumber.length(); i++) 
+	    {
+    	    	cout << ((int(wholeNumber[i]) - int('0'))) << endl;
+		        wholeNumberConv += (int(wholeNumber[i]) - int('0')) * (pow(10,i));
+	    }
+	    for (int i = 0; i < decimalNumber.length(); i++) 
+	    {
+    		    cout << ((int(decimalNumber[i]) - int('0'))) << endl;
+		        wholeNumberConv += (int(decimalNumber[0]) - int('0')) * (pow(10.0, (-1 * (i+1))));
+	    }
+
+	    return wholeNumberConv;
+    }
 }
 
 
