@@ -35,7 +35,8 @@ config = rs.config()
 # Get device product line for setting a supporting resolution
 pipeline_wrapper = rs.pipeline_wrapper(pipeline)
 pipeline_profile = config.resolve(pipeline_wrapper)
-device = pipeline_profile.get_device()
+device = pipeline_profile.get_device().first_depth_sensor()
+device.set_option(rs.option.min_distance, 0)
 device_product_line = str(device.get_info(rs.camera_info.product_line))
 
 config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
@@ -132,15 +133,15 @@ try:
             except Exception as e:
                 print(e)
 
-    if args.display:
-        color_image = color_annotator.result()
-        depth_colormap = depth_annotator.result()    
-        images = np.hstack((color_image, depth_colormap))
-        cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
-        cv2.imshow('RealSense', images)
+        if args.display:
+            color_image = color_annotator.result()
+            depth_colormap = depth_annotator.result()    
+            images = np.hstack((color_image, depth_colormap))
+            cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
+            cv2.imshow('RealSense', images)
 
-    print("Time elapsed: {}".format(time.time() - start))
-    cv2.waitKey(1)
+            print("Time elapsed: {}".format(time.time() - start))
+            cv2.waitKey(1)
 
 finally:
     pipeline.stop()
