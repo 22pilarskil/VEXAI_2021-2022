@@ -71,8 +71,8 @@ double pi = 3.141592653589793238;
 double Robot::wheel_circumference = 2.75 * pi;
 
 double angle_threshold = 5;
-double depth_threshold1 = 200;
-double depth_threshold2 = 50;
+double depth_threshold1 = 100;
+double depth_threshold2 = 30;
 double depth_coefficient1 = .2;
 double depth_coefficient2 = .02;
 

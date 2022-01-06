@@ -27,27 +27,14 @@ device = torch.device("cuda" if torch.cuda.is_available() else 'cpu')
 model.to(device)
 names = model.module.names if hasattr(model, 'module') else model.names
 
-camera = 'd435'
+cameras = {
+    'l515_front': 'f1181409',
+    'd435_back': '048522072643',
+    }
 # Configure depth and color streams
+
 pipeline = rs.pipeline()
-config = rs.config()
-
-# Get device product line for setting a supporting resolution
-pipeline_wrapper = rs.pipeline_wrapper(pipeline)
-pipeline_profile = config.resolve(pipeline_wrapper)
-device = pipeline_profile.get_device().first_depth_sensor()
-device.set_option(rs.option.min_distance, 0)
-device_product_line = str(device.get_info(rs.camera_info.product_line))
-
-config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
-
-if device_product_line == 'L500':
-    config.enable_stream(rs.stream.color, 960, 540, rs.format.bgr8, 30)
-else:
-    config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
-
-# Start streaming
-pipeline.start(config)
+initialize_config(pipeline, cameras['l515_front'])
 
 comm = Coms()
 try:
@@ -124,7 +111,7 @@ try:
             comm.send("mogo", data)
             if (comm.read("stop")): 
                 print("Awaiting \"continue\" signal")
-                camera = switch_cameras(pipeline, config, camera)
+                switch_cameras(pipeline, config, cameras['d435_back'])
                 while (not comm.read("continue")): 
                     pass
         except:
