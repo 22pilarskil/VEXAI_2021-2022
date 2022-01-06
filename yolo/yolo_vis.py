@@ -9,6 +9,7 @@ from utils.general import non_max_suppression, scale_coords
 from utils.plots import Annotator, colors
 from utils.serial_test import Coms
 from utils.data import return_data, determine_color, determine_depth, degree
+from utils.camera import initialize_config, switch_cameras
 import time
 import os
 
@@ -110,10 +111,10 @@ try:
             print("Depth: {}, Turn angle: {}".format(data[0], data[1]))
             comm.send("mogo", data)
             if (comm.read("stop")): 
-                print("Awaiting \"continue\" signal")
-                switch_cameras(pipeline, config, cameras['d435_back'])
-                while (not comm.read("continue")): 
-                    pass
+                while not comm.read("continue"):
+                    print("Awaiting \"continue\" signal")
+                switch_cameras(pipeline, config, cameras['l515_front'])
+
         except:
             try:
                 comm.open()
