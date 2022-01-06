@@ -76,6 +76,35 @@ double depth_threshold2 = 50;
 double depth_coefficient1 = .2;
 double depth_coefficient2 = .02;
 
+double string_to_double(std::string boogaloo)
+{
+    int decPointIndex = boogaloo.find(".");
+    std::string wholeNumber = boogaloo.substr(0, decPointIndex);
+    std::string decimalNumber = boogaloo.substr(decPointIndex + 1, boogaloo.length());
+
+    std::string wholeNumberRev = "";
+    for (int i = wholeNumber.length()-1; i > -1; i--)
+    {
+            wholeNumberRev += wholeNumber[i];
+    }
+
+    wholeNumber = wholeNumberRev;
+
+    double wholeNumberConv = 0;
+    for (int i = 0; i < wholeNumber.length(); i++) 
+    {
+            cout << ((int(wholeNumber[i]) - int('0'))) << endl;
+            wholeNumberConv += (int(wholeNumber[i]) - int('0')) * (pow(10,i));
+    }
+    for (int i = 0; i < decimalNumber.length(); i++) 
+    {
+            cout << ((int(decimalNumber[i]) - int('0'))) << endl;
+            wholeNumberConv += (int(decimalNumber[0]) - int('0')) * (pow(10.0, (-1 * (i+1))));
+    }
+
+    return wholeNumberConv;
+}
+
 
 void Robot::receive_mogo(nlohmann::json msg) {
 
@@ -83,9 +112,8 @@ void Robot::receive_mogo(nlohmann::json msg) {
     string msgS = msg.dump();
     std::size_t found = msgS.find(",");
 
-    double lidar_depth = std::stod(msgS.substr(1, found - 1));
+    double lidar_depth = std::stod(msgS.substr(1, found - 1)) * 1000;
     double angle = std::stod(msgS.substr(found + 1, msgS.size() - found - 1));
-    double phi = IMU.get_rotation() * pi / 180; //should this be IMU.get_rotation() or heading?
     double depth;
 
     heading = (IMU.get_rotation() - angle);
@@ -94,9 +122,10 @@ void Robot::receive_mogo(nlohmann::json msg) {
     if (abs(angle) < angle_threshold){
         do {
             depth = dist.get();
-            double change = depth * depth_coefficient;
-            new_y = (float)new_y + change * cos(phi);
-            new_x = (float)new_x - change * sin(phi);
+            if (lidar_depth == 0) lidar_depth = depth;
+            double change = lidar_depth * depth_coefficient;
+            new_y = (float)y + change * cos(heading * pi / 180);
+            new_x = (float)x - change * sin(heading * pi / 180);
             if (depth < depth_threshold1 && !movement_over){
                 lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#stop#");
                 movement_over = true;
@@ -301,35 +330,6 @@ void Robot::move_to(void *ptr)
         mecanum(power, strafe, turn);
 
         delay(5);
-    }
-    
-    double string_to_double(std::string boogaloo)
-    {
-	    int decPointIndex = boogaloo.find(".");
-	    std::string wholeNumber = boogaloo.substr(0, decPointIndex);
-	    std::string decimalNumber = boogaloo.substr(decPointIndex + 1, boogaloo.length());
-
- 	    std::string wholeNumberRev = "";
-    	for (int i = wholeNumber.length()-1; i > -1; i--)
-    	{
-        		wholeNumberRev += wholeNumber[i];
-  	    }
-
-	    wholeNumber = wholeNumberRev;
-
-	    double wholeNumberConv = 0;
-	    for (int i = 0; i < wholeNumber.length(); i++) 
-	    {
-    	    	cout << ((int(wholeNumber[i]) - int('0'))) << endl;
-		        wholeNumberConv += (int(wholeNumber[i]) - int('0')) * (pow(10,i));
-	    }
-	    for (int i = 0; i < decimalNumber.length(); i++) 
-	    {
-    		    cout << ((int(decimalNumber[i]) - int('0'))) << endl;
-		        wholeNumberConv += (int(decimalNumber[0]) - int('0')) * (pow(10.0, (-1 * (i+1))));
-	    }
-
-	    return wholeNumberConv;
     }
 }
 
