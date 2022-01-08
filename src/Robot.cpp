@@ -75,7 +75,9 @@ double depth_threshold1 = 100;
 double depth_threshold2 = 30;
 double depth_coefficient1 = .2;
 double depth_coefficient2 = .02;
-
+const double inches_to_encoder = 41.669;
+const double meters_to_inches = 39.3701;
+int move_offset = 15; 
 double string_to_double(std::string boogaloo)
 {
     int decPointIndex = boogaloo.find(".");
@@ -105,43 +107,32 @@ double string_to_double(std::string boogaloo)
     return wholeNumberConv;
 }
 
-
+bool fflag = true;
 void Robot::receive_mogo(nlohmann::json msg) {
-
-    double depth_coefficient = depth_coefficient1;
     string msgS = msg.dump();
     std::size_t found = msgS.find(",");
 
-    double lidar_depth = std::stod(msgS.substr(1, found - 1)) * 1000;
+    double lidar_depth = std::stod(msgS.substr(1, found - 1));
     double angle = std::stod(msgS.substr(found + 1, msgS.size() - found - 1));
     double depth;
 
     heading = (IMU.get_rotation() - angle);
     bool movement_over = false;
 
-    if (abs(angle) < angle_threshold){
-        do {
-            depth = dist.get();
-            if (lidar_depth == 0) lidar_depth = depth;
-            double change = lidar_depth * depth_coefficient;
-            new_y = (float)y + change * cos(heading * pi / 180);
-            new_x = (float)x - change * sin(heading * pi / 180);
-            if (depth < depth_threshold1 && !movement_over){
-                lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#stop#");
-                movement_over = true;
-            }
-            delay(5);
-            depth_coefficient = depth_coefficient2;
-        } while (depth < depth_threshold1 && depth > depth_threshold2);
-    }
+    if (abs(angle) < angle_threshold && fflag){
+        lidar_depth = (lidar_depth * meters_to_inches - 25) * inches_to_encoder;
+        new_y = y + lidar_depth * cos(angle / 180 * pi);
+        new_x = x + lidar_depth * sin(angle / 180 * pi);
 
-    if (movement_over){
-        new_y = (float)y;
-        new_x = (float)x;
-        lcd::print(7, "MOGO REACHED");
+        lcd::print(5, "Depth: %d", lidar_depth);
+        lcd::print(6, "Angle: %d", angle);
+        lcd::print(5, "X: %f Y: %f", (float)new_y, (float)new_x);
+        lcd::print(6, "Heading: %f Angle: %f", (float)heading, (float)angle);
+        fflag = false;
     }
-    lcd::print(5, "X: %f Y: %f", (float)new_x, (float)new_y);
-    lcd::print(6, "Heading: %f Angle: %f", (float)heading, (float)angle);
+        
+    
+
 }
 
 void Robot::reset_PD() {
@@ -189,13 +180,13 @@ void Robot::drive(void *ptr) {
         else if (conveyor_backward) conveyor = -100;
         else conveyor = 0;
         
-        mecanum(power, strafe, turn);
+        mecanum(power, strafe, turn, 30);
         delay(5);
     }
 }
 
-void Robot::mecanum(int power, int strafe, int turn) {
-
+void Robot::mecanum(int power, int strafe, int turn, int max_power) {
+    // max_power = 127
     int powers[] {
         power + strafe + turn,
         power - strafe - turn,
@@ -207,21 +198,13 @@ void Robot::mecanum(int power, int strafe, int turn) {
     int min = abs(*min_element(powers, powers + 4));
 
     double true_max = double(std::max(max, min));
-    double scalar = (true_max > 127) ? 127 / true_max : 1;
+    double scalar = (true_max > max_power) ? max_power / true_max : 1;
+	
 
-    // FLT = powers[0] * scalar;
-    // FLB = powers[0] * scalar;
-    // FRT = powers[1] * scalar;
-    // FRB = powers[1] * scalar;
-    // BLT = powers[2] * scalar;
-    // BLB = powers[2] * scalar;
-    // BRT = powers[3] * scalar;
-    // BRB = powers[3] * scalar;
-
-    FL = powers[0] * scalar;
-    FR = powers[1] * scalar;
-    BL = powers[2] * scalar;
-    BR = powers[3] * scalar;
+    FL = (power + strafe + turn) * scalar;
+    FR = (power - strafe - turn) * scalar;
+    BL = (power - strafe + turn) * scalar;
+    BR = (power + strafe - turn) * scalar;
 }
 
 
@@ -327,7 +310,7 @@ void Robot::move_to(void *ptr)
         double turn = turn_PD.get_value(imu_error);
         turn = (abs(turn) < 15) ? turn : abs(turn)/turn * 15;
 
-        mecanum(power, strafe, turn);
+        mecanum(power, strafe, turn, 50);
 
         delay(5);
     }

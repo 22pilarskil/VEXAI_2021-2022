@@ -53,7 +53,7 @@ class Robot{
 		static std::map<std::string, std::unique_ptr<pros::Task>> tasks;
 
 		static void reset_PD();
-		static void mecanum(int power, int strafe, int turn);
+		static void mecanum(int power, int strafe, int turn, int max_power);
 		static void drive(void *ptr);
 		static void receive_mogo(nlohmann::json msg);
 
