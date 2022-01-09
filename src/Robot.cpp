@@ -23,7 +23,7 @@ Controller Robot::master(E_CONTROLLER_MASTER);
 
 PD Robot::power_PD(.32, 5, 0);
 PD Robot::strafe_PD(.17, .3, 0);
-PD Robot::turn_PD(2.4, 1, 0);
+PD Robot::turn_PD(10, 1, 0);
 
 std::atomic<double> Robot::y = 0;
 std::atomic<double> Robot::x = 0;
@@ -71,74 +71,43 @@ double pi = 3.141592653589793238;
 double Robot::wheel_circumference = 2.75 * pi;
 
 double angle_threshold = 5;
-double depth_threshold1 = 100;
-double depth_threshold2 = 30;
-double depth_coefficient1 = .2;
-double depth_coefficient2 = .02;
+double depth_threshold = 10;
+double lookahead_distance = 1.1;
+
 const double inches_to_encoder = 41.669;
 const double meters_to_inches = 39.3701;
-int move_offset = 15; 
-double string_to_double(std::string boogaloo)
-{
-    int decPointIndex = boogaloo.find(".");
-    std::string wholeNumber = boogaloo.substr(0, decPointIndex);
-    std::string decimalNumber = boogaloo.substr(decPointIndex + 1, boogaloo.length());
 
-    std::string wholeNumberRev = "";
-    for (int i = wholeNumber.length()-1; i > -1; i--)
-    {
-            wholeNumberRev += wholeNumber[i];
-    }
-
-    wholeNumber = wholeNumberRev;
-
-    double wholeNumberConv = 0;
-    for (int i = 0; i < wholeNumber.length(); i++) 
-    {
-            cout << ((int(wholeNumber[i]) - int('0'))) << endl;
-            wholeNumberConv += (int(wholeNumber[i]) - int('0')) * (pow(10,i));
-    }
-    for (int i = 0; i < decimalNumber.length(); i++) 
-    {
-            cout << ((int(decimalNumber[i]) - int('0'))) << endl;
-            wholeNumberConv += (int(decimalNumber[0]) - int('0')) * (pow(10.0, (-1 * (i+1))));
-    }
-
-    return wholeNumberConv;
-}
-
-bool fflag = true;
 void Robot::receive_mogo(nlohmann::json msg) {
+
+    if (!task_exists("DEPTH")) start_task("DEPTH", Robot::check_depth);
+
     string msgS = msg.dump();
     std::size_t found = msgS.find(",");
 
     double lidar_depth = std::stod(msgS.substr(1, found - 1));
     double angle = std::stod(msgS.substr(found + 1, msgS.size() - found - 1));
-    double depth;
 
     heading = (IMU.get_rotation() - angle);
-    bool movement_over = false;
 
-    if (abs(angle) < angle_threshold && fflag){
-        lidar_depth = (lidar_depth * meters_to_inches - 25) * inches_to_encoder;
-        new_y = y + lidar_depth * cos(angle / 180 * pi);
-        new_x = x + lidar_depth * sin(angle / 180 * pi);
+    if (abs(angle) < angle_threshold){
+        lidar_depth = (lidar_depth * meters_to_inches) * inches_to_encoder;
+        new_y = y + lidar_depth * cos(heading / 180 * pi) * lookahead_distance;
+        new_x = x + lidar_depth * sin(heading / 180 * pi) * lookahead_distance;
 
-        lcd::print(5, "Depth: %d", lidar_depth);
-        lcd::print(6, "Angle: %d", angle);
-        lcd::print(5, "X: %f Y: %f", (float)new_y, (float)new_x);
+        lcd::print(5, "X: %f Y: %f L: %f", (float)new_y, (float)new_x, (float)lidar_depth);
         lcd::print(6, "Heading: %f Angle: %f", (float)heading, (float)angle);
-        fflag = false;
     }
-        
-    
-
 }
 
-void Robot::reset_PD() {
-    power_PD.reset();
-    strafe_PD.reset();
-    turn_PD.reset();
+void Robot::check_depth(void *ptr){
+    while(true){
+        if(dist.get() < depth_threshold){
+            new_x = (float)x;
+            new_y = (float)y;
+            lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#stop#");
+            kill_task("DEPTH");
+        }
+    }
 }
 
 void Robot::drive(void *ptr) {
@@ -255,9 +224,7 @@ void Robot::fps(void *ptr) {
 
         lcd::print(1,"Y: %f - X: %f", (float)y, (float)x, IMU.get_rotation());
         lcd::print(2, "IMU value: %f", IMU.get_heading());
-        // lcd::print(3, "LE: %d RE: %d", LE.get_value(), RE.get_value());
-        // lcd::print(4, "BE: %d", BE.get_value());
-        //lcd::print(2, "Potentiometer: %d", potentiometer.get_value());
+        lcd::print(3, "TASK EXISTS %d", task_exists("DEPTH"));
 
         last_y = cur_y;
         last_x = cur_x;
@@ -314,6 +281,35 @@ void Robot::move_to(void *ptr)
 
         delay(5);
     }
+}
+
+double string_to_double(std::string boogaloo)
+{
+    int decPointIndex = boogaloo.find(".");
+    std::string wholeNumber = boogaloo.substr(0, decPointIndex);
+    std::string decimalNumber = boogaloo.substr(decPointIndex + 1, boogaloo.length());
+
+    std::string wholeNumberRev = "";
+    for (int i = wholeNumber.length()-1; i > -1; i--)
+    {
+            wholeNumberRev += wholeNumber[i];
+    }
+
+    wholeNumber = wholeNumberRev;
+
+    double wholeNumberConv = 0;
+    for (int i = 0; i < wholeNumber.length(); i++) 
+    {
+            cout << ((int(wholeNumber[i]) - int('0'))) << endl;
+            wholeNumberConv += (int(wholeNumber[i]) - int('0')) * (pow(10,i));
+    }
+    for (int i = 0; i < decimalNumber.length(); i++) 
+    {
+            cout << ((int(decimalNumber[i]) - int('0'))) << endl;
+            wholeNumberConv += (int(decimalNumber[0]) - int('0')) * (pow(10.0, (-1 * (i+1))));
+    }
+
+    return wholeNumberConv;
 }
 
 

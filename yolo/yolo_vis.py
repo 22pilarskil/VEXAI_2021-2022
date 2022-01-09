@@ -113,7 +113,7 @@ try:
             if (comm.read("stop")): 
                 while not comm.read("continue"):
                     print("Awaiting \"continue\" signal")
-                switch_cameras(pipeline, config, cameras['l515_front'])
+                #switch_cameras(pipeline, config, cameras['l515_front'])
 
         except:
             try:
