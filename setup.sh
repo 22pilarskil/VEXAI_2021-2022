@@ -47,6 +47,8 @@ sudo apt-get install tensorrt
 sudo apt-get install python3-libnvinfer-dev
 dpkg -l | grep TensorRT
 
+cd /usr/src/tensorrt/samples/trtexec && sudo make
+
 
 #Installing pyrealsense2
 echo "\033[0;96m~/Installing pyrealsense2\033[0m"

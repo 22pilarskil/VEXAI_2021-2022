@@ -10,8 +10,7 @@ from utils.camera import initialize_config, switch_cameras
 import time
 import os
 
-import tensorrt as trt
-import trt.common
+import trt_files.common as common
 import pycuda.driver as cuda
 import pycuda.autoinit
 import torch
@@ -22,9 +21,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--display", metavar="display", type=int, default=1)
 args = parser.parse_args()
     
-TRT_LOGGER = trt.Logger(trt.Logger.VERBOSE)
-trt.init_libnvinfer_plugins(TRT_LOGGER,'')
-DTYPE_TRT = trt.float32
 
 cameras = {
     'l515_front': 'f1181409',
@@ -41,11 +37,16 @@ try:
 except:
     pass
 
-with open("best.trt", "rb") as f, trt.Runtime(TRT_LOGGER) as runtime:
-    engine = runtime.deserialize_cuda_engine(f.read())
+
+import tensorrt as trt
+TRT_LOGGER = trt.Logger(trt.Logger.VERBOSE)
+trt.init_libnvinfer_plugins(TRT_LOGGER,'')
+DTYPE_TRT = trt.float32
+with open("newBest.engine", "rb") as f, trt.Runtime(TRT_LOGGER) as runtime:
+	engine = runtime.deserialize_cuda_engine(f.read())
     
-    with engine.create_execution_context() as context:
-        try:
+	with engine.create_execution_context() as context:
+		try:
 		    while True:
 		        start = time.time()
 
@@ -60,23 +61,21 @@ with open("best.trt", "rb") as f, trt.Runtime(TRT_LOGGER) as runtime:
 		        depth_image = np.asanyarray(depth_frame.get_data())
 		        color_image = np.asanyarray(color_frame.get_data())
 
+		        depth_image = cv2.resize(depth_image, dsize=(640, 640), interpolation=cv2.INTER_AREA)
+		        color_image = cv2.resize(color_image, dsize=(640, 640), interpolation=cv2.INTER_AREA)
+
 		        # Apply colormap on depth image (image must be converted to 8-bit per pixel first)
 		        depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET)
 
 		        depth_colormap_dim = depth_colormap.shape
 		        color_colormap_dim = color_image.shape
 
-		        # If depth and color resolutions are different, resize color image to match depth image for display
-		        if depth_colormap_dim != color_colormap_dim:
-		            color_image = cv2.resize(color_image, dsize=(depth_colormap_dim[1], depth_colormap_dim[0]), interpolation=cv2.INTER_AREA)
-
-		        color_image_t = torch.cuda.FloatTensor(color_image)
-		        color_image_t = torch.moveaxis(color_image_t, 2, 0)[None] / 255.0
+		        color_image_t = np.transpose(color_image, [2, 0, 1])[None] / 255.0
 
 		        #NEW STUFF -----------
-
+		        start = time.time()
 		        inputs, outputs, bindings, stream = common.allocate_buffers(engine)
-		        np.copy_to(inputs[0].host, color_image_t.ravel())
+		        np.copyto(inputs[0].host, color_image_t.ravel())
 
 		        [cuda.memcpy_htod_async(inp.device, inp.host, stream) for inp in inputs]
 		        inference = context.execute_async(batch_size=1, bindings=bindings, stream_handle=stream.handle)
@@ -85,9 +84,8 @@ with open("best.trt", "rb") as f, trt.Runtime(TRT_LOGGER) as runtime:
 		 
 		        
 		        trt_output = [out.host for out in outputs]
-		        print(trt_output[3].shape)
-        		pred = np.reshape(trt_output[3], (1,25200,7))[0]
-
+        		pred = torch.tensor(np.reshape(trt_output[3], (1,25200,7)))
+        		print("TRT time: {}".format(time.time()-start))
         		#NEW STUFF ---------
 
 		        conf_thres = .3
