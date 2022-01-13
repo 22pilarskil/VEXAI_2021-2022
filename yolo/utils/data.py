@@ -2,7 +2,6 @@ import colorsys
 import numpy as np
 import torch
 
-
 def return_data(mogos, find="all", colors=[-1, 0, 1], close_thresh=200):
     # Takes in data in the order: [det:[x,y,x,y,dist,color (-1 = red, 0 = yellow, 1 = blue)], det[], .., det[]]
     if find == "all":
@@ -47,14 +46,17 @@ def convert_rgb_to_hsv(r, g, b):
 def determine_color(det, color_image):
     bgr = color_image[int(det[1] + (float(det[3] - det[1]) * (2 / 10))):int(det[1] + (float(det[3] - det[1]) * (4.0 / 10))), int(det[0] + (float(det[2] - det[0]) * (4.0 / 10))):int(det[0] + (float(det[2] - det[0]) * (6.0 / 10)))]
     bgr = np.mean(bgr, axis=(0,1))
-    hsv = convert_rgb_to_hsv(bgr[2],bgr[1],bgr[0])
-    if hsv[0] >= 180 and hsv[0] <= 240:
-        return 1
-    elif hsv[0] >= 20 and hsv[0] <= 100:
+    hsv = convert_rgb_to_hsv(bgr[2],bgr[1], bgr[0])
+    min_difference = np.argmin(np.absolute(np.subtract(np.full((1,3),hsv[0], dtype=float), np.array([60.0, 0.0, 240.0]))))
+    if min_difference == 0:
+        #yellow
         return 0
-    elif (hsv[0] >= 0 and hsv[0] < 20) or (hsv[0] >= 320 and hsv[0] <= 360):
+    elif min_difference == 1:
+        #red
         return -1
-    return 2
+    else:
+        #blue
+        return 1
     
 
 def determine_depth(det, depth_image, do_depth_ring=False):
