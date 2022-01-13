@@ -33,6 +33,7 @@ class Robot{
 		static ADIEncoder LE;
 		static ADIEncoder RE;
 		static ADIEncoder BE;
+		static Gps gps;
 		static PD power_PD;
 		static PD strafe_PD;
 		static PD turn_PD;
@@ -64,6 +65,7 @@ class Robot{
 		static void mecanumT(int power, int strafe, int turn);
 		static void brake(std::string mode);
 		static void fps(void *ptr);
+		static void gps_fps(void *ptr);
 		static void move_to(void *ptr);
 };
 #endif

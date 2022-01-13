@@ -18,46 +18,47 @@ def generate_path():
 	os.mkdir(new_path)
 	return new_path
 
-def read_video(VIDEO_PATH, FRAME_CAPTURE_RATE, SIMMILAR_CUTOFF):
-	new_path = generate_path()
-	cap = cv2.VideoCapture(VIDEO_PATH)
-	success = cap.grab() 
-	print(success)
-        hashes = []
-	counter = 0
-	img_num = 0
+# def read_video(VIDEO_PATH, FRAME_CAPTURE_RATE, SIMMILAR_CUTOFF):
+# 	new_path = generate_path()
+# 	cap = cv2.VideoCapture(VIDEO_PATH)
+# 	success = cap.grab() 
+# 	print(success)
+# 	hashes = []
+# 	counter = 0
+# 	img_num = 0
 	
-	def test_image(img, newImageHash, img_num, hashes):
-                print('test')
-                if len(hashes) == 0:
-                        return True  
-                else:
-                        for oldImageHash in hashes:
-                                if abs(newImageHash - oldImageHash) < SIMMILAR_CUTOFF:
-                                        return False
-                        return True
+# 	def test_image(img, newImageHash, img_num, hashes):
+#                 print('test')
+#                 if len(hashes) == 0:
+#                         return True  
+#                 else:
+#                         for oldImageHash in hashes:
+#                                 if abs(newImageHash - oldImageHash) < SIMMILAR_CUTOFF:
+#                                         return False
+#                         return True
 	
-	while success:
-		if counter % FRAME_CAPTURE_RATE == 0:
-			_, img = cap.retrieve()
-                        newImageHash = imagehash.average_hash(Image.fromarray(img))
+# 	while success:
+# 		if counter % FRAME_CAPTURE_RATE == 0:
+# 			_, img = cap.retrieve()
+#                         newImageHash = imagehash.average_hash(Image.fromarray(img))
 
-                        if test_image(img, newImageHash, img_num, hashes):
-                                hashes.append(newImageHash)
-                                cv2.imshow("image", img)
-                                cv2.imwrite("{}/{}.jpg".format(new_path, img_num), img)
-                                img_num += 1
-		counter = counter + 1
-		# read next frame
-		success = cap.grab()
+#                         if test_image(img, newImageHash, img_num, hashes):
+#                                 hashes.append(newImageHash)
+#                                 cv2.imshow("image", img)
+#                                 cv2.imwrite("{}/{}.jpg".format(new_path, img_num), img)
+#                                 img_num += 1
+# 		counter = counter + 1
+# 		# read next frame
+# 		success = cap.grab()
 
-		if cv2.waitKey(25) & 0xFF == ord('q'):
-			break
+# 		if cv2.waitKey(25) & 0xFF == ord('q'):
+# 			break
 
 if __name__ == "__main__":
 
 	VIDEO_PATH = "/Users/michaelpilarski/Desktop/data.mp4"
 	FRAME_CAPTURE_RATE = 30
-        SIMMILAR_CUTOFF = 5
+	SIMMILAR_CUTOFF = 5
+	print(generate_path())
 
-	read_video(VIDEO_PATH, FRAME_CAPTURE_RATE, SIMMILAR_CUTOFF)
+	#read_video(VIDEO_PATH, FRAME_CAPTURE_RATE, SIMMILAR_CUTOFF)

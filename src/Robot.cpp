@@ -50,6 +50,7 @@ ADIAnalogIn Robot::potentiometer(1);
 ADIDigitalOut Robot::piston(2);
 Motor Robot::angler(17);
 Motor Robot::conveyor(18);
+Gps Robot::gps(5, 1.2192, -1.2192, 180, 0, .4064);
 
 
 //test bot declarations
@@ -233,6 +234,16 @@ void Robot::fps(void *ptr) {
         delay(5);
     }
 }
+
+void Robot::gps_fps(void *ptr){
+    while (true){
+        lcd::print(1, "Y: %f - X: %f", (float)gps.get_status().y, (float)gps.get_status().x);
+        lcd::print(2, "Heading: %f", (float)gps.get_heading());
+        delay(5);
+    }
+}
+
+
 void Robot::brake(std::string mode)
 {
 
