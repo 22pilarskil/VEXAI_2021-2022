@@ -69,16 +69,25 @@ try:
 
         data = [0, 0]
         xys = []
+        cluster = True
         if int(pred.shape[0]) > 0:
             det = return_data(pred, find="all", colors=[-1, 0, 1, 3])
+
             if len(det) > 0:
+
                 for x in det:
                     xys.append([(int(x[2]) + int(x[0])) / 2, (int(x[1])+int(x[3]))/2])
-                    if args.display:
-                        color_annotator.box_label(x[:4], f'{names[int(x[5]) + 1]} {x[4]:.2f}', color=colors(x[5], True))
-        print(xys)
-        clusters = DBSCAN(eps=1, min_samples=2).fit(xys)
-        print(clusters.labels_)
+
+                if cluster:
+                    clusters = DBSCAN(eps=80, min_samples=2).fit(xys)
+                    det = np.append(det, clusters.labels_.reshape(clusters.labels_.shape[0],1), axis=1)
+
+                else:
+                    det = np.append(det, np.zeros((det.shape[0], 1)), axis=1)
+
+                if args.display:
+                    for i in det:
+                        color_annotator.box_label(i[:4], f'{names[int(i[5]) + 1]} {i[4]:.2f} {i[6]}', color=colors(i[5], True))
 
         if args.display:
             color_image = color_annotator.result()
