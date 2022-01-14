@@ -4,10 +4,10 @@ import numpy as np
 import cv2
 
 import torch
-from utils.experimental import attempt_load
-from utils.general import non_max_suppression, scale_coords
-from utils.plots import Annotator, colors
-from utils.serial_test import Coms
+from models.experimental import attempt_load
+from utils.yolo.general import non_max_suppression, scale_coords
+from utils.yolo.plots import Annotator, colors
+from utils.serial import Coms
 from utils.data import return_data, determine_color, determine_depth, degree
 from utils.camera import initialize_config, switch_cameras
 import time
@@ -92,6 +92,8 @@ try:
             else:
                 pred[i, 5] = 3
             pred[i, 4] = determine_depth(det, depth_image) * depth_frame.get_units()
+
+            print("Units {}".format(depth_frame.get_units()))
 
         names = ["red-mogo","yellow-mogo", "blue-mogo", "unknown_color", "ring"]
 
