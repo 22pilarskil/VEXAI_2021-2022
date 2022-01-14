@@ -12,10 +12,9 @@ def return_data(mogos, find="all", colors=[-1, 0, 1], close_thresh=200):
                 mask.append(False)
             else:
                 mask.append(True)
-    #mask is applied to mogos, only indices that are true in the mask are kept
-    mogos = mogos[mask]
+        #mask is applied to mogos, only indices that are true in the mask are kept
+        mogos = mogos[mask]
     if find == "close":
-        #mogos = mogos[mogos[:]]
         mogos = mogos
         mogos[mogos != mogos] = 0 #set all nans to 0
         det_0 = mogos[mogos[:,4] == 0] #all zeros

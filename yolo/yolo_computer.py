@@ -9,6 +9,7 @@ from utils.plots import Annotator, colors
 from utils.data import return_data, determine_color, degree
 import time
 import os
+from sklearn.cluster import DBSCAN
 
 PATH = os.getcwd() + "/models/best.pt"
 do_depth_ring = False
@@ -69,13 +70,16 @@ try:
         data = [0, 0]
         xys = []
         if int(pred.shape[0]) > 0:
-            det = return_data(pred, find="all", colors=[-1, 0, 1])
+            det = return_data(pred, find="all", colors=[-1, 0, 1, 3])
             if len(det) > 0:
                 for x in det:
-                    xys.append([(x[2] + x[0]) / 2, (x[1]+x[3])/2])
+                    xys.append([(int(x[2]) + int(x[0])) / 2, (int(x[1])+int(x[3]))/2])
                     if args.display:
                         color_annotator.box_label(x[:4], f'{names[int(x[5]) + 1]} {x[4]:.2f}', color=colors(x[5], True))
         print(xys)
+        clusters = DBSCAN(eps=1, min_samples=2).fit(xys)
+        print(clusters.labels_)
+
         if args.display:
             color_image = color_annotator.result()
             cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
