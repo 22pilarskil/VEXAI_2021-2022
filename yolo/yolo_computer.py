@@ -67,15 +67,15 @@ try:
         names = ["red-mogo","yellow-mogo", "blue-mogo", "unknown_color", "ring"]
 
         data = [0, 0]
-  
+        xys = []
         if int(pred.shape[0]) > 0:
             det = return_data(pred, find="all", colors=[-1, 0, 1])
             if len(det) > 0:
                 for x in det:
-
+                    xys.append([(x[2] + x[0]) / 2, (x[1]+x[3])/2])
                     if args.display:
                         color_annotator.box_label(x[:4], f'{names[int(x[5]) + 1]} {x[4]:.2f}', color=colors(x[5], True))
-    
+        print(xys)
         if args.display:
             color_image = color_annotator.result()
             cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
