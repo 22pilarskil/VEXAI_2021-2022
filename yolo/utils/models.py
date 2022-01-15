@@ -5,6 +5,7 @@ import numpy as np
 import torch
 
 from utils.trt.common import allocate_buffers
+from decorators import timer
 
 class Model:
     def __init__(self, filepath):
@@ -24,6 +25,7 @@ class Model:
 
             self.inputs, self.outputs, self.bindings, self.stream = allocate_buffers(self.model)
 
+    @timer("Model Time")
     def predict(self, img):
 
         if self.mode == "trt":
@@ -34,6 +36,6 @@ class Model:
             self.context.execute_async(batch_size=1, bindings=self.bindings, stream_handle=self.stream.handle)
             [cuda.memcpy_dtoh_async(out.host, out.device, self.stream) for out in self.outputs]
             self.stream.synchronize()
-            
+
             return torch.tensor([out.host for out in self.outputs][3].reshape(1, 25200, 7))
         

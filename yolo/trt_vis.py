@@ -27,19 +27,13 @@ cam = Camera(cameras, 'l515_front')
 
 
 comm = Coms()
-try:
-    comm.open()
-except:
-    pass
 
 try:
     while True:
         start = time.time()
-        color_image, depth_image, color_image_t, depth_colormap, depth_frame = cam.poll_frames()
-        trt_time = time.time()
 
+        color_image, depth_image, color_image_t, depth_colormap, depth_frame = cam.poll_frames()
         pred = model.predict(color_image_t)
-        print("TRT time: {}".format(time.time()-trt_time))
 
         pred = non_max_suppression(pred, conf_thres=.3)[0]
         pred[:,:4] = scale_coords(color_image_t.shape[2:], pred[:, :4], color_image.shape).round()
@@ -69,19 +63,16 @@ try:
                 if not turn_angle == None:
                     data = [float(det[4]), float(turn_angle)]
 		        
-        try:
-            print("Depth: {}, Turn angle: {}".format(data[0], data[1]))
-            comm.send("mogo", data)
-            if (comm.read("stop")): 
-                while not comm.read("continue"):
-                    print("Awaiting \"continue\" signal")
-                #switch_cameras(pipeline, config, cameras['l515_front'])
+        print("Depth: {}, Turn angle: {}".format(data[0], data[1]))
 
+        try:
+	        comm.send("mogo", data)
+	        if (comm.read("stop")): 
+	            while not comm.read("continue"):
+	                print("Awaiting \"continue\" signal")
+                #switch_cameras(pipeline, config, cameras['l515_front'])
         except:
-            try:
-                comm.open()
-            except Exception as e:
-                print(e)
+        	comm.open()
 
         if args.display:
             color_image, depth_colormap = color_annotator.result(), depth_annotator.result()

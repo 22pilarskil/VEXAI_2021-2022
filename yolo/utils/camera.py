@@ -2,6 +2,9 @@ import pyrealsense2 as rs
 import numpy as np
 import cv2
 
+from decorators import timer
+
+
 class Camera:
 
     def __init__ (self, cameras, start_camera):
@@ -9,6 +12,8 @@ class Camera:
         self.pipeline = rs.pipeline()
         self.initialize_config(self.cameras[start_camera])
         self.img_size = (640, 640)
+
+
 
     def initialize_config(self, device_number):
 
@@ -29,6 +34,7 @@ class Camera:
 
         self.pipeline.start(self.config)
 
+    @timer("Frame Time")
     def poll_frames(self):
         frames = self.pipeline.wait_for_frames()
         depth_frame = frames.get_depth_frame()
