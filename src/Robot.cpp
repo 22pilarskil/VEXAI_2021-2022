@@ -47,10 +47,10 @@ Motor Robot::BLT(11); //back left top
 Motor Robot::BLB(12, true); //back left bottom
 */
 
-ADIAnalogIn Robot::potentiometer(1);
-ADIDigitalOut Robot::piston(2);
-Motor Robot::angler(17);
-Motor Robot::conveyor(18);
+ADIAnalogIn Robot::potentiometer({{16, 8}});
+ADIDigitalOut Robot::piston(1);
+Motor Robot::angler(20);
+Motor Robot::conveyor(2);
 Gps Robot::gps(5, 1.2192, -1.2192, 180, 0, .4064);
 
 
@@ -127,6 +127,9 @@ void Robot::drive(void *ptr) {
         bool angler_forward = master.get_digital(DIGITAL_L1);
         bool angler_backward = master.get_digital(DIGITAL_L2);
 
+        bool angler_forward_manual = master.get_digital(DIGITAL_X);
+        bool angler_backward_manual = master.get_digital(DIGITAL_Y);
+
         bool piston_open = master.get_digital(DIGITAL_A);
         bool piston_close = master.get_digital(DIGITAL_B);
 
@@ -148,6 +151,11 @@ void Robot::drive(void *ptr) {
         //     angler = 0;
         // }
         // else angler = 0;
+
+        if (angler_backward_manual) angler = 40;
+        else if (angler_forward_manual) angler = -40;
+        else angler = 0;
+
 
         if (piston_open) piston.set_value(true);
         else if (piston_close) piston.set_value(false);
@@ -175,7 +183,11 @@ void Robot::mecanum(int power, int strafe, int turn, int max_power) {
 
     double true_max = double(std::max(max, min));
     double scalar = (true_max > max_power) ? max_power / true_max : 1;
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> 1ecfa364665222a49bd8fa0c29c24632de85cc68
 
     FL = (power + strafe + turn) * scalar;
     FR = (power - strafe - turn) * scalar;
