@@ -86,6 +86,7 @@ void Robot::add_motor(void *ptr)
   motor_map.insert({"front_left", Robot::FL});
   motor_map.insert({"back_right", Robot::BR});
   motor_map.insert({"back_left", Robot::BL});
+=======
 }
 
 void Robot::receive_mogo(nlohmann::json msg) {
@@ -190,7 +191,11 @@ void Robot::mecanum(int power, int strafe, int turn, int max_power) {
 <<<<<<< HEAD
 
 =======
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> 931da6ded6d496ebf03f2bbdc1011c4c3a320b12
 >>>>>>> 1ecfa364665222a49bd8fa0c29c24632de85cc68
 
     FL = (power + strafe + turn) * scalar;
