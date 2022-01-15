@@ -16,6 +16,7 @@ using namespace std;
 
 
 std::map<std::string, std::unique_ptr<pros::Task>> Robot::tasks;
+std::unordered_map<std::string, Motor> Robot::motor_map;
 
 Controller Robot::master(E_CONTROLLER_MASTER);
 
@@ -32,7 +33,7 @@ std::atomic<double> Robot::new_y = 0;
 std::atomic<double> Robot::heading = 0;
 
 
-/* 
+/*
 //24 inch declarations
 double Robot::offset_back = 5.75;
 double Robot::offset_middle = 9.0;
@@ -46,10 +47,10 @@ Motor Robot::BLT(11); //back left top
 Motor Robot::BLB(12, true); //back left bottom
 */
 
-ADIAnalogIn Robot::potentiometer(1);
-ADIDigitalOut Robot::piston(2);
-Motor Robot::angler(17);
-Motor Robot::conveyor(18);
+ADIAnalogIn Robot::potentiometer({{16, 8}});
+ADIDigitalOut Robot::piston(1);
+Motor Robot::angler(20);
+Motor Robot::conveyor(2);
 Gps Robot::gps(5, 1.2192, -1.2192, 180, 0, .4064);
 
 
@@ -77,6 +78,15 @@ double lookahead_distance = 1.1;
 
 const double inches_to_encoder = 41.669;
 const double meters_to_inches = 39.3701;
+
+void Robot::add_motor(void *ptr)
+{
+  // Currently declarations for test bot
+  motor_map.insert({"front_right", Robot::FR});
+  motor_map.insert({"front_left", Robot::FL});
+  motor_map.insert({"back_right", Robot::BR});
+  motor_map.insert({"back_left", Robot::BL});
+}
 
 void Robot::receive_mogo(nlohmann::json msg) {
 
@@ -121,9 +131,12 @@ void Robot::drive(void *ptr) {
         bool angler_forward = master.get_digital(DIGITAL_L1);
         bool angler_backward = master.get_digital(DIGITAL_L2);
 
+        bool angler_forward_manual = master.get_digital(DIGITAL_X);
+        bool angler_backward_manual = master.get_digital(DIGITAL_Y);
+
         bool piston_open = master.get_digital(DIGITAL_A);
         bool piston_close = master.get_digital(DIGITAL_B);
- 
+
         bool conveyor_forward = master.get_digital(DIGITAL_R1);
         bool conveyor_backward = master.get_digital(DIGITAL_R2);
 
@@ -132,24 +145,29 @@ void Robot::drive(void *ptr) {
         // if (angler_forward){
         //     while(potentiometer.get_value()<3710){
         //         angler = 50;
-        //     }   
+        //     }
         //     angler = 0;
-        // } 
+        // }
         // else if (angler_backward){
         //     while(potentiometer.get_value()>2330){
         //         angler = -50;
         //     }
         //     angler = 0;
-        // } 
+        // }
         // else angler = 0;
+
+        if (angler_backward_manual) angler = 40;
+        else if (angler_forward_manual) angler = -40;
+        else angler = 0;
+
 
         if (piston_open) piston.set_value(true);
         else if (piston_close) piston.set_value(false);
-        
+
         if (conveyor_forward) conveyor = 100;
         else if (conveyor_backward) conveyor = -100;
         else conveyor = 0;
-        
+
         mecanum(power, strafe, turn, 30);
         delay(5);
     }
@@ -160,7 +178,7 @@ void Robot::mecanum(int power, int strafe, int turn, int max_power) {
     int powers[] {
         power + strafe + turn,
         power - strafe - turn,
-        power - strafe + turn, 
+        power - strafe + turn,
         power + strafe - turn
     };
 
@@ -169,7 +187,11 @@ void Robot::mecanum(int power, int strafe, int turn, int max_power) {
 
     double true_max = double(std::max(max, min));
     double scalar = (true_max > max_power) ? max_power / true_max : 1;
-	
+<<<<<<< HEAD
+
+=======
+
+>>>>>>> 1ecfa364665222a49bd8fa0c29c24632de85cc68
 
     FL = (power + strafe + turn) * scalar;
     FR = (power - strafe - turn) * scalar;
@@ -273,10 +295,10 @@ void Robot::brake(std::string mode)
     }
     else FLT = FLB= FRT = FRB= BLT = BLB = BRT = BRB= 0;
 }
-void Robot::move_to(void *ptr) 
+void Robot::move_to(void *ptr)
 {
     while (true)
-    { 
+    {
 
         double imu_error = -(IMU.get_rotation() - heading);
         double y_error = new_y - y;
@@ -309,12 +331,12 @@ double string_to_double(std::string boogaloo)
     wholeNumber = wholeNumberRev;
 
     double wholeNumberConv = 0;
-    for (int i = 0; i < wholeNumber.length(); i++) 
+    for (int i = 0; i < wholeNumber.length(); i++)
     {
             cout << ((int(wholeNumber[i]) - int('0'))) << endl;
             wholeNumberConv += (int(wholeNumber[i]) - int('0')) * (pow(10,i));
     }
-    for (int i = 0; i < decimalNumber.length(); i++) 
+    for (int i = 0; i < decimalNumber.length(); i++)
     {
             cout << ((int(decimalNumber[i]) - int('0'))) << endl;
             wholeNumberConv += (int(decimalNumber[0]) - int('0')) * (pow(10.0, (-1 * (i+1))));
@@ -322,6 +344,3 @@ double string_to_double(std::string boogaloo)
 
     return wholeNumberConv;
 }
-
-
-
