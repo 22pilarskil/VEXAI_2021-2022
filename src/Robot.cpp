@@ -86,7 +86,7 @@ void Robot::add_motor(void *ptr)
   motor_map.insert({"front_left", Robot::FL});
   motor_map.insert({"back_right", Robot::BR});
   motor_map.insert({"back_left", Robot::BL});
-=======
+
 }
 
 void Robot::receive_mogo(nlohmann::json msg) {
