@@ -27,10 +27,13 @@ class Model:
     def predict(self, img):
 
         if self.mode == "trt":
+
             np.copyto(self.inputs[0].host, img.ravel())
+
             [cuda.memcpy_htod_async(inp.device, inp.host, self.stream) for inp in self.inputs]
             self.context.execute_async(batch_size=1, bindings=self.bindings, stream_handle=self.stream.handle)
             [cuda.memcpy_dtoh_async(out.host, out.device, self.stream) for out in self.outputs]
             self.stream.synchronize()
+            
             return torch.tensor([out.host for out in self.outputs][3].reshape(1, 25200, 7))
         

@@ -1,6 +1,7 @@
-import pyrealsense2 as rs
 import numpy as np
 import cv2
+import time
+import argparse
 
 from utils.yolo.general import non_max_suppression, scale_coords
 from utils.yolo.plots import Annotator, colors
@@ -8,20 +9,15 @@ from utils.serial import Coms
 from utils.data import return_data, determine_color, determine_depth, degree
 from utils.camera import Camera
 from utils.models import Model
-import time
-import os
 
-import pycuda.driver as cuda
-import pycuda.autoinit
-import torch
-
-import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--display", metavar="display", type=int, default=1)
 args = parser.parse_args()
     
 names = ["red-mogo","yellow-mogo", "blue-mogo", "unknown_color", "ring"]
+model = Model("models/best.engine")
+
 
 cameras = {
     'l515_front': 'f1181409',
@@ -29,26 +25,23 @@ cameras = {
     }
 cam = Camera(cameras, 'l515_front')
 
+
 comm = Coms()
 try:
     comm.open()
 except:
     pass
 
-model = Model("models/best.engine")
-
 try:
     while True:
         start = time.time()
         color_image, depth_image, color_image_t, depth_colormap, depth_frame = cam.poll_frames()
-        #NEW STUFF -----------
         trt_time = time.time()
 
         pred = model.predict(color_image_t)
         print("TRT time: {}".format(time.time()-trt_time))
-        conf_thres = .3
-        pred = non_max_suppression(pred, conf_thres)[0]
 
+        pred = non_max_suppression(pred, conf_thres=.3)[0]
         pred[:,:4] = scale_coords(color_image_t.shape[2:], pred[:, :4], color_image.shape).round()
 
         for i, det in enumerate(pred):
