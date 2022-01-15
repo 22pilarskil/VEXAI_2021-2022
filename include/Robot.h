@@ -25,6 +25,7 @@ class Robot{
 		static Motor FL;
 		static Motor BR;
 		static Motor BL;
+		static std::unordered_map<std::string, Motor> motor_map;
 
 		static Motor angler;
 		static Motor conveyor;
@@ -40,7 +41,7 @@ class Robot{
 		static Distance dist;
 		static ADIDigitalOut piston;
 		static ADIAnalogIn potentiometer;
-		
+
 		static std::atomic<double> x;
 		static std::atomic<double> y;
 		static std::atomic<double> new_x;
@@ -49,10 +50,11 @@ class Robot{
 
 		static double offset_back;
 		static double offset_middle;
-		static double wheel_circumference; 
+		static double wheel_circumference;
 
 		static std::map<std::string, std::unique_ptr<pros::Task>> tasks;
 
+		static void add_motor(std:string name, Motor m);
 		static void mecanum(int power, int strafe, int turn, int max_power);
 		static void drive(void *ptr);
 		static void check_depth(void *ptr);

@@ -4,13 +4,18 @@ import torch
 
 def return_data(mogos, find="all", colors=[-1, 0, 1], close_thresh=200):
     # Takes in data in the order: [det:[x,y,x,y,dist,color (-1 = red, 0 = yellow, 1 = blue)], det[], .., det[]]
-    if find == "all":
-        if not colors == [-1, 0, 1]:
-            for i, mogo in enumerate(mogos):
-                if not mogo[5] in colors:
-                    del mogos[i]
-        return mogos
+    mask = []
+    #goes through every detection and appends true or false to the mask depending on if it is in colors
+    if not colors == [-1, 0, 1, 3]:
+        for i, mogo in enumerate(mogos):
+            if not mogo[5] in colors:
+                mask.append(False)
+            else:
+                mask.append(True)
+        #mask is applied to mogos, only indices that are true in the mask are kept
+        mogos = mogos[mask]
     if find == "close":
+        mogos = mogos
         mogos[mogos != mogos] = 0 #set all nans to 0
         det_0 = mogos[mogos[:,4] == 0] #all zeros
         det_no0 = mogos[mogos[:,4] != 0] #all non-zeros
@@ -33,6 +38,9 @@ def return_data(mogos, find="all", colors=[-1, 0, 1], close_thresh=200):
         for mogo in mogos:
             if mogo[5] in colors:
                 return mogo
+    #If find all return all of the mogos
+    return mogos
+    
 
 def convert_rgb_to_hsv(r, g, b):
     color_hsv_percentage = colorsys.rgb_to_hsv(r / float(255), g / float(255), b / float(255)) 
