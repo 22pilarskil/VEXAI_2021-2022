@@ -54,7 +54,7 @@ class Robot{
 
 		static std::map<std::string, std::unique_ptr<pros::Task>> tasks;
 
-		static void add_motor(std:string name, Motor m);
+		static void add_motor(void *ptr);
 		static void mecanum(int power, int strafe, int turn, int max_power);
 		static void drive(void *ptr);
 		static void check_depth(void *ptr);
