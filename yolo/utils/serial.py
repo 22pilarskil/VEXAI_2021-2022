@@ -2,7 +2,7 @@
 import serial
 import json
 import os
-from decorators import exception
+from utils.decorators import exception
 
 DELIMETER = '#'
 BAUD_RATE = 9600

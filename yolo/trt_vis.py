@@ -32,7 +32,10 @@ try:
     while True:
         start = time.time()
 
-        color_image, depth_image, color_image_t, depth_colormap, depth_frame = cam.poll_frames()
+        data = cam.poll_frames()
+        if data is None: 
+            continue
+        color_image, depth_image, color_image_t, depth_colormap, depth_frame = data
         pred = model.predict(color_image_t)
 
         pred = non_max_suppression(pred, conf_thres=.3)[0]

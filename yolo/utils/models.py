@@ -5,7 +5,7 @@ import numpy as np
 import torch
 
 from utils.trt.common import allocate_buffers
-from decorators import timer
+from utils.decorators import timer
 
 class Model:
     def __init__(self, filepath):

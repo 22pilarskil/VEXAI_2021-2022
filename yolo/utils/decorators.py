@@ -12,7 +12,8 @@ def timer(msg="Time elapsed"):
     def decorator(func):
         def wrapper(*args):
             start = time.time()
-            func(*args)
+            result = func(*args)
             print("{} : {}".format(msg, time.time()-start))
+            return result
         return wrapper
     return decorator

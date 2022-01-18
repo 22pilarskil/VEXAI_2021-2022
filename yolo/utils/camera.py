@@ -2,7 +2,7 @@ import pyrealsense2 as rs
 import numpy as np
 import cv2
 
-from decorators import timer
+from utils.decorators import timer
 
 
 class Camera:
@@ -12,6 +12,7 @@ class Camera:
         self.pipeline = rs.pipeline()
         self.initialize_config(self.cameras[start_camera])
         self.img_size = (640, 640)
+        print(rs.context())
 
 
 
@@ -24,6 +25,7 @@ class Camera:
         device = pipeline_profile.get_device().first_depth_sensor()
         device.set_option(rs.option.min_distance, 0)
         device_product_line = str(device.get_info(rs.camera_info.product_line))
+        print(device.get_info(rs.camera_info.serial_number))
 
         self.config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
 
