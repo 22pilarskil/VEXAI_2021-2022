@@ -33,28 +33,35 @@ std::atomic<double> Robot::new_y = 0;
 std::atomic<double> Robot::heading = 0;
 
 
-/*
+
 //24 inch declarations
 double Robot::offset_back = 5.75;
 double Robot::offset_middle = 9.0;
-Motor Robot::FLT(2, true); //front left top
-Motor Robot::FLB(1); //front left bottom
-Motor Robot::FRT(9); //front right top
-Motor Robot::FRB(10, true); //front right bottom
-Motor Robot::BRT(20, true); //back right top
-Motor Robot::BRB(19); //back right bottom
-Motor Robot::BLT(11); //back left top
-Motor Robot::BLB(12, true); //back left bottom
-*/
+Motor Robot::FLT(1, true); //front left top
+Motor Robot::FLB(3); //front left bottom
+Motor Robot::FRT(10); //front right top
+Motor Robot::FRB(9, true); //front right bottom
+Motor Robot::BRT(19); //back right top
+Motor Robot::BRB(18, true); //back right bottom
+Motor Robot::BLT(13, true); //back left top
+Motor Robot::BLB(11); //back left bottom
+Imu Robot::IMU(12);
+ADIEncoder Robot::LE(5, 6);
+ADIEncoder Robot::RE(3, 4);
+ADIEncoder Robot::BE(7, 8);
+Distance Robot::dist(9);
+
 
 ADIAnalogIn Robot::potentiometer({{16, 8}});
 ADIDigitalOut Robot::piston(1);
 Motor Robot::angler(20);
 Motor Robot::conveyor(2);
+Motor Robot::flicker(17);
 Gps Robot::gps(5, 1.2192, -1.2192, 180, 0, .4064);
 
 
 //test bot declarations
+/*
 Imu Robot::IMU(15);
 ADIEncoder Robot::LE(5, 6);
 ADIEncoder Robot::RE(3, 4);
@@ -66,6 +73,7 @@ Motor Robot::BR(3, true);
 Motor Robot::BL(10);
 double Robot::offset_back = 2.875;
 double Robot::offset_middle = 5.0;
+*/
 
 
 
@@ -79,15 +87,15 @@ double lookahead_distance = 1.1;
 const double inches_to_encoder = 41.669;
 const double meters_to_inches = 39.3701;
 
-void Robot::add_motor(void *ptr)
-{
-  // Currently declarations for test bot
-  motor_map.insert({"front_right", Robot::FR});
-  motor_map.insert({"front_left", Robot::FL});
-  motor_map.insert({"back_right", Robot::BR});
-  motor_map.insert({"back_left", Robot::BL});
+// void Robot::add_motor(void *ptr)
+// {
+//   // Currently declarations for test bot
+//   motor_map.insert({"front_right", Robot::FR});
+//   motor_map.insert({"front_left", Robot::FL});
+//   motor_map.insert({"back_right", Robot::BR});
+//   motor_map.insert({"back_left", Robot::BL});
 
-}
+// }
 
 void Robot::receive_mogo(nlohmann::json msg) {
 
@@ -141,6 +149,8 @@ void Robot::drive(void *ptr) {
         bool conveyor_forward = master.get_digital(DIGITAL_R1);
         bool conveyor_backward = master.get_digital(DIGITAL_R2);
 
+        bool flicker_on = master.get_digital(DIGITAL_UP);
+
 
         // tune this
         // if (angler_forward){
@@ -169,7 +179,10 @@ void Robot::drive(void *ptr) {
         else if (conveyor_backward) conveyor = -100;
         else conveyor = 0;
 
-        mecanum(power, strafe, turn, 30);
+        if (flicker_on) flicker = 127;
+        else flicker = 0;
+
+        mecanum(power, strafe, turn);
         delay(5);
     }
 }
@@ -188,20 +201,20 @@ void Robot::mecanum(int power, int strafe, int turn, int max_power) {
 
     double true_max = double(std::max(max, min));
     double scalar = (true_max > max_power) ? max_power / true_max : 1;
-<<<<<<< HEAD
 
-=======
-<<<<<<< HEAD
+    // FL = (power + strafe + turn) * scalar;
+    // FR = (power - strafe - turn) * scalar;
+    // BL = (power - strafe + turn) * scalar;
+    // BR = (power + strafe - turn) * scalar;
 
-=======
-    
->>>>>>> 931da6ded6d496ebf03f2bbdc1011c4c3a320b12
->>>>>>> 1ecfa364665222a49bd8fa0c29c24632de85cc68
-
-    FL = (power + strafe + turn) * scalar;
-    FR = (power - strafe - turn) * scalar;
-    BL = (power - strafe + turn) * scalar;
-    BR = (power + strafe - turn) * scalar;
+    FLT = (power + strafe + turn) * scalar;
+    FRT = (power - strafe - turn) * scalar;
+    BLT = (power - strafe + turn) * scalar;
+    BRT = (power + strafe - turn) * scalar;
+    FLB = (power + strafe + turn) * scalar;
+    FRB = (power - strafe - turn) * scalar;
+    BLB = (power - strafe + turn) * scalar;
+    BRB = (power + strafe - turn) * scalar;
 }
 
 

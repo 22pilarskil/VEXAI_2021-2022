@@ -8,8 +8,8 @@ using namespace pros;
 void opcontrol() {
 	lcd::initialize();
 	serial_initialize();
-	Robot::start_task("GPS", Robot::gps_fps);
-	// Robot::start_task("DRIVE", Robot::drive);
+	//Robot::start_task("GPS", Robot::gps_fps);
+	Robot::start_task("DRIVE", Robot::drive);
 	// Robot::IMU.reset();
 	// delay(2500);
 	// Robot::start_task("FPS", Robot::fps);

@@ -21,6 +21,7 @@ class Robot{
 		static Motor FRB;
 		static Motor BLB;
 		static Motor BRB;
+		static Motor flicker;
 		static Motor FR;
 		static Motor FL;
 		static Motor BR;
@@ -55,7 +56,7 @@ class Robot{
 		static std::map<std::string, std::unique_ptr<pros::Task>> tasks;
 
 		static void add_motor(void *ptr);
-		static void mecanum(int power, int strafe, int turn, int max_power);
+		static void mecanum(int power, int strafe, int turn, int max_power=127);
 		static void drive(void *ptr);
 		static void check_depth(void *ptr);
 		static void receive_mogo(nlohmann::json msg);
