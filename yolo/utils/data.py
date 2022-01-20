@@ -30,8 +30,10 @@ def return_data(mogos, find="all", colors=[-1, 0, 1], close_thresh=200):
                     return det_no0[torch.argmin(det_no0[:,4], dim=0)]
                 else:
                     return close_0            
-        else:
+        elif int(det_no0.shape[0]) > 0:
             return det_no0[torch.argmin(det_no0[:,4], dim=0)]
+        else:
+            return
 
 
         mogos.sort(key=lambda x:x[4])

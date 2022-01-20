@@ -37,7 +37,7 @@ class Camera:
         self.pipeline.start(self.config)
 
     @timer("Frame Time")
-    def poll_frames(self):
+    def poll_frames(self, conn=None):
         frames = self.pipeline.wait_for_frames()
         depth_frame = frames.get_depth_frame()
         color_frame = frames.get_color_frame()
@@ -54,7 +54,11 @@ class Camera:
 
         color_image_t = np.transpose(color_image, [2, 0, 1])[None] / 255.0
 
+        if not conn is None:
+            conn.send(color_image, depth_image, color_image_t, depth_colormap, depth_frame)
+
         return color_image, depth_image, color_image_t, depth_colormap, depth_frame
+
     
 
     def switch_cameras(self, device_number):

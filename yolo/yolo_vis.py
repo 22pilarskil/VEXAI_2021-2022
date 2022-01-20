@@ -102,7 +102,7 @@ try:
         if int(pred.shape[0]) > 0:
             det = return_data(pred, find="close", colors=[-1, 0, 1])
 
-            if len(det) > 0:
+            if det and len(det) > 0:
                 
                 if args.display:
                     color_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(det[5], True))

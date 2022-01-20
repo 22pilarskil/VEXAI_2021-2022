@@ -1,4 +1,3 @@
-
 import numpy as np
 import cv2
 
@@ -27,8 +26,7 @@ model.to(device)
 names = model.module.names if hasattr(model, 'module') else model.names
 cap= cv2.VideoCapture('legg.mp4')
 
-def trt()
-{
+def trt():
     color_image = np.asanyarray(color_frame)
 
     color_image = cv2.resize(color_image, dsize=(640, 640), interpolation=cv2.INTER_AREA)
@@ -48,10 +46,9 @@ def trt()
 
     color_image0 = color_image
     pred = pred[0]
-}
 
-def polling()
-{
+
+def polling():
     color_annotator = Annotator(color_image0, line_width=2, pil=not ascii)
     pred[:,:4] = scale_coords(color_image_t.shape[2:], pred[:, :4], color_image0.shape).round()
 
@@ -69,7 +66,7 @@ def polling()
     if int(pred.shape[0]) > 0:
         det = return_data(pred, find="all", colors=[-1, 0, 1, 3])
 
-        if len(det) > 0:
+        if det and len(det) > 0:
 
             for x in det:
                 xys.append([(int(x[2]) + int(x[0])) / 2, (int(x[1])+int(x[3]))/2])
@@ -84,8 +81,6 @@ def polling()
             if args.display:
                 for i in det:
                     color_annotator.box_label(i[:4], f'{names[int(i[5]) + 1]} {i[4]:.2f} {i[6]}', color=colors(i[5], True))
-
-}
 
 try:
     while(cap.isOpened()):
