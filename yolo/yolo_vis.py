@@ -1,4 +1,3 @@
-
 import pyrealsense2 as rs
 import numpy as np
 import cv2
@@ -98,19 +97,43 @@ try:
         names = ["red-mogo","yellow-mogo", "blue-mogo", "unknown_color", "ring"]
 
         data = [0, 0]
-  
+        xys = []
+        cluster = True
         if int(pred.shape[0]) > 0:
-            det = return_data(pred, find="close", colors=[-1, 0, 1])
+            det = return_data(pred, find="all", colors=[-1, 0, 1, 3])
 
-            if det and len(det) > 0:
-                
+            if len(det) > 0:
+                if cluster:
+                    det = det[det[:,5]==3]
+                for x in det:
+                    xys.append([(int(x[2]) + int(x[0])) / 2, (int(x[1])+int(x[3]))/2])
+                add_zeros = True
+                if cluster and len(xys)>1:
+                    clusters = DBSCAN(eps=80, min_samples=2).fit(xys)
+                    cluster_labels = np.array(clusters.labels_)
+                    mask1 = cluster_labels!=-1
+                    cluster_labels = cluster_labels[mask1]
+                    if len(cluster_labels)>0:
+                        mask2 = cluster_labels==np.bincount(cluster_labels).argmax()
+                        cluster_labels = cluster_labels[mask2]
+                        det = det[mask1]
+                        det = det[mask2]
+                        cluster_pos = np.average(xys, axis=0)
+                        det = np.append(det, cluster_labels.reshape(cluster_labels.shape[0],1), axis=1)
+                        add_zeros = False
+
+
+                if add_zeros:
+                    det = np.append(det, np.zeros((det.shape[0], 1)), axis=1)
+
                 if args.display:
-                    color_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(det[5], True))
-                    depth_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(det[5], True))
-             
+                    for i in det:
+                        color_annotator.box_label(i[:4], f'{names[int(i[5]) + 1]} {i[4]:.2f} {i[6]}', color=colors(i[5], True))
+                det = return_data(det, find="close", colors=[-1, 0, 1, 3])
                 turn_angle = degree(det)
                 if not turn_angle == None:
                     data = [float(det[4]), float(turn_angle)]
+
         
         try:
             print("Depth: {}, Turn angle: {}".format(data[0], data[1]))
