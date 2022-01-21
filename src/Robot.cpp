@@ -35,8 +35,8 @@ std::atomic<double> Robot::heading = 0;
 
 
 //24 inch declarations
-double Robot::offset_back = 5.75;
-double Robot::offset_middle = 9.0;
+double Robot::offset_back = 5.25;
+double Robot::offset_middle = 7.625;
 Motor Robot::FLT(1, true); //front left top
 Motor Robot::FLB(3); //front left bottom
 Motor Robot::FRT(10); //front right top

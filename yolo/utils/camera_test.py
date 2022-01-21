@@ -4,10 +4,10 @@ import cv2
 import time
 
 cameras = {
-    'l515_front': 'f1181409',
-    'd435_back': '048522072643',
+    'l515_front': ('f1181409', False),
+    'l515_back': ('f1181848', True),
     }
-cam = Camera(cameras, 'l515_front')
+cam = Camera(cameras, 'l515_back')
 
 
 try:

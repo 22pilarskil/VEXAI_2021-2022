@@ -10,7 +10,8 @@ class Camera:
     def __init__ (self, cameras, start_camera):
         self.cameras = cameras
         self.pipeline = rs.pipeline()
-        self.initialize_config(self.cameras[start_camera])
+        self.initialize_config(self.cameras[start_camera][0])
+        self.flip = self.cameras[start_camera][1]
         self.img_size = (640, 640)
         print(rs.context())
 
@@ -19,6 +20,7 @@ class Camera:
     def initialize_config(self, device_number):
 
         self.config = rs.config()
+        print(device_number)
         self.config.enable_device(device_number)
         pipeline_wrapper = rs.pipeline_wrapper(self.pipeline)
         pipeline_profile = self.config.resolve(pipeline_wrapper)
@@ -47,6 +49,10 @@ class Camera:
         depth_image = np.asanyarray(depth_frame.get_data())
         color_image = np.asanyarray(color_frame.get_data())
 
+        if self.flip:
+            depth_image = np.flipud(depth_image)
+            color_image = np.flipud(color_image)
+
         depth_image = cv2.resize(depth_image, dsize=self.img_size, interpolation=cv2.INTER_AREA)
         color_image = cv2.resize(color_image, dsize=self.img_size, interpolation=cv2.INTER_AREA)
 
@@ -61,10 +67,11 @@ class Camera:
 
     
 
-    def switch_cameras(self, device_number):
+    def switch_cameras(self, camera):
         self.pipeline.stop()
         try:
-            self.initialize_config(device_number)
+            self.initialize_config(self.cameras[camera][0])
+            self.flip = self.cameras[camera][1]
         except:
             self.pipeline.start(self.config)
             return -1

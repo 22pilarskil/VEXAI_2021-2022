@@ -20,10 +20,10 @@ model = Model("models/best.engine")
 
 
 cameras = {
-    'l515_front': 'f1181409',
-    'd435_back': '048522072643',
+    'l515_front': ('f1181409', False),
+    'l515_back': ('f1181848', True),
     }
-cam = Camera(cameras, 'l515_front')
+cam = Camera(cameras, 'l515_back')
 
 
 comm = Coms()
@@ -56,7 +56,7 @@ try:
         if int(pred.shape[0]) > 0:
             det = return_data(pred, find="close", colors=[-1, 0, 1])
 
-            if det and len(det) > 0:
+            if det is not None and len(det) > 0:
 		                
                 if args.display:
                     color_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(det[5], True))
