@@ -39,7 +39,8 @@ class Robot{
 		static PD power_PD;
 		static PD strafe_PD;
 		static PD turn_PD;
-		static Distance dist;
+		static Distance angler_dist;
+		static Distance mogo_dist;
 		static ADIDigitalOut piston;
 		static ADIAnalogIn potentiometer;
 
@@ -48,6 +49,8 @@ class Robot{
 		static std::atomic<double> new_x;
 		static std::atomic<double> new_y;
 		static std::atomic<double> heading;
+		static std::atomic<double> imu_val;
+		static std::atomic<bool> chasing_mogo;
 
 		static double offset_back;
 		static double offset_middle;
@@ -59,6 +62,8 @@ class Robot{
 		static void mecanum(int power, int strafe, int turn, int max_power=127);
 		static void drive(void *ptr);
 		static void check_depth(void *ptr);
+		static void depth_angler(void *ptr);
+		static void imu_clamp(void *ptr);
 		static void receive_mogo(nlohmann::json msg);
 
 		static void start_task(std::string name, void (*func)(void *));

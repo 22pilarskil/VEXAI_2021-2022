@@ -19,9 +19,6 @@ std::map<std::string, std::unique_ptr<pros::Task>> Robot::tasks;
 std::unordered_map<std::string, Motor> Robot::motor_map;
 
 Controller Robot::master(E_CONTROLLER_MASTER);
-
-
-
 PD Robot::power_PD(.32, 5, 0);
 PD Robot::strafe_PD(.17, .3, 0);
 PD Robot::turn_PD(10, 1, 0);
@@ -31,33 +28,34 @@ std::atomic<double> Robot::x = 0;
 std::atomic<double> Robot::new_x = 0;
 std::atomic<double> Robot::new_y = 0;
 std::atomic<double> Robot::heading = 0;
+std::atomic<double> Robot::imu_val = 0;
+std::atomic<bool> Robot::chasing_mogo = false;
 
 
 
 //24 inch declarations
 double Robot::offset_back = 5.25;
 double Robot::offset_middle = 7.625;
-Motor Robot::FLT(1, true); //front left top
-Motor Robot::FLB(3); //front left bottom
-Motor Robot::FRT(10); //front right top
-Motor Robot::FRB(9, true); //front right bottom
-Motor Robot::BRT(19); //back right top
-Motor Robot::BRB(18, true); //back right bottom
-Motor Robot::BLT(13, true); //back left top
-Motor Robot::BLB(11); //back left bottom
-Imu Robot::IMU(12);
-ADIEncoder Robot::LE(5, 6);
-ADIEncoder Robot::RE(3, 4);
-ADIEncoder Robot::BE(7, 8);
-Distance Robot::dist(9);
-
-
-ADIAnalogIn Robot::potentiometer({{16, 8}});
-ADIDigitalOut Robot::piston(1);
+Motor Robot::BLT(1); //front left top
+Motor Robot::BLB(3, true); //front left bottom
+Motor Robot::BRT(10, true); //front right top
+Motor Robot::BRB(9); //front right bottom
+Motor Robot::FRT(19, true); //back right top
+Motor Robot::FRB(18); //back right bottom
+Motor Robot::FLT(13); //back left top
+Motor Robot::FLB(11, true); //back left bottom
 Motor Robot::angler(20);
 Motor Robot::conveyor(2);
 Motor Robot::flicker(17);
+ADIEncoder Robot::LE({{16, 5, 6}});
+ADIEncoder Robot::RE({{16, 1, 2}});
+ADIEncoder Robot::BE({{16, 3, 4}});
+ADIAnalogIn Robot::potentiometer({{16, 8}});
+ADIDigitalOut Robot::piston(1);
 Gps Robot::gps(5, 1.2192, -1.2192, 180, 0, .4064);
+Imu Robot::IMU(12);
+Distance Robot::angler_dist(21);
+Distance Robot::mogo_dist(15);
 
 
 //test bot declarations
@@ -66,7 +64,7 @@ Imu Robot::IMU(15);
 ADIEncoder Robot::LE(5, 6);
 ADIEncoder Robot::RE(3, 4);
 ADIEncoder Robot::BE(7, 8);
-Distance Robot::dist(9);
+Distance Robot::mogo_dist(9);
 Motor Robot::FR(17, true);
 Motor Robot::FL(8);
 Motor Robot::BR(3, true);
@@ -79,10 +77,6 @@ double Robot::offset_middle = 5.0;
 
 double pi = 3.141592653589793238;
 double Robot::wheel_circumference = 2.75 * pi;
-
-double angle_threshold = 5;
-double depth_threshold = 10;
-double lookahead_distance = 1.1;
 
 const double inches_to_encoder = 41.669;
 const double meters_to_inches = 39.3701;
@@ -97,7 +91,23 @@ const double meters_to_inches = 39.3701;
 
 // }
 
+void Robot::imu_clamp(void *ptr){
+    double offset = 0;
+    while (true){
+        double rotation = IMU.get_rotation();
+        if (abs(imu_val - rotation) < 10) offset = 0;
+        else if (rotation > imu_val) offset = -360;
+        else if (rotation < imu_val) offset = 360;
+
+        imu_val = rotation + offset;
+        delay(5);
+    }
+}
+
 void Robot::receive_mogo(nlohmann::json msg) {
+
+    double angle_threshold = 10;
+    double lookahead_distance = 4;
 
     if (!task_exists("DEPTH")) start_task("DEPTH", Robot::check_depth);
 
@@ -107,9 +117,11 @@ void Robot::receive_mogo(nlohmann::json msg) {
     double lidar_depth = std::stod(msgS.substr(1, found - 1));
     double angle = std::stod(msgS.substr(found + 1, msgS.size() - found - 1));
 
-    heading = (IMU.get_rotation() - angle);
+    if (angle != 0) chasing_mogo = true;
 
-    if (abs(angle) < angle_threshold){
+    heading = (IMU.get_rotation() + angle);
+
+    if (abs(angle) < angle_threshold && angle != 0){
         lidar_depth = (lidar_depth * meters_to_inches) * inches_to_encoder;
         new_y = y + lidar_depth * cos(heading / 180 * pi) * lookahead_distance;
         new_x = x + lidar_depth * sin(heading / 180 * pi) * lookahead_distance;
@@ -117,22 +129,71 @@ void Robot::receive_mogo(nlohmann::json msg) {
         lcd::print(5, "X: %f Y: %f L: %f", (float)new_y, (float)new_x, (float)lidar_depth);
         lcd::print(6, "Heading: %f Angle: %f", (float)heading, (float)angle);
     }
+    else if (angle == 0 && chasing_mogo == true){
+        new_y = new_y + 200;
+    }
 }
 
 void Robot::check_depth(void *ptr){
+
+    double depth_threshold = 10;
+    std::deque<double> depth_vals;
+
     while(true){
-        if(dist.get() < depth_threshold){
+
+        if ((int)depth_vals.size() == 10) depth_vals.pop_front();
+        depth_vals.push_back(mogo_dist.get());
+        double sum = 0;
+        for (int i = 0; i < depth_vals.size(); i++) sum += depth_vals[i];
+        double depth_average = sum / 10;
+
+        if (abs(depth_average - mogo_dist.get()) < 1 && mogo_dist.get() > 0 && mogo_dist.get() < 50){
             new_x = (float)x;
             new_y = (float)y;
             lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#stop#");
+
+            chasing_mogo = false;
+            piston.set_value(false);
+            delay(1000);
+            start_task("ANGLER", Robot::depth_angler);
+
             kill_task("DEPTH");
         }
+        delay(5);
     }
+}
+
+void Robot::depth_angler(void *ptr){
+    int potentiometer_threshold = 270;
+    int depth_threshold = 42;
+    int depth_coefficient = 10;
+    while (true){
+
+        if(master.get_digital(DIGITAL_Y)) break;
+
+        if(master.get_digital(DIGITAL_DOWN)) {
+            while (potentiometer.get_value() < 2415){
+                angler = -127;
+            }
+            break;
+        }
+
+        if (abs(potentiometer.get_value() - potentiometer_threshold) > 50){
+            if (potentiometer.get_value() > potentiometer_threshold) angler = 127;
+            else angler = -127;
+        }
+        else {
+            double distance = angler_dist.get();
+            if (abs(distance - depth_threshold) < 10) angler = depth_coefficient * (angler_dist.get() - depth_threshold);
+            else angler = 0;
+        }
+        delay(5);
+    }
+    kill_task("ANGLER");
 }
 
 void Robot::drive(void *ptr) {
     while (true) {
-        lcd::print(1,"Potentiometer %d", potentiometer.get_value());
         int power = master.get_analog(ANALOG_LEFT_Y);
         int strafe = master.get_analog(ANALOG_LEFT_X);
         int turn = master.get_analog(ANALOG_RIGHT_X);
@@ -140,8 +201,7 @@ void Robot::drive(void *ptr) {
         bool angler_forward = master.get_digital(DIGITAL_L1);
         bool angler_backward = master.get_digital(DIGITAL_L2);
 
-        bool angler_forward_manual = master.get_digital(DIGITAL_X);
-        bool angler_backward_manual = master.get_digital(DIGITAL_Y);
+        bool  angler_start_thread = master.get_digital(DIGITAL_X);
 
         bool piston_open = master.get_digital(DIGITAL_A);
         bool piston_close = master.get_digital(DIGITAL_B);
@@ -152,25 +212,11 @@ void Robot::drive(void *ptr) {
         bool flicker_on = master.get_digital(DIGITAL_UP);
 
 
-        // tune this
-        // if (angler_forward){
-        //     while(potentiometer.get_value()<3710){
-        //         angler = 50;
-        //     }
-        //     angler = 0;
-        // }
-        // else if (angler_backward){
-        //     while(potentiometer.get_value()>2330){
-        //         angler = -50;
-        //     }
-        //     angler = 0;
-        // }
-        // else angler = 0;
-
-        if (angler_backward_manual) angler = 40;
-        else if (angler_forward_manual) angler = -40;
+        if (angler_backward) angler = 40;
+        else if (angler_forward) angler = -40;
         else angler = 0;
 
+        if (angler_start_thread && !task_exists("ANGLER")) start_task("ANGLER", Robot::depth_angler);
 
         if (piston_open) piston.set_value(true);
         else if (piston_close) piston.set_value(false);
@@ -266,6 +312,7 @@ void Robot::fps(void *ptr) {
         lcd::print(1,"Y: %f - X: %f", (float)y, (float)x, IMU.get_rotation());
         lcd::print(2, "IMU value: %f", IMU.get_heading());
         lcd::print(3, "TASK EXISTS %d", task_exists("DEPTH"));
+        lcd::print(4,"Potentiometer %d - Dist. %d", potentiometer.get_value(), angler_dist.get());
 
         last_y = cur_y;
         last_x = cur_x;
@@ -318,9 +365,11 @@ void Robot::move_to(void *ptr)
     while (true)
     {
 
-        double imu_error = -(IMU.get_rotation() - heading);
+        double imu_error = imu_val - heading;
+        double sign = (imu_error > 0) ? 1 : -1;
+        imu_error = imu_error * imu_error * imu_error;
         double y_error = new_y - y;
-        double x_error = -(new_x - x);
+        double x_error = new_x - x;
 
         double phi = (IMU.get_rotation()) * pi / 180;
         double power = power_PD.get_value(y_error * std::cos(phi) + x_error * std::sin(phi));
@@ -332,33 +381,4 @@ void Robot::move_to(void *ptr)
 
         delay(5);
     }
-}
-
-double string_to_double(std::string boogaloo)
-{
-    int decPointIndex = boogaloo.find(".");
-    std::string wholeNumber = boogaloo.substr(0, decPointIndex);
-    std::string decimalNumber = boogaloo.substr(decPointIndex + 1, boogaloo.length());
-
-    std::string wholeNumberRev = "";
-    for (int i = wholeNumber.length()-1; i > -1; i--)
-    {
-            wholeNumberRev += wholeNumber[i];
-    }
-
-    wholeNumber = wholeNumberRev;
-
-    double wholeNumberConv = 0;
-    for (int i = 0; i < wholeNumber.length(); i++)
-    {
-            cout << ((int(wholeNumber[i]) - int('0'))) << endl;
-            wholeNumberConv += (int(wholeNumber[i]) - int('0')) * (pow(10,i));
-    }
-    for (int i = 0; i < decimalNumber.length(); i++)
-    {
-            cout << ((int(decimalNumber[i]) - int('0'))) << endl;
-            wholeNumberConv += (int(decimalNumber[0]) - int('0')) * (pow(10.0, (-1 * (i+1))));
-    }
-
-    return wholeNumberConv;
 }
