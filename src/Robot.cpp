@@ -36,14 +36,14 @@ std::atomic<bool> Robot::chasing_mogo = false;
 //24 inch declarations
 double Robot::offset_back = 5.25;
 double Robot::offset_middle = 7.625;
-Motor Robot::BLT(1); //front left top
-Motor Robot::BLB(3, true); //front left bottom
-Motor Robot::BRT(10, true); //front right top
-Motor Robot::BRB(9); //front right bottom
-Motor Robot::FRT(19, true); //back right top
-Motor Robot::FRB(18); //back right bottom
-Motor Robot::FLT(13); //back left top
-Motor Robot::FLB(11, true); //back left bottom
+Motor Robot::BLT(1);
+Motor Robot::BLB(3, true); 
+Motor Robot::BRT(10, true); 
+Motor Robot::BRB(9);
+Motor Robot::FRT(19, true); 
+Motor Robot::FRB(18);
+Motor Robot::FLT(13);
+Motor Robot::FLB(11, true); 
 Motor Robot::angler(20);
 Motor Robot::conveyor(2);
 Motor Robot::flicker(17);
@@ -56,23 +56,6 @@ Gps Robot::gps(5, 1.2192, -1.2192, 180, 0, .4064);
 Imu Robot::IMU(12);
 Distance Robot::angler_dist(21);
 Distance Robot::mogo_dist(15);
-
-
-//test bot declarations
-/*
-Imu Robot::IMU(15);
-ADIEncoder Robot::LE(5, 6);
-ADIEncoder Robot::RE(3, 4);
-ADIEncoder Robot::BE(7, 8);
-Distance Robot::mogo_dist(9);
-Motor Robot::FR(17, true);
-Motor Robot::FL(8);
-Motor Robot::BR(3, true);
-Motor Robot::BL(10);
-double Robot::offset_back = 2.875;
-double Robot::offset_middle = 5.0;
-*/
-
 
 
 double pi = 3.141592653589793238;
@@ -104,6 +87,10 @@ void Robot::imu_clamp(void *ptr){
     }
 }
 
+void Robot::receive_fps(nlohmann::json msg){
+    lcd::print(7, "Seconds per frame: %s", msg.dump());
+}
+
 void Robot::receive_mogo(nlohmann::json msg) {
 
     double angle_threshold = 10;
@@ -126,8 +113,8 @@ void Robot::receive_mogo(nlohmann::json msg) {
         new_y = y + lidar_depth * cos(heading / 180 * pi) * lookahead_distance;
         new_x = x + lidar_depth * sin(heading / 180 * pi) * lookahead_distance;
 
-        lcd::print(5, "X: %f Y: %f L: %f", (float)new_y, (float)new_x, (float)lidar_depth);
-        lcd::print(6, "Heading: %f Angle: %f", (float)heading, (float)angle);
+        lcd::print(3, "X: %f Y: %f L: %f", (float)new_y, (float)new_x, (float)lidar_depth);
+        lcd::print(4, "Heading: %f Angle: %f", (float)heading, (float)angle);
     }
     else if (angle == 0 && chasing_mogo == true){
         new_y = new_y + 200;
@@ -248,11 +235,6 @@ void Robot::mecanum(int power, int strafe, int turn, int max_power) {
     double true_max = double(std::max(max, min));
     double scalar = (true_max > max_power) ? max_power / true_max : 1;
 
-    // FL = (power + strafe + turn) * scalar;
-    // FR = (power - strafe - turn) * scalar;
-    // BL = (power - strafe + turn) * scalar;
-    // BR = (power + strafe - turn) * scalar;
-
     FLT = (power + strafe + turn) * scalar;
     FRT = (power - strafe - turn) * scalar;
     BLT = (power - strafe + turn) * scalar;
@@ -309,10 +291,8 @@ void Robot::fps(void *ptr) {
         y = (float)y + global_dy;
         x = (float)x + global_dx;
 
-        lcd::print(1,"Y: %f - X: %f", (float)y, (float)x, IMU.get_rotation());
-        lcd::print(2, "IMU value: %f", IMU.get_heading());
-        lcd::print(3, "TASK EXISTS %d", task_exists("DEPTH"));
-        lcd::print(4,"Potentiometer %d - Dist. %d", potentiometer.get_value(), angler_dist.get());
+        lcd::print(1,"Y: %f X: %f IMU: %f", (float)y, (float)x, IMU.get_rotation());
+        lcd::print(2,"Potentiometer %d - Dist. %d", potentiometer.get_value(), angler_dist.get());
 
         last_y = cur_y;
         last_x = cur_x;
@@ -324,8 +304,8 @@ void Robot::fps(void *ptr) {
 
 void Robot::gps_fps(void *ptr){
     while (true){
-        lcd::print(1, "Y: %f - X: %f", (float)gps.get_status().y, (float)gps.get_status().x);
-        lcd::print(2, "Heading: %f", (float)gps.get_heading());
+        lcd::print(5, "Y: %f - X: %f", (float)gps.get_status().y, (float)gps.get_status().x);
+        lcd::print(6, "Heading: %f", (float)gps.get_heading());
         delay(5);
     }
 }

@@ -59,21 +59,22 @@ class Robot{
 		static std::map<std::string, std::unique_ptr<pros::Task>> tasks;
 
 		static void add_motor(void *ptr);
-		static void mecanum(int power, int strafe, int turn, int max_power=127);
 		static void drive(void *ptr);
 		static void check_depth(void *ptr);
 		static void depth_angler(void *ptr);
 		static void imu_clamp(void *ptr);
+		static void fps(void *ptr);
+		static void gps_fps(void *ptr);
+		static void move_to(void *ptr);
+
 		static void receive_mogo(nlohmann::json msg);
+		static void receive_fps(nlohmann::json msg);
 
 		static void start_task(std::string name, void (*func)(void *));
 		static bool task_exists(std::string name);
 		static void kill_task(std::string name);
 
-		static void mecanumT(int power, int strafe, int turn);
+		static void mecanum(int power, int strafe, int turn, int max_power=127);
 		static void brake(std::string mode);
-		static void fps(void *ptr);
-		static void gps_fps(void *ptr);
-		static void move_to(void *ptr);
 };
 #endif
