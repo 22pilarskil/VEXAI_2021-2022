@@ -117,7 +117,8 @@ void Robot::receive_mogo(nlohmann::json msg) {
         lcd::print(4, "Heading: %f Angle: %f", (float)heading, (float)angle);
     }
     else if (angle == 0 && chasing_mogo == true){
-        new_y = new_y + 200;
+        new_y = y + 300 * cos(heading / 180 * pi);
+        new_x = x + 300 * sin(heading / 180 * pi);
     }
 }
 
@@ -188,7 +189,7 @@ void Robot::drive(void *ptr) {
         bool angler_forward = master.get_digital(DIGITAL_L1);
         bool angler_backward = master.get_digital(DIGITAL_L2);
 
-        bool  angler_start_thread = master.get_digital(DIGITAL_X);
+        bool angler_start_thread = master.get_digital(DIGITAL_X);
 
         bool piston_open = master.get_digital(DIGITAL_A);
         bool piston_close = master.get_digital(DIGITAL_B);

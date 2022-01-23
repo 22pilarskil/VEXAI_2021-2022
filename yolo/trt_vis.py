@@ -59,7 +59,7 @@ try:
             if det is not None and len(det) > 0:
 		                
                 if args.display:
-                    
+
                     color_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(det[5], True))
                     depth_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(det[5], True))
 
@@ -76,14 +76,14 @@ try:
         print("Depth: {}, Turn angle: {}".format(data[0], data[1]))
 
         try:
-	        comm.send("mogo", data)
+            comm.send("mogo", data)
             comm.send("fps", time.time() - start)
-	        if (comm.read("stop")): 
-	            while not comm.read("continue"):
-	                print("Awaiting \"continue\" signal")
+            if (comm.read("stop")): 
+                while not comm.read("continue"):
+                    print("Awaiting \"continue\" signal")
                 #switch_cameras(pipeline, config, cameras['l515_front'])
         except:
-        	comm.open()
+            comm.open()
 
         print("Time elapsed: {}".format(time.time() - start))
            
