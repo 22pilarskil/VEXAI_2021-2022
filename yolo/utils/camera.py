@@ -15,6 +15,8 @@ class Camera:
         self.img_size = (640, 640)
         self.color_ts = 0
         self.depth_ts = 0
+        self.stale_frames = 0
+        self.total_frames = 0
         print(rs.context())
 
 
@@ -40,6 +42,11 @@ class Camera:
 
         self.pipeline.start(self.config)
 
+    def print_stale_frame(self):
+        print(f'Summary: Total frames: {self.total_frames}')
+        print(f'Stale frames: {self.stale_frames}')
+
+
     @timer("Frame Time")
     def poll_frames(self, conn=None):
         frames = self.pipeline.wait_for_frames()
@@ -51,6 +58,10 @@ class Camera:
 
         print("COLOR DIFF {}".format(new_color_ts - self.color_ts))
         print("DEPTH DIFF {}".format(new_depth_ts - self.depth_ts))
+
+        if self.color_ts == new_color_ts or self.depth_ts == new_depth_ts:
+            self.stale_frames += 1
+        self.total_frames += 1
 
         self.color_ts = new_color_ts
         self.depth_ts = new_depth_ts
@@ -74,7 +85,7 @@ class Camera:
 
         if not conn is None:
             conn.send(color_image, depth_image, color_image_t, depth_colormap, depth_frame)
-
+        self.print_stale_frame()
         return color_image, depth_image, color_image_t, depth_colormap, depth_frame
 
     
