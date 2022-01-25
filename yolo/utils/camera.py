@@ -13,6 +13,8 @@ class Camera:
         self.initialize_config(self.cameras[start_camera][0])
         self.flip = self.cameras[start_camera][1]
         self.img_size = (640, 640)
+        self.color_ts = 0
+        self.depth_ts = 0
         print(rs.context())
 
 
@@ -43,6 +45,16 @@ class Camera:
         frames = self.pipeline.wait_for_frames()
         depth_frame = frames.get_depth_frame()
         color_frame = frames.get_color_frame()
+
+        new_color_ts = color_frame.timestamp
+        new_depth_ts = depth_frame.timestamp
+
+        print("COLOR DIFF {}".format(new_color_ts - self.color_ts))
+        print("DEPTH DIFF {}".format(new_depth_ts - self.depth_ts))
+
+        self.color_ts = new_color_ts
+        self.depth_ts = new_depth_ts
+        
         if not depth_frame or not color_frame:
             return None
  
