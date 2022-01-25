@@ -14,9 +14,9 @@ using namespace pros;
 using namespace std;
 
 Controller Robot::master(E_CONTROLLER_MASTER);
-PD Robot::power_PD(.8, 0, 0);
-PD Robot::strafe_PD(.8, 0, 0);
-PD Robot::turn_PD(1.5, 0, 0);
+PD Robot::power_PD(.4, 0, 0);
+PD Robot::strafe_PD(.4, 0, 0);
+PD Robot::turn_PD(2, 0, 0);
 
 Motor Robot::BLT(1);
 Motor Robot::BLB(3, true); 
@@ -49,6 +49,8 @@ std::atomic<double> Robot::imu_val = 0;
 std::atomic<bool> Robot::chasing_mogo = false;
 
 double pi = 3.141592653589793238;
+int counter = 0;
+int counter2 = 0;
 double Robot::offset_back = 5.25;
 double Robot::offset_middle = 7.625;
 double Robot::wheel_circumference = 2.75 * pi;
@@ -58,11 +60,11 @@ std::map<std::string, std::unique_ptr<pros::Task>> Robot::tasks;
 const double inches_to_encoder = 41.669;
 const double meters_to_inches = 39.3701;
 
-
 void Robot::receive_mogo(nlohmann::json msg) {
+    lcd::print(6, "COUNT 1 %d - COUNT 2 %d", counter, counter2);
+    counter = counter + 1;
 
-    double angle_threshold = 3;
-    double lookahead_distance = 4;
+    double angle_threshold = 1;
 
     if (!task_exists("DEPTH")) start_task("DEPTH", Robot::check_depth);
 
@@ -77,22 +79,21 @@ void Robot::receive_mogo(nlohmann::json msg) {
         flicker = 0;
     }
 
-    heading = (IMU.get_rotation() + angle);
+    lcd::print(4, "Heading: %f Angle: %f", (float)heading, (float)angle);
 
-    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#stop#");
+    heading = (imu_val + angle);
 
-    if (abs(angle) < angle_threshold && angle != 0){
-        lidar_depth = (lidar_depth * meters_to_inches) * inches_to_encoder;
-        new_y = y + lidar_depth * cos(heading / 180 * pi) * lookahead_distance;
-        new_x = x - lidar_depth * sin(heading / 180 * pi) * lookahead_distance;
+    lidar_depth = (lidar_depth * meters_to_inches) * inches_to_encoder;
 
-        lcd::print(3, "X: %f Y: %f L: %f", (float)new_y, (float)new_x, (float)lidar_depth);
-        lcd::print(4, "Heading: %f Angle: %f", (float)heading, (float)angle);
-    }
-    else if (angle == 0 && chasing_mogo == true){
-        new_y = y + 300 * cos(heading / 180 * pi);
-        new_x = x - 300 * sin(heading / 180 * pi);
-    }
+    lcd::print(3, "X: %f Y: %f L: %f", (float)new_y, (float)new_x, (float)lidar_depth);
+
+    if (abs(angle) > angle_threshold) lidar_depth = 300;
+    else if (angle == 0 && chasing_mogo == true) lidar_depth = 600;
+
+    new_y = y + lidar_depth * cos(heading / 180 * pi);
+    new_x = x + lidar_depth * sin(heading / 180 * pi);
+
+    counter2 = counter2 + 1;
 }
 
 
@@ -309,11 +310,15 @@ void Robot::kill_task(std::string name) {
 
 void Robot::mecanum(int power, int strafe, int turn, int max_power) {
     // max_power = 127
+    int inputs[]{power, strafe, turn};
+    int max_inp = *max_element(inputs, inputs + 3);
+    max_inp = turn;
+
     int powers[] {
-        power + strafe + turn,
-        power - strafe - turn,
-        power - strafe + turn,
-        power + strafe - turn
+        power + strafe + turn * max_inp / turn,
+        power - strafe - turn * max_inp / turn,
+        power - strafe + turn * max_inp / turn,
+        power + strafe - turn * max_inp / turn
     };
 
     int max = *max_element(powers, powers + 4);

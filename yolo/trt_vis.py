@@ -50,6 +50,18 @@ try:
 
         data = [0, 0]
 
+        try:
+            comm.send("mogo", data)
+            comm.send("fps", time.time() - start)
+            if (comm.read("stop")): 
+                while not comm.read("continue"):
+                    print("Awaiting \"continue\" signal")
+                #switch_cameras(pipeline, config, cameras['l515_front'])
+        except:
+            comm.open()
+
+        print("Time elapsed: {}".format(time.time() - start))
+
         color_annotator = Annotator(color_image, line_width=2, pil=not ascii)
         depth_annotator = Annotator(depth_colormap, line_width=2, pil=not ascii)
 
@@ -75,17 +87,6 @@ try:
 		        
         print("Depth: {}, Turn angle: {}".format(data[0], data[1]))
 
-        try:
-            comm.send("mogo", data)
-            comm.send("fps", time.time() - start)
-            if (comm.read("stop")): 
-                while not comm.read("continue"):
-                    print("Awaiting \"continue\" signal")
-                #switch_cameras(pipeline, config, cameras['l515_front'])
-        except:
-            comm.open()
-
-        print("Time elapsed: {}".format(time.time() - start))
            
 
 finally:
