@@ -16,7 +16,7 @@ using namespace std;
 Controller Robot::master(E_CONTROLLER_MASTER);
 PD Robot::power_PD(.8, 0, 0);
 PD Robot::strafe_PD(.8, 0, 0);
-PD Robot::turn_PD(2, 0, 0);
+PD Robot::turn_PD(1.5, 0, 0);
 
 Motor Robot::BLT(1);
 Motor Robot::BLB(3, true); 
@@ -91,7 +91,7 @@ void Robot::receive_mogo(nlohmann::json msg) {
     }
     else if (angle == 0 && chasing_mogo == true){
         new_y = y + 300 * cos(heading / 180 * pi);
-        new_x = x + 300 * sin(heading / 180 * pi);
+        new_x = x - 300 * sin(heading / 180 * pi);
     }
 }
 
