@@ -16,7 +16,7 @@ using namespace std;
 Controller Robot::master(E_CONTROLLER_MASTER);
 PD Robot::power_PD(.4, 0, 0);
 PD Robot::strafe_PD(.4, 0, 0);
-PD Robot::turn_PD(2, 0, 0);
+PD Robot::turn_PD(2.5, 0, 0);
 
 Motor Robot::BLT(1);
 Motor Robot::BLB(3, true); 
@@ -61,8 +61,6 @@ const double inches_to_encoder = 41.669;
 const double meters_to_inches = 39.3701;
 
 void Robot::receive_mogo(nlohmann::json msg) {
-    lcd::print(6, "COUNT 1 %d - COUNT 2 %d", counter, counter2);
-    counter = counter + 1;
 
     double angle_threshold = 1;
 
@@ -76,24 +74,20 @@ void Robot::receive_mogo(nlohmann::json msg) {
 
     if (angle != 0) {
         chasing_mogo = true;
-        flicker = 0;
+        flicker = 127;
     }
 
-    lcd::print(4, "Heading: %f Angle: %f", (float)heading, (float)angle);
+    double coefficient = lidar_depth * meters_to_inches * inches_to_encoder;
 
-    heading = (imu_val + angle);
+    if (abs(angle) > angle_threshold) coefficient = 250;
+    else if (angle == 0 && chasing_mogo == true) coefficient = 600;
 
-    lidar_depth = (lidar_depth * meters_to_inches) * inches_to_encoder;
+    heading = imu_val + angle;
+    new_y = y + coefficient * cos(heading / 180 * pi);
+    new_x = x + coefficient * sin(heading / 180 * pi);
 
-    lcd::print(3, "X: %f Y: %f L: %f", (float)new_y, (float)new_x, (float)lidar_depth);
-
-    if (abs(angle) > angle_threshold) lidar_depth = 300;
-    else if (angle == 0 && chasing_mogo == true) lidar_depth = 600;
-
-    new_y = y + lidar_depth * cos(heading / 180 * pi);
-    new_x = x + lidar_depth * sin(heading / 180 * pi);
-
-    counter2 = counter2 + 1;
+    lcd::print(3, "X: %d Y: %d L: %d", (int)new_y, (int)new_x, (int)lidar_depth);
+    lcd::print(4, "Heading: %d Angle: %d", (int)heading, (int)angle);
 }
 
 
@@ -138,7 +132,7 @@ void Robot::drive(void *ptr) {
         if (flicker_on) flicker = 127;
         else flicker = 0;
 
-        mecanum(power, strafe, turn);
+        mecanum(power, strafe, -turn);
         delay(5);
     }
 }
@@ -166,7 +160,7 @@ void Robot::check_depth(void *ptr){
             chasing_mogo = false;
             piston.set_value(true);
             delay(250);
-            //start_task("ANGLER", Robot::depth_angler);
+            start_task("ANGLER", Robot::depth_angler);
 
             kill_task("DEPTH");
         }
@@ -178,7 +172,7 @@ void Robot::check_depth(void *ptr){
 void Robot::depth_angler(void *ptr){
     int potentiometer_threshold = 270;
     int depth_threshold = 42;
-    int depth_coefficient = 10;
+    int depth_coefficient = 3;
     while (true){
 
         if(master.get_digital(DIGITAL_Y)) break;
@@ -247,7 +241,6 @@ void Robot::fps(void *ptr) {
         y = (float)y - global_dy;
         x = (float)x + global_dx;
 
-
         last_y = cur_y;
         last_x = cur_x;
         last_phi = cur_phi;
@@ -274,17 +267,17 @@ void Robot::move_to(void *ptr)
 {
     while (true)
     {
+        double phi = (IMU.get_rotation()) * pi / 180;
 
         double imu_error = imu_val - heading;
         double y_error = new_y - y;
         double x_error = new_x - x;
 
-        double phi = (IMU.get_rotation()) * pi / 180;
         double power = power_PD.get_value(y_error * std::cos(phi) + x_error * std::sin(phi));
         double strafe = strafe_PD.get_value(x_error * std::cos(phi) - y_error * std::sin(phi));
         double turn = turn_PD.get_value(imu_error);
 
-        mecanum(power, strafe, turn, 50);
+        mecanum(power, strafe, turn, 127);
 
         delay(5);
     }
@@ -309,16 +302,12 @@ void Robot::kill_task(std::string name) {
 
 
 void Robot::mecanum(int power, int strafe, int turn, int max_power) {
-    // max_power = 127
-    int inputs[]{power, strafe, turn};
-    int max_inp = *max_element(inputs, inputs + 3);
-    max_inp = turn;
 
     int powers[] {
-        power + strafe + turn * max_inp / turn,
-        power - strafe - turn * max_inp / turn,
-        power - strafe + turn * max_inp / turn,
-        power + strafe - turn * max_inp / turn
+        power + strafe + turn,
+        power - strafe - turn,
+        power - strafe + turn,
+        power + strafe - turn
     };
 
     int max = *max_element(powers, powers + 4);
@@ -327,13 +316,13 @@ void Robot::mecanum(int power, int strafe, int turn, int max_power) {
     double true_max = double(std::max(max, min));
     double scalar = (true_max > max_power) ? max_power / true_max : 1;
 
-    FLT = (power + strafe + turn) * scalar;
-    FRT = (power - strafe - turn) * scalar;
-    BLT = (power - strafe + turn) * scalar;
-    BRT = (power + strafe - turn) * scalar;
-    FLB = (power + strafe + turn) * scalar;
-    FRB = (power - strafe - turn) * scalar;
-    BLB = (power - strafe + turn) * scalar;
-    BRB = (power + strafe - turn) * scalar;
+    FLT = powers[0] * scalar;
+    FRT = powers[1] * scalar;
+    BLT = powers[2] * scalar;
+    BRT = powers[3] * scalar;
+    FLB = powers[0] * scalar;
+    FRB = powers[1] * scalar;
+    BLB = powers[2] * scalar;
+    BRB = powers[3] * scalar;
 }
 

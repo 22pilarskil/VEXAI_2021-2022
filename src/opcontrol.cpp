@@ -11,7 +11,7 @@ void opcontrol() {
 	lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#");
 	lib7405x::Serial::Instance()->onReceive("fps", Robot::receive_fps);
 	//Robot::start_task("GPS", Robot::gps_fps);
-	Robot::start_task("DRIVE", Robot::drive);
+	//Robot::start_task("DRIVE", Robot::drive);
 	Robot::IMU.reset();
 	delay(2500);
 	Robot::start_task("FPS", Robot::fps);
