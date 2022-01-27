@@ -1,3 +1,4 @@
+   
 #include "main.h"
 #include "Robot.h"
 #include "system/json.hpp"
@@ -18,14 +19,14 @@ PD Robot::power_PD(.4, 0, 0);
 PD Robot::strafe_PD(.4, 0, 0);
 PD Robot::turn_PD(2.5, 0, 0);
 
-Motor Robot::BLT(1);
-Motor Robot::BLB(3, true); 
-Motor Robot::BRT(10, true); 
-Motor Robot::BRB(9);
-Motor Robot::FRT(19, true); 
-Motor Robot::FRB(18);
-Motor Robot::FLT(13);
-Motor Robot::FLB(11, true); 
+Motor Robot::BRB(1, true);
+Motor Robot::BRT(3); 
+Motor Robot::BLT(10, true); 
+Motor Robot::BLB(9);
+Motor Robot::FLT(18, true); 
+Motor Robot::FLB(19);
+Motor Robot::FRB(13, true);
+Motor Robot::FRT(11); 
 Motor Robot::flicker(17);
 Motor Robot::angler(20);
 Motor Robot::conveyor(2);
@@ -84,7 +85,7 @@ void Robot::receive_mogo(nlohmann::json msg) {
 
     heading = imu_val + angle;
     new_y = y + coefficient * cos(heading / 180 * pi);
-    new_x = x + coefficient * sin(heading / 180 * pi);
+    new_x = x - coefficient * sin(heading / 180 * pi);
 
     lcd::print(3, "X: %d Y: %d L: %d", (int)new_y, (int)new_x, (int)lidar_depth);
     lcd::print(4, "Heading: %d Angle: %d", (int)heading, (int)angle);
@@ -229,7 +230,7 @@ void Robot::fps(void *ptr) {
         turn_offset_x = (float)turn_offset_x + cur_turn_offset_x;
         turn_offset_y = (float)turn_offset_y + cur_turn_offset_y;
 
-        double cur_y = (LE.get_value() - RE.get_value()) / 2;
+        double cur_y = (RE.get_value() - LE.get_value()) / 2;
         double cur_x = BE.get_value() + turn_offset_x;
 
         double dy = cur_y - last_y;
@@ -238,7 +239,7 @@ void Robot::fps(void *ptr) {
         double global_dy = dy * std::cos(cur_phi) + dx * std::sin(cur_phi);
         double global_dx = dx * std::cos(cur_phi) - dy * std::sin(cur_phi);
 
-        y = (float)y - global_dy;
+        y = (float)y + global_dy;
         x = (float)x + global_dx;
 
         last_y = cur_y;
@@ -269,9 +270,9 @@ void Robot::move_to(void *ptr)
     {
         double phi = (IMU.get_rotation()) * pi / 180;
 
-        double imu_error = imu_val - heading;
+        double imu_error = -(imu_val - heading);
         double y_error = new_y - y;
-        double x_error = new_x - x;
+        double x_error = -(new_x - x);
 
         double power = power_PD.get_value(y_error * std::cos(phi) + x_error * std::sin(phi));
         double strafe = strafe_PD.get_value(x_error * std::cos(phi) - y_error * std::sin(phi));
@@ -325,4 +326,3 @@ void Robot::mecanum(int power, int strafe, int turn, int max_power) {
     BLB = powers[2] * scalar;
     BRB = powers[3] * scalar;
 }
-
