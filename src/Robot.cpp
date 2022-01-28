@@ -17,7 +17,7 @@ using namespace std;
 Controller Robot::master(E_CONTROLLER_MASTER);
 PD Robot::power_PD(.4, 0, 0);
 PD Robot::strafe_PD(.4, 0, 0);
-PD Robot::turn_PD(2.5, 0, 0);
+PD Robot::turn_PD(1.0, 0, 0);
 
 Motor Robot::BRB(1, true);
 Motor Robot::BRT(3); 
@@ -133,7 +133,7 @@ void Robot::drive(void *ptr) {
         if (flicker_on) flicker = 127;
         else flicker = 0;
 
-        mecanum(power, strafe, -turn);
+        mecanum(power, strafe, turn);
         delay(5);
     }
 }

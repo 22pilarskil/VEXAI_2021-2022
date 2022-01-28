@@ -16,8 +16,8 @@ void opcontrol() {
 	Robot::IMU.reset();
 	delay(2500);
 	Robot::start_task("FPS", Robot::fps);
-	lib7405x::Serial::Instance()->onReceive("mogo", Robot::receive_mogo);
-	Robot::start_task("MOVETO", Robot::move_to);
+	//lib7405x::Serial::Instance()->onReceive("mogo", Robot::receive_mogo);
+	//Robot::start_task("MOVETO", Robot::move_to);
 	Robot::start_task("IMU", Robot::imu_clamp);
 	// delay(1000);
 
