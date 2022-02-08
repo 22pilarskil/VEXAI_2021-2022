@@ -89,11 +89,38 @@ void Robot::receive_mogo(nlohmann::json msg) {
 
     lcd::print(3, "X: %d Y: %d L: %d", (int)new_y, (int)new_x, (int)lidar_depth);
     lcd::print(4, "Heading: %d Angle: %d", (int)heading, (int)angle);
+    delay(5);
 }
 
+bool fflag = true;
+void Robot::receive_ring(nlohmann::json msg) {
+    if (!task_exists("DEPTH")) start_task("DEPTH", Robot::check_depth);
+
+    string msgS = msg.dump();
+    std::size_t found = msgS.find(",");
+
+    double lidar_depth = std::stod(msgS.substr(1, found - 1));
+    double angle = std::stod(msgS.substr(found + 1, msgS.size() - found - 1));
+
+
+    if (fflag){
+        heading = imu_val + angle;
+        new_y = y -  cos(heading / 180 * pi);
+        new_x = x +  sin(heading / 180 * pi);
+
+        lcd::print(3, "X: %d Y: %d L: %d", (int)new_y, (int)new_x, (int)lidar_depth);
+        lcd::print(4, "Heading: %d Angle: %d", (int)heading, (int)angle);
+        fflag = false;
+    }
+    delay(5);
+        
+    
+
+}
 
 void Robot::receive_fps(nlohmann::json msg){
     lcd::print(7, "Seconds per frame: %s", msg.dump());
+    delay(5);
 }
 
 

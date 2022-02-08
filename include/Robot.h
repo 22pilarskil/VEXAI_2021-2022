@@ -55,6 +55,7 @@ class Robot{
 		static std::map<std::string, std::unique_ptr<pros::Task>> tasks;
 
 		static void receive_mogo(nlohmann::json msg);
+		static void receive_ring(nlohmann::json msg);
 		static void receive_fps(nlohmann::json msg);
 
 		static void drive(void *ptr);
