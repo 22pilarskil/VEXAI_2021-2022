@@ -71,35 +71,49 @@ try:
                     if args.display:
                         color_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(det[5], True))
                         depth_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(det[5], True))
-                         
+                                        
+            else:
+                det = return_data(pred, find="close")
+                print(det)
 
-                
-            if cluster:
-                det = return_data(pred, find="all", colors=[3])
-                for x in det:
-                    xys.append([(int(x[2]) + int(x[0])) / 2, (int(x[1]) + int(x[3])) / 2])
-                    color_annotator.box_label(x[:4], f'{names[int(x[5]) + 1]} {x[4]:.2f} {x[6]}', color=colors(x[5], True))
-                    depth_annotator.box_label(x[:4], f'{names[int(x[5]) + 1]} {x[4]:.2f} {x[6]}', color=colors(x[5], True))
-                add_zeros = True
-                if len(xys) > 1:
-                    clusters = DBSCAN(eps=80, min_samples=2).fit(xys)
-                    cluster_labels = np.array(clusters.labels_)
-                    mask1 = cluster_labels != -1
-                    cluster_labels = cluster_labels[mask1]
-                    if len(cluster_labels) > 0:
-                        mask2 = cluster_labels == np.bincount(cluster_labels).argmax()
-                        cluster_labels = cluster_labels[mask2]
-                        det = det[mask1]
-                        det = det[mask2]
-                        cluster_pos = np.average(xys, axis=0)
-                        det = np.append(det, cluster_labels.reshape(cluster_labels.shape[0],1), axis=1)
-                        add_zeros = False
 
-                if add_zeros:
-                    det = np.append(det, np.zeros((det.shape[0], 1)), axis=1)
+                if det is not None and len(det) > 0:
+                    print(det)
+                    det = torch.tensor(det)
+                    
+                    det = return_data(pred, find="all", colors=[-1, 0, 1, 3])
 
-            turn_angle = degree(det)
-            if not turn_angle == None:
+                    if len(det) > 0:
+                        for x in det:
+                            color_annotator.box_label(x[:4], f'{names[int(x[5]) + 1]} {x[4]:.2f}', color=colors(x[5], True))
+                            depth_annotator.box_label(x[:4], f'{names[int(x[5]) + 1]} {x[4]:.2f}', color=colors(x[5], True))
+                        if cluster:
+                            det = det[det[:,5]==3]
+                        for x in det:
+                            xys.append([(int(x[2]) + int(x[0])) / 2, (int(x[1])+int(x[3]))/2])
+                        add_zeros = True
+                        if cluster and len(xys)>1:
+                            clusters = DBSCAN(eps=80, min_samples=2).fit(xys)
+                            cluster_labels = np.array(clusters.labels_)
+                            mask1 = cluster_labels!=-1
+                            cluster_labels = cluster_labels[mask1]
+                            if len(cluster_labels)>0:
+                                mask2 = cluster_labels==np.bincount(cluster_labels).argmax()
+                                cluster_labels = cluster_labels[mask2]
+                                det = det[mask1]
+                                det = det[mask2]
+                                cluster_pos = np.average(xys, axis=0)
+                                det = np.append(det, cluster_labels.reshape(cluster_labels.shape[0],1), axis=1)
+                                add_zeros = False
+
+
+                        if add_zeros:
+                            det = np.append(det, np.zeros((det.shape[0], 1)), axis=1)
+                        det = torch.tensor(det)
+                        det = return_data(det, find="close", colors=[-1, 0, 1, 3])
+            
+            if not det ==None:
+                turn_angle = degree(det)
                 data = [float(det[4]), float(turn_angle)]
 
 

@@ -95,24 +95,23 @@ void Robot::receive_mogo(nlohmann::json msg) {
 bool fflag = true;
 void Robot::receive_ring(nlohmann::json msg) {
     if (!task_exists("DEPTH")) start_task("DEPTH", Robot::check_depth);
-
+    conveyor=-100;
     string msgS = msg.dump();
     std::size_t found = msgS.find(",");
 
     double lidar_depth = std::stod(msgS.substr(1, found - 1));
     double angle = std::stod(msgS.substr(found + 1, msgS.size() - found - 1));
-
+    double coefficient = lidar_depth * meters_to_inches * inches_to_encoder;
 
     if (fflag){
-        heading = imu_val + angle;
-        new_y = y -  cos(heading / 180 * pi);
-        new_x = x +  sin(heading / 180 * pi);
 
+        heading = imu_val - angle;
+        new_y = y -  coefficient*cos(heading / 180 * pi)-100;
+        new_x = x +  coefficient*sin(heading / 180 * pi);
         lcd::print(3, "X: %d Y: %d L: %d", (int)new_y, (int)new_x, (int)lidar_depth);
         lcd::print(4, "Heading: %d Angle: %d", (int)heading, (int)angle);
-        fflag = false;
+        fflag=false;
     }
-    delay(5);
         
     
 
@@ -153,9 +152,9 @@ void Robot::drive(void *ptr) {
         if (piston_open) piston.set_value(true);
         else if (piston_close) piston.set_value(false);
 
-        if (conveyor_forward) conveyor = 100;
-        else if (conveyor_backward) conveyor = -100;
-        else conveyor = 0;
+        // if (conveyor_forward) conveyor = 100;
+        // else if (conveyor_backward) conveyor = -100;
+        // else conveyor = 0;
 
         if (flicker_on) flicker = 127;
         else flicker = 0;
