@@ -102,12 +102,11 @@ void Robot::receive_ring(nlohmann::json msg) {
     double lidar_depth = std::stod(msgS.substr(1, found - 1));
     double angle = std::stod(msgS.substr(found + 1, msgS.size() - found - 1));
     double coefficient = lidar_depth * meters_to_inches * inches_to_encoder;
-
-    if (fflag){
-
-        heading = imu_val - angle;
-        new_y = y -  coefficient*cos(heading / 180 * pi)-100;
-        new_x = x +  coefficient*sin(heading / 180 * pi);
+    double angle_threshold = 1;
+    if (fflag && angle!=0 && lidar_depth !=0){
+        heading =  imu_val -angle;
+        new_y = y -  coefficient*cos(heading / 180 * pi)-20;
+        new_x = x -  coefficient*sin(heading / 180 * pi);
         lcd::print(3, "X: %d Y: %d L: %d", (int)new_y, (int)new_x, (int)lidar_depth);
         lcd::print(4, "Heading: %d Angle: %d", (int)heading, (int)angle);
         fflag=false;
