@@ -15,6 +15,7 @@ from sklearn.cluster import DBSCAN
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--display", metavar="display", type=int, default=1)
+parser.add_argument("--cluster", metavar="cluster", type=bool, default=False)
 args = parser.parse_args()
     
 names = ["red-mogo","yellow-mogo", "blue-mogo", "unknown_color", "ring"]
@@ -26,7 +27,7 @@ cameras = {
     'l515_back': ('f1181848', True),
     }
 cam = Camera(cameras, 'l515_front')
-cluster = True
+cluster = args.cluster
 
 comm = Coms()
 
@@ -62,18 +63,10 @@ try:
         det = None
 
         if int(pred.shape[0]) > 0:
-            if not cluster:
-                det = return_data(pred, find="close", colors=[-1, 0, 1])
-
-                if det is not None and len(det) > 0:
-                            
-                    if args.display:
-                        color_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(det[5], True))
-                        depth_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(det[5], True))
-                                        
-            else:
+      
+            if cluster:
                     
-                det = return_data(pred, find="all", colors=[-1, 0, 1, 3])
+                det = return_data(pred, find="all", colors=[3])
 
                 if det is not None and len(det) > 0:
                     det = det[det[:,5]==3]
@@ -82,7 +75,6 @@ try:
                             color_annotator.box_label(x[:4], f'{names[int(x[5]) + 1]} {x[4]:.2f}', color=colors(x[5], True))
                             depth_annotator.box_label(x[:4], f'{names[int(x[5]) + 1]} {x[4]:.2f}', color=colors(x[5], True))
                         xys.append([(int(x[2]) + int(x[0])) / 2, (int(x[1])+int(x[3]))/2])
-                        print("adding")
                     add_zeros = True
                     if cluster and len(xys)>1:
                         clusters = DBSCAN(eps=80, min_samples=2).fit(xys)
@@ -102,26 +94,29 @@ try:
                     if add_zeros:
                         det = np.append(det, np.zeros((det.shape[0], 1)), axis=1)
                     det = torch.tensor(det)
-                    det = return_data(det, find="close", colors=[-1, 0, 1, 3])
-            
-            if not det == None:
+                    det = return_data(det, find="close", colors=[3])
+       
+            else:
+                det = return_data(pred, find="close", colors=[-1, 0, 1])            
+
+
+            if det is not None and len(det) > 0:
                 turn_angle = degree(det)
                 data = [float(det[4]), float(turn_angle)]
 
 
             if args.display:
+                if det is not None:
+                    color_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(0, True))
+                    depth_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(0, True))
                 color_image, depth_colormap = color_annotator.result(), depth_annotator.result()
                 images = np.hstack((color_image, depth_colormap))
                 cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
                 cv2.imshow('RealSense', images)
                 cv2.waitKey(1)
 
-
-        print("Depth: {}, Turn angle: {}".format(data[0], data[1]))
-
-
-                
         try:
+            print("Depth: {}, Turn angle: {}".format(data[0], data[1]))
             if(cluster):
                 print("ring")
                 comm.send("ring", data)
@@ -135,7 +130,6 @@ try:
         except:
             comm.open()
 
-           
-
+          
 finally:
     cam.stop()
