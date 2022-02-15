@@ -96,7 +96,7 @@ bool fflag = true;
 void Robot::receive_ring(nlohmann::json msg) {
     if (fflag){
         fflag = false;
-        conveyor = -100;
+        conveyor = -50;
         string msgS = msg.dump();
         std::size_t found = msgS.find(",");
 
@@ -106,14 +106,17 @@ void Robot::receive_ring(nlohmann::json msg) {
         double angle_threshold = 1;
         double target_heading = imu_val + angle;
         heading = target_heading;
-        while (abs(imu_val - target_heading) > angle_threshold){
+        while (abs(imu_val - target_heading) > 3){
+            // lcd::print(1, "imu: %d, targ: %d", (int)imu_val, (int)target_heading);
+            lcd::print(2, "loss: %d", (int)abs(imu_val- target_heading));
             delay(5);
         }
-        new_y = y - coefficient*cos(heading / 180 * pi);
+        new_y = y - coefficient*cos(heading / 180 * pi)-2;
         new_x = x + coefficient*sin(heading / 180 * pi);
-        lcd::print(3, "X: %d Y: %d L: %d", (int)new_y, (int)new_x, (int)lidar_depth);
+        lcd::print(3, "X: %d Y: %d", (int)y, (int)x);
+        lcd::print(3, "nX: %d nY: %d L: %d", (int)new_y, (int)new_x, (int)lidar_depth);
         lcd::print(4, "Heading: %d Angle: %d", (int)heading, (int)angle);
-        fflag = true;
+        //fflag = true;
     }
 }
 
@@ -274,8 +277,8 @@ void Robot::fps(void *ptr) {
         last_x = cur_x;
         last_phi = cur_phi;
 
-        lcd::print(1,"Y: %d X: %d IMU: %f", (int)y, (int)x, IMU.get_rotation());
-        lcd::print(2,"Potentiometer %d - Dist. %d", potentiometer.get_value(), angler_dist.get());
+        //lcd::print(1,"Y: %d X: %d IMU: %f", (int)y, (int)x, IMU.get_rotation());
+        //lcd::print(2,"Potentiometer %d - Dist. %d", potentiometer.get_value(), angler_dist.get());
 
         delay(5);
     }
@@ -304,7 +307,7 @@ void Robot::move_to(void *ptr)
 
         double power = power_PD.get_value(y_error * std::cos(phi) + x_error * std::sin(phi));
         double strafe = strafe_PD.get_value(x_error * std::cos(phi) - y_error * std::sin(phi));
-        double turn = turn_PD.get_value(imu_error);
+        double turn = turn_PD.get_value(imu_error)*3;
 
         mecanum(power, strafe, turn, 127);
 
