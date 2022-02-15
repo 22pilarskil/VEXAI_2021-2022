@@ -14,16 +14,16 @@ do_depth_ring = False
 
 import argparse
 
+from utils.models import Model
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--display", metavar="display", type=int, default=1)
 args = parser.parse_args()
-    
-        
-model = attempt_load(PATH)
-device = torch.device("cuda" if torch.cuda.is_available() else 'cpu')
-model.to(device)
-names = model.module.names if hasattr(model, 'module') else model.names
-cap= cv2.VideoCapture('legg.mp4')
+
+model = Model(PATH)
+
+# names = model.module.names if hasattr(model, 'module') else model.names
+cap= cv2.VideoCapture('test_video.mp4')
 
 try:
     while(cap.isOpened()):
@@ -41,21 +41,24 @@ try:
 
 
         color_colormap_dim = color_image.shape
-        
 
-        color_image_t = torch.FloatTensor(color_image)
+
+        pred = model.predict(color_image)
+
+        color_image_t = None
+        if torch.cuda.is_available():
+            color_image_t = torch.cuda.FloatTensor(color_image)
+        else:
+            color_image_t = torch.FloatTensor(color_image)
         color_image_t = torch.moveaxis(color_image_t, 2, 0)[None] / 255.0
+        pred[:,:4] = scale_coords(color_image_t.shape[2:], pred[:, :4], color_image.shape).round()
+
         start = time.time()
-        pred = model(color_image_t)[0]
         print("TORCH: {}".format(time.time()-start))
-        conf_thres = .3
-        pred = non_max_suppression(pred, conf_thres)
 
         color_image0 = color_image
-        pred = pred[0]
-        
+
         color_annotator = Annotator(color_image0, line_width=2, pil=not ascii)
-        pred[:,:4] = scale_coords(color_image_t.shape[2:], pred[:, :4], color_image0.shape).round()
 
         for i, det in enumerate(pred):
             if(det[5] == 0): # COLOR

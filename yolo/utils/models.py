@@ -1,32 +1,44 @@
 import pycuda.driver as cuda
 import pycuda.autoinit
-import tensorrt as trt
-import numpy as np 
+# import tensorrt as trt
+import numpy as np
 import torch
 
-from utils.trt.common import allocate_buffers
+# from utils.trt.common import allocate_buffers
 from utils.decorators import timer
+from utils.yolo.general import non_max_suppression, scale_coords
+
+from models.experimental import attempt_load
 
 class Model:
     def __init__(self, filepath):
 
         if ".engine" in filepath:
             self.mode = "trt"
-            logger = trt.Logger(trt.Logger.VERBOSE)
-            runtime = trt.Runtime(logger)
+            # logger = trt.Logger(trt.Logger.VERBOSE)
+            # runtime = trt.Runtime(logger)
+            #
+            # trt.init_libnvinfer_plugins(logger,'')
+            # dtype = np.float32
+            #
+            # with open(filepath, "rb") as model:
+            #     self.model = runtime.deserialize_cuda_engine(model.read())
+            #
+            # self.context = self.model.create_execution_context()
+            #
+            # self.inputs, self.outputs, self.bindings, self.stream = allocate_buffers(self.model)
 
-            trt.init_libnvinfer_plugins(logger,'')
-            dtype = np.float32
+        if ".pt" in filepath:
+            self.mode = "pt"
+            self.has_cuda = torch.cuda.is_available()
 
-            with open(filepath, "rb") as model:
-                self.model = runtime.deserialize_cuda_engine(model.read())
-
-            self.context = self.model.create_execution_context()
-
-            self.inputs, self.outputs, self.bindings, self.stream = allocate_buffers(self.model)
+            self.model = attempt_load(filepath)
+            device = torch.device("cuda" if self.has_cuda else 'cpu')
+            self.model.to(device)
 
     @timer("Model Time")
     def predict(self, img):
+        pred = None
 
         if self.mode == "trt":
 
@@ -37,5 +49,17 @@ class Model:
             [cuda.memcpy_dtoh_async(out.host, out.device, self.stream) for out in self.outputs]
             self.stream.synchronize()
 
-            return torch.tensor([out.host for out in self.outputs][3].reshape(1, 25200, 7))
-        
+            pred = torch.tensor([out.host for out in self.outputs][3].reshape(1, 25200, 7))
+
+        elif self.mode == "pt":
+            image_t = None
+            if self.has_cuda:
+                image_t = torch.cuda.FloatTensor(img)
+            else:
+                image_t = torch.FloatTensor(img)
+            image_t = torch.moveaxis(image_t, 2, 0)[None] / 255.0
+            pred = self.model(image_t)[0]
+
+        pred = non_max_suppression(pred, conf_thres=.3)[0]
+
+        return pred
