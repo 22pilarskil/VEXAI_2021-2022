@@ -101,7 +101,7 @@ class Camera:
 
     def switch_cameras(self):
         if len(self.cameras) == 2:
-            cameras = self.camera.values
+            cameras = self.cameras.values
             if cameras[0][0] == self.device_number:
                 try:
                     self.initialize_config(cameras[1][0])
