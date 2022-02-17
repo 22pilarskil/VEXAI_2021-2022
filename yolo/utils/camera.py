@@ -24,7 +24,7 @@ class Camera:
     def initialize_config(self, device_number):
 
         self.config = rs.config()
-        print(device_number)
+        self.device_number = device_number
         self.config.enable_device(device_number)
         pipeline_wrapper = rs.pipeline_wrapper(self.pipeline)
         pipeline_profile = self.config.resolve(pipeline_wrapper)
@@ -97,7 +97,29 @@ class Camera:
             self.flip = self.cameras[camera][1]
         except:
             self.pipeline.start(self.config)
-            return -1
+            return False
+
+    def switch_cameras(self):
+        if len(self.cameras) == 2:
+            cameras = self.camera.values
+            if cameras[0][0] == self.device_number:
+                try:
+                    self.initialize_config(cameras[1][0])
+                    self.flip = cameras[1][1]
+                    return True
+                except:
+                    self.pipeline.start(self.config)
+                    return False
+
+            elif cameras[1][0] == self.device_number:
+                try:
+                    self.initialize_config(cameras[0][0])
+                    self.flip = cameras[0][1]
+                    return True
+                except:
+                    self.pipeline.start(self.config)
+                    return False
+        return False
 
     def stop(self):
         self.pipeline.stop()
