@@ -13,8 +13,8 @@ current_time = time.time()
 while(True):
     if(time.time() - current_time >= 5):
         current_time = time.time()
-        Camera.switch_cameras()
+        cam.switch_cameras()
         print(cam)
-    color_image, depth_image, color_image_t, depth_colormap, depth_frame = Camera.poll_frames()
+    color_image, depth_image, color_image_t, depth_colormap, depth_frame = cam.poll_frames()
     cv2.imshow('RealSense', color_image)
     cv2.waitKey(1)
