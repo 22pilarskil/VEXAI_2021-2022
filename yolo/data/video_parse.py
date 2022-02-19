@@ -1,9 +1,25 @@
 import cv2
 import os 
-from PIL import Image
+import pathlib
+import argparse
 import imagehash
 
+from PIL import Image
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--file_path", metavar="file_path", type=str, default="")
+
+
 def read_video(VIDEO_PATH, FRAME_CAPTURE_RATE, SIMMILAR_CUTOFF, SAVED_HASHES):
+
+	out_dir = "output"
+
+	parent_dir = pathlib.Path(__file__).absolute().parent
+	os.chdir(parent_dir)
+	if os.path.isdir("{}".format(out_dir)):
+		os.system("rm -R {}".format(out_dir))
+	os.mkdir(out_dir)
+
 	cap = cv2.VideoCapture(VIDEO_PATH)
 	success = cap.grab() 
 	hashes = []
@@ -16,32 +32,31 @@ def read_video(VIDEO_PATH, FRAME_CAPTURE_RATE, SIMMILAR_CUTOFF, SAVED_HASHES):
 		if len(hashes) == 0:
 			return True
 		else:
-			for oldImageHash in hashes:
-				if oldImageHash:
-					if abs(newImageHash - oldImageHash) < SIMMILAR_CUTOFF:
+			for old_image_hash in hashes:
+				if old_image_hash:
+					if abs(new_image_hash - old_image_hash) < SIMMILAR_CUTOFF:
 						return False
 			return True
 	
 	while success:
 		if counter % FRAME_CAPTURE_RATE == 0:
 			_, img = cap.retrieve()
-			newImageHash = imagehash.average_hash(Image.fromarray(img))
+			new_image_hash = imagehash.average_hash(Image.fromarray(img))
 
-			if test_image(img, newImageHash, img_num, hashes):
-				hashes[img_num % SAVED_HASHES] = newImageHash
+			if test_image(img, new_image_hash, img_num, hashes):
+				hashes[img_num % SAVED_HASHES] = new_image_hash
 				cv2.imshow("image", img)
-				cv2.imwrite("output/{}.jpg".format(img_num), img)
+				cv2.imwrite("{}/{}.jpg".format(out_dir, img_num), img)
 				img_num += 1
-				print(hashes)
 		counter = counter + 1
-		
 		success = cap.grab()
 
 		if cv2.waitKey(25) & 0xFF == ord('q'):
 			break
 
 if __name__ == "__main__":
-	VIDEO_PATH = "test_video.mp4"
+	args = parser.parse_args()
+	VIDEO_PATH = args.file_path if args.file_path else "test_video.mp4"
 	FRAME_CAPTURE_RATE = 30
 	SIMMILAR_CUTOFF = 5
 	SAVED_HASHES = 10
