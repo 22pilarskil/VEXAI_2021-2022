@@ -6,7 +6,7 @@ import random
 
 if __name__ == '__main__':
     batchsize = 8
-    epochs = 10
+    epochs = 1
     train_size = 200
     name_of_json = "export-2022-02-13T14_43_22.669Z"
 
@@ -15,13 +15,14 @@ if __name__ == '__main__':
     
     PATH = os.path.abspath(os.getcwd())
     
+    
     git.Git().clone("https://github.com/ultralytics/yolov5")
     l2j.convert(name_of_json + ".json")
     os.mkdir("datasets")
     
     shutil.move(PATH + "/"+name_of_json + "/images", PATH + "/datasets/images")
     shutil.move(PATH + "/"+ name_of_json+"/labels", PATH + "/datasets/labels")
-    os.rename(PATH+ "/"+name_of_json"/" + name_of_json+".yaml",PATH+"/yolov5/data/"+ name_of_json+ ".yaml")
+    os.rename(PATH+ "/"+name_of_json+"/" + name_of_json+".yaml",PATH+"/yolov5/data/"+ name_of_json+ ".yaml")
     os.rmdir(name_of_json)
     os.mkdir(PATH+"/datasets/images/train")
     os.mkdir(PATH+"/datasets/images/val")
@@ -64,6 +65,15 @@ if __name__ == '__main__':
     
     os.system('python ' + PATH + '/yolov5/train.py --img 640 --batch ' + str(batchsize) + ' --epochs ' + str(epochs) + ' --data ' + PATH + 
               "/yolov5/data/"+name_of_json+ ".yaml" + " --weights yolov5s.pt --cache")
+
+    #get best.pt from the yolo folder, delete the yolo folder
+    os.rename(PATH + "/yolov5/runs/train/exp/weights/best.pt", PATH + "/best.pt")
+    
+    shutil.rmtree(PATH + "/yolov5", ignore_errors= True)
+    shutil.rmtree("datasets", ignore_errors= True)
+    shutil.rmtree("__pycache__", ignore_errors= True)
+    os.remove("yolov5s.pt")
+    
     
     
     
