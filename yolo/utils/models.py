@@ -1,12 +1,16 @@
-import pycuda.driver as cuda
-import pycuda.autoinit
-# import tensorrt as trt
 import numpy as np
 import torch
 
-# from utils.trt.common import allocate_buffers
-from utils.decorators import timer
+from utils.decorators import timer, bcolors
 from utils.yolo.general import non_max_suppression, scale_coords
+
+try: 
+    import pycuda.driver as cuda
+    import pycuda.autoinit
+    import tensorrt as trt
+    from utils.trt.common import allocate_buffers
+except ImportError:
+    print(bcolors.FAIL + "TRT import fail, check that it is installed or don't use it" + bcolors.ENDC)
 
 from models.experimental import attempt_load
 
@@ -14,19 +18,20 @@ class Model:
     def __init__(self, filepath):
 
         if ".engine" in filepath:
+
             self.mode = "trt"
-            # logger = trt.Logger(trt.Logger.VERBOSE)
-            # runtime = trt.Runtime(logger)
-            #
-            # trt.init_libnvinfer_plugins(logger,'')
-            # dtype = np.float32
-            #
-            # with open(filepath, "rb") as model:
-            #     self.model = runtime.deserialize_cuda_engine(model.read())
-            #
-            # self.context = self.model.create_execution_context()
-            #
-            # self.inputs, self.outputs, self.bindings, self.stream = allocate_buffers(self.model)
+            logger = trt.Logger(trt.Logger.VERBOSE)
+            runtime = trt.Runtime(logger)
+            
+            trt.init_libnvinfer_plugins(logger,'')
+            dtype = np.float32
+            
+            with open(filepath, "rb") as model:
+                self.model = runtime.deserialize_cuda_engine(model.read())
+            
+            self.context = self.model.create_execution_context()
+            
+            self.inputs, self.outputs, self.bindings, self.stream = allocate_buffers(self.model)
 
         if ".pt" in filepath:
             self.mode = "pt"

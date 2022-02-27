@@ -1,4 +1,3 @@
-
 import numpy as np
 import cv2
 import torch
@@ -9,7 +8,7 @@ from utils.data import return_data, determine_color, determine_depth, degree
 import time
 import os
 from sklearn.cluster import DBSCAN
-PATH = os.getcwd() + "/models/best.pt"
+PATH = os.getcwd() + "/models/best.pt" #"/data/labelbox2yolo/best.pt"
 do_depth_ring = False
 
 import argparse
@@ -22,23 +21,22 @@ args = parser.parse_args()
 
 model = Model(PATH)
 
-# names = model.module.names if hasattr(model, 'module') else model.names
-cap= cv2.VideoCapture('test_video.mp4')
-
+cap = cv2.VideoCapture('/Users/michaelpilarski/Downloads/20220214_150616.mp4')
+count = 0
 try:
     while(cap.isOpened()):
         start = time.time()
 
 
         ret, color_frame = cap.read()
+        count += 1
+        if not count % 10 == 0: continue
 
 
         # Convert images to numpy arrays
         color_image = np.asanyarray(color_frame)
 
         color_image = cv2.resize(color_image, dsize=(640, 640), interpolation=cv2.INTER_AREA)
-
-
 
         color_colormap_dim = color_image.shape
 
@@ -68,39 +66,9 @@ try:
 
         names = ["red-mogo","yellow-mogo", "blue-mogo", "unknown_color", "ring"]
 
-        data = [0, 0]
-        xys = []
-        cluster = True
         if int(pred.shape[0]) > 0:
-            det = return_data(pred, find="all", colors=[-1, 0, 1, 3])
-
-            if len(det) > 0:
-                if cluster:
-                    det = det[det[:,5]==3]
-                for x in det:
-                    xys.append([(int(x[2]) + int(x[0])) / 2, (int(x[1])+int(x[3]))/2])
-                add_zeros = True
-                if cluster and len(xys)>1:
-                    clusters = DBSCAN(eps=80, min_samples=2).fit(xys)
-                    cluster_labels = np.array(clusters.labels_)
-                    mask1 = cluster_labels!=-1
-                    cluster_labels = cluster_labels[mask1]
-                    if len(cluster_labels)>0:
-                        mask2 = cluster_labels==np.bincount(cluster_labels).argmax()
-                        cluster_labels = cluster_labels[mask2]
-                        det = det[mask1]
-                        det = det[mask2]
-                        cluster_pos = np.average(xys, axis=0)
-                        det = np.append(det, cluster_labels.reshape(cluster_labels.shape[0],1), axis=1)
-                        add_zeros = False
-
-
-                if add_zeros:
-                    det = np.append(det, np.zeros((det.shape[0], 1)), axis=1)
-
-                if args.display:
-                    for i in det:
-                        color_annotator.box_label(i[:4], f'{names[int(i[5]) + 1]} {i[4]:.2f} {i[6]}', color=colors(i[5], True))
+            for x in pred:
+                color_annotator.box_label(x[:4], f'{names[int(x[5]) + 1]} {x[4]:.2f}', color=colors(x[5], True))
 
         if args.display:
             color_image = color_annotator.result()

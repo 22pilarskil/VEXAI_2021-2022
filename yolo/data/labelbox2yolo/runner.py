@@ -8,7 +8,7 @@ if __name__ == '__main__':
     batchsize = 8
     epochs = 1
     train_size = 200
-    name_of_json = "export-2022-02-13T14_43_22.669Z"
+    name_of_json = "export-2022-02-27T00_24_04.064Z"
 
 
 
@@ -46,6 +46,7 @@ if __name__ == '__main__':
     for i in random_sample_train:
         
         root = x[i][:-4]
+        if not root.isdigit(): continue
         shutil.copyfile(PATH+ "/datasets/images/" + root+'.jpg',PATH+"/datasets/images/train/" + root+'.jpg')
         try:
            shutil.copyfile(PATH+ "/datasets/labels/" + root+'.txt',PATH+"/datasets/labels/train/" + root+'.txt')
@@ -55,6 +56,7 @@ if __name__ == '__main__':
 
     for i in random_sample_val:
         root = x[i][:-4]
+        if not root.isdigit(): continue
         shutil.copyfile(PATH+ "/datasets/images/" + root+'.jpg',PATH+"/datasets/images/val/" + root+'.jpg')
         try:
             shutil.copyfile(PATH+ "/datasets/labels/" + root+'.txt',PATH+"/datasets/labels/val/" + root+'.txt')
@@ -63,7 +65,7 @@ if __name__ == '__main__':
     
     
     
-    os.system('python ' + PATH + '/yolov5/train.py --img 640 --batch ' + str(batchsize) + ' --epochs ' + str(epochs) + ' --data ' + PATH + 
+    os.system('python3 ' + PATH + '/yolov5/train.py --img 640 --batch ' + str(batchsize) + ' --epochs ' + str(epochs) + ' --data ' + PATH + 
               "/yolov5/data/"+name_of_json+ ".yaml" + " --weights yolov5s.pt --cache")
 
     #get best.pt from the yolo folder, delete the yolo folder
@@ -71,9 +73,11 @@ if __name__ == '__main__':
     
     shutil.rmtree(PATH + "/yolov5", ignore_errors= True)
     shutil.rmtree("datasets", ignore_errors= True)
+    shutil.rmtree("wandb", ignore_errors=True)
     shutil.rmtree("__pycache__", ignore_errors= True)
     os.remove("yolov5s.pt")
-    
+    os.remove(name_of_json + ".zip")
+
     
     
     
