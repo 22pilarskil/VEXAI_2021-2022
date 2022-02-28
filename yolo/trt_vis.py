@@ -26,7 +26,7 @@ cameras = {
     'l515_front': ('f1180887', True),
     'l515_back': ('f1181848', True),
     }
-cam = Camera(cameras, 'l515_front')
+cam = Camera(cameras, 'l515_back')
 cluster = args.cluster
 
 comm = Coms()
@@ -40,10 +40,7 @@ try:
             continue
         color_image, depth_image, color_image_t, depth_colormap, depth_frame = data
 
-        pred = model.predict(color_image_t)
-
-        pred = non_max_suppression(pred, conf_thres=.3)[0]
-        pred[:,:4] = scale_coords(color_image_t.shape[2:], pred[:, :4], color_image.shape).round()
+        pred = model.predict(color_image_t, color_image.shape)
 
         for i, det in enumerate(pred):
             if(det[5] == 0): # COLOR

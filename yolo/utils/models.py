@@ -42,7 +42,7 @@ class Model:
             self.model.to(device)
 
     @timer("Model Time")
-    def predict(self, img):
+    def predict(self, img, img_shape):
         pred = None
 
         if self.mode == "trt":
@@ -66,5 +66,5 @@ class Model:
             pred = self.model(image_t)[0]
 
         pred = non_max_suppression(pred, conf_thres=.3)[0]
-
+        pred[:,:4] = scale_coords(img.shape[2:], pred[:,:4], img_shape).round()
         return pred
