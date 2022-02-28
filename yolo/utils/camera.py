@@ -99,27 +99,6 @@ class Camera:
             self.pipeline.start(self.config)
             return False
 
-    def switch_cameras(self):
-        if len(self.cameras) == 2:
-            cameras = self.cameras.values
-            if cameras[0][0] == self.device_number:
-                try:
-                    self.initialize_config(cameras[1][0])
-                    self.flip = cameras[1][1]
-                    return True
-                except:
-                    self.pipeline.start(self.config)
-                    return False
-
-            elif cameras[1][0] == self.device_number:
-                try:
-                    self.initialize_config(cameras[0][0])
-                    self.flip = cameras[0][1]
-                    return True
-                except:
-                    self.pipeline.start(self.config)
-                    return False
-        return False
-
+    
     def stop(self):
         self.pipeline.stop()
