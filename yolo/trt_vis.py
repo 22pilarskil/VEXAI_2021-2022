@@ -99,7 +99,7 @@ try:
 
             if det is not None and len(det) > 0:
                 turn_angle = degree(det)
-                data = [float(det[4]), float(turn_angle)]
+                data = [round(float(det[4]), 3), int(turn_angle)]
 
 
             if args.display:
@@ -122,8 +122,12 @@ try:
             comm.send("fps", time.time() - start)
             if (comm.read("stop")): 
                 while not comm.read("continue"):
-                    print("Awaiting \"continue\" signal")
-                #switch_cameras(pipeline, config, cameras['l515_front'])
+                    if comm.read("l515_front"): 
+                        cam.switch_cameras("l515_front")
+                        cluster = True
+                    if comm.read("l515_back"): 
+                        cam.switch_cameras("l515_front")
+                        cluster = False
         except:
             comm.open()
 
