@@ -4,6 +4,7 @@
 #include "system/json.hpp"
 #include "system/Serial.h"
 #include "PD.h"
+#include "GridMapper.cpp"
 #include <map>
 #include <cmath>
 #include <atomic>
@@ -54,6 +55,8 @@ std::atomic<double> Robot::new_heading_gps = 0;
 std::atomic<double> Robot::imu_val = 0;
 std::atomic<bool> Robot::chasing_mogo = false;
 
+GridMapper gridMapper = new GridMapper();
+
 double pi = 3.141592653589793238;
 int counter = 0;
 int counter2 = 0;
@@ -82,6 +85,12 @@ void Robot::receive_mogo(nlohmann::json msg) {
         chasing_mogo = true;
         //flicker = 127;
     }
+   
+    std::map<std::string, std::vector<double*>> objects;
+   
+    objects["mogo"] = std::vector<double*>({new double[]{lidar_depth * meters_to_inches, angle} });
+   
+    gridMapper.map(x, y, std::fmod(std::fmod((pi/2 - heading), 2*pi) + 2*pi, 2*pi); //the fmod stuff makes sure the heading to trig angle is between 0 and 2pi
 
     double coefficient = lidar_depth * meters_to_inches * inches_to_encoder;
 
