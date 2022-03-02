@@ -47,6 +47,9 @@ class Robot{
 		static std::atomic<double> new_y;
 		static std::atomic<double> heading;
 		static std::atomic<double> imu_val;
+		static std::atomic<double> new_x_gps;
+        static std::atomic<double> new_y_gps;
+        static std::atomic<double> new_heading_gps;
 		static std::atomic<bool> chasing_mogo;
 		static std::atomic<bool> record;
 
