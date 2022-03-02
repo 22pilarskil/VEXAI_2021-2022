@@ -68,7 +68,8 @@ class Robot{
 		static void depth_angler(void *ptr);
 		static void imu_clamp(void *ptr);
 		static void fps(void *ptr);
-		static void gps_fps(void *ptr);
+        static void gps_fps(void *ptr);
+        static void move_to_gps(void *ptr);
 		static void move_to(void *ptr);
 		static void controller_print(void *ptr);
 
