@@ -30,12 +30,14 @@ Motor Robot::FRT(11);
 Motor Robot::flicker(17);
 Motor Robot::angler(20);
 Motor Robot::conveyor(2);
+Motor Robot::lift(8);
 
 ADIEncoder Robot::LE({{16, 5, 6}});
 ADIEncoder Robot::RE({{16, 1, 2}});
 ADIEncoder Robot::BE({{16, 3, 4}});
-ADIAnalogIn Robot::potentiometer({{16, 8}});
-ADIDigitalOut Robot::piston(1);
+ADIAnalogIn Robot::angler_pot({{16, 8}});
+ADIAnalogIn Robot::lift_pot(3);
+ADIDigitalOut Robot::angler_piston(1);
 Gps Robot::gps(5, 1.2192, -1.2192, 180, 0, .4064);
 Imu Robot::IMU(12);
 Distance Robot::angler_dist(21);
@@ -75,13 +77,13 @@ void Robot::receive_mogo(nlohmann::json msg) {
 
     if (angle != 0) {
         chasing_mogo = true;
-        flicker = 127;
+        //flicker = 127;
     }
 
     double coefficient = lidar_depth * meters_to_inches * inches_to_encoder;
 
     if (abs(angle) > angle_threshold) coefficient = 250;
-    else if (angle == 0 && chasing_mogo == true) coefficient = 600;
+    else if (abs(angle) < angle_threshold && chasing_mogo == true) coefficient = mogo_dist.get() + 100;
 
     heading = imu_val + angle;
     new_y = y + coefficient * cos(heading / 180 * pi);
@@ -139,13 +141,16 @@ void Robot::drive(void *ptr) {
 
         bool angler_start_thread = master.get_digital(DIGITAL_X) || master.get_digital(DIGITAL_DOWN);
 
-        bool piston_open = master.get_digital(DIGITAL_A);
-        bool piston_close = master.get_digital(DIGITAL_B);
+        bool angler_piston_open = master.get_digital(DIGITAL_A);
+        bool angler_piston_close = master.get_digital(DIGITAL_B);
 
         bool conveyor_forward = master.get_digital(DIGITAL_R1);
         bool conveyor_backward = master.get_digital(DIGITAL_R2);
 
         bool flicker_on = master.get_digital(DIGITAL_UP);
+
+        bool lift_up = master.get_digital(DIGITAL_LEFT);
+        bool lift_down = master.get_digital(DIGITAL_RIGHT);
 
 
         if (angler_backward) angler = 40;
@@ -154,8 +159,8 @@ void Robot::drive(void *ptr) {
 
         if (angler_start_thread  && !task_exists("ANGLER")) start_task("ANGLER", Robot::depth_angler);
 
-        if (piston_open) piston.set_value(true);
-        else if (piston_close) piston.set_value(false);
+        if (angler_piston_open) angler_piston.set_value(true);
+        else if (angler_piston_close) angler_piston.set_value(false);
 
         // if (conveyor_forward) conveyor = 100;
         // else if (conveyor_backward) conveyor = -100;
@@ -163,6 +168,10 @@ void Robot::drive(void *ptr) {
 
         if (flicker_on) flicker = 127;
         else flicker = 0;
+
+        if (lift_up) lift = 127;
+        else if (lift_down) lift = -127;
+        else lift = 0;
 
         mecanum(power, strafe, turn);
         delay(5);
@@ -188,11 +197,11 @@ void Robot::check_depth(void *ptr){
             new_y = (float)y;
             lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#stop#");
 
-            flicker = 0;
-            chasing_mogo = false;
-            piston.set_value(true);
-            delay(250);
-            start_task("ANGLER", Robot::depth_angler);
+            // flicker = 0;
+            // chasing_mogo = false;
+            // angler_piston.set_value(true);
+            // delay(250);
+            // start_task("ANGLER", Robot::depth_angler);
 
             kill_task("DEPTH");
         }
@@ -202,7 +211,7 @@ void Robot::check_depth(void *ptr){
 
 
 void Robot::depth_angler(void *ptr){
-    int potentiometer_threshold = 270;
+    int angler_pot_threshold = 270;
     int depth_threshold = 42;
     int depth_coefficient = 3;
     while (true){
@@ -210,14 +219,14 @@ void Robot::depth_angler(void *ptr){
         if(master.get_digital(DIGITAL_Y)) break;
 
         if(master.get_digital(DIGITAL_DOWN)) {
-            while (potentiometer.get_value() < 2415){
+            while (angler_pot.get_value() < 2415){
                 angler = -127;
             }
             break;
         }
 
-        if (abs(potentiometer.get_value() - potentiometer_threshold) > 50){
-            if (potentiometer.get_value() > potentiometer_threshold) angler = 127;
+        if (abs(angler_pot.get_value() - angler_pot_threshold) > 50){
+            if (angler_pot.get_value() > angler_pot_threshold) angler = 127;
             else angler = -127;
         }
         else {
@@ -278,7 +287,7 @@ void Robot::fps(void *ptr) {
         last_phi = cur_phi;
 
         //lcd::print(1,"Y: %d X: %d IMU: %f", (int)y, (int)x, IMU.get_rotation());
-        //lcd::print(2,"Potentiometer %d - Dist. %d", potentiometer.get_value(), angler_dist.get());
+        //lcd::print(2,"angler_pot %d - Dist. %d", angler_pot.get_value(), angler_dist.get());
 
         delay(5);
     }
@@ -307,11 +316,19 @@ void Robot::move_to(void *ptr)
 
         double power = power_PD.get_value(y_error * std::cos(phi) + x_error * std::sin(phi));
         double strafe = strafe_PD.get_value(x_error * std::cos(phi) - y_error * std::sin(phi));
-        double turn = turn_PD.get_value(imu_error)*3;
+        double turn = turn_PD.get_value(imu_error);
 
         mecanum(power, strafe, turn, 127);
 
         delay(5);
+    }
+}
+
+
+void Robot::controller_print(void *ptr){
+    while (true){
+        master.print(1, 0, "lift pot %d", lift_pot.get_value());
+        delay(100);
     }
 }
 
