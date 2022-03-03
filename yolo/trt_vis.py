@@ -26,7 +26,7 @@ cameras = {
     'l515_front': ('f1180887', True),
     'l515_back': ('f1181848', True),
     }
-cam = Camera(cameras, 'l515_back')
+cam = Camera(cameras, 'l515_front')
 cluster = args.cluster
 
 comm = Coms()
@@ -103,7 +103,8 @@ try:
 
 
             if args.display:
-                if det is not None:
+                if det is not None and len(det) > 0:
+                    print(det)
                     color_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(0, True))
                     depth_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(0, True))
                 color_image, depth_colormap = color_annotator.result(), depth_annotator.result()
