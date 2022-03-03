@@ -29,6 +29,7 @@ class Camera:
         pipeline_wrapper = rs.pipeline_wrapper(self.pipeline)
         pipeline_profile = self.config.resolve(pipeline_wrapper)
         device = pipeline_profile.get_device().first_depth_sensor()
+        self.align = rs.align(rs.stream.color)
         device.set_option(rs.option.min_distance, 0)
         device_product_line = str(device.get_info(rs.camera_info.product_line))
         print(device.get_info(rs.camera_info.serial_number))
@@ -50,8 +51,10 @@ class Camera:
     @timer("Frame Time")
     def poll_frames(self, conn=None):
         frames = self.pipeline.wait_for_frames()
-        depth_frame = frames.get_depth_frame()
-        color_frame = frames.get_color_frame()
+        aligned_frames = self.align.process(frames)
+    
+        depth_frame = aligned_frames.get_depth_frame()
+        color_frame = aligned_frames.get_color_frame()
 
         new_color_ts = color_frame.timestamp
         new_depth_ts = depth_frame.timestamp

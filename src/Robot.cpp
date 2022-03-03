@@ -38,7 +38,7 @@ ADIEncoder Robot::BE({{16, 3, 4}});
 ADIAnalogIn Robot::angler_pot({{16, 8}});
 ADIAnalogIn Robot::lift_pot(3);
 ADIDigitalOut Robot::angler_piston(1);
-Gps Robot::gps(5, 1.2192, -1.2192, 180, 0, .4064);
+Gps Robot::gps(4);
 Imu Robot::IMU(12);
 Distance Robot::angler_dist(21);
 Distance Robot::mogo_dist(15);
@@ -48,6 +48,9 @@ std::atomic<double> Robot::x = 0;
 std::atomic<double> Robot::new_x = 0;
 std::atomic<double> Robot::new_y = 0;
 std::atomic<double> Robot::heading = 0;
+std::atomic<double> Robot::new_x_gps = 0;
+std::atomic<double> Robot::new_y_gps = 0;
+std::atomic<double> Robot::new_heading_gps = 0;
 std::atomic<double> Robot::imu_val = 0;
 std::atomic<bool> Robot::chasing_mogo = false;
 std::atomic<double> Robot::turn_coefficient = 1;
@@ -303,8 +306,37 @@ void Robot::fps(void *ptr) {
 
 void Robot::gps_fps(void *ptr){
     while (true){
-        lcd::print(5, "Y: %f - X: %f", (float)gps.get_status().y, (float)gps.get_status().x);
-        lcd::print(6, "Heading: %f", (float)gps.get_heading());
+        lcd::print(1, "Y: %f - X: %f", (float)(gps.get_status().y), (float)(gps.get_status().x));
+        lcd::print(2, "Heading: %f", (float)gps.get_heading());
+        delay(5);
+    }
+}
+
+/* new_y, new_x, and new_heading_gps are all in absolute field terms 
+ * new_y_gps and new_x_gps should be declared in meters
+ * new_y_gps and new_x_gps are based on gps camera position not center of the bot
+ * (0,0) in the center of the field in meters
+ * 0 degrees is facing north (red side on left, blue side on right)
+ */
+void Robot::move_to_gps(void *ptr) {
+    while (true)
+    {
+        double angle_adjust = 0;
+        if (gps.get_heading()+90 >= 360) angle_adjust = -270;
+        else angle_adjust = 90;
+
+        double phi = (gps.get_heading()+angle_adjust) * pi / 180;
+
+        double gps_error = new_heading_gps - gps.get_heading();
+        double y_error = (new_y - gps.get_status().y) * meters_to_inches * inches_to_encoder;
+        double x_error = (new_x - gps.get_status().x) * meters_to_inches * inches_to_encoder;
+
+        double power = power_PD.get_value(y_error * std::cos(phi) + x_error * std::sin(phi));
+        double strafe = strafe_PD.get_value(x_error * std::cos(phi) - y_error * std::sin(phi));
+        double turn = turn_PD.get_value(gps_error);
+
+        mecanum(power, strafe, turn, 127);
+
         delay(5);
     }
 }

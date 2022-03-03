@@ -47,6 +47,9 @@ class Robot{
 		static std::atomic<double> new_y;
 		static std::atomic<double> heading;
 		static std::atomic<double> imu_val;
+		static std::atomic<double> new_x_gps;
+        static std::atomic<double> new_y_gps;
+        static std::atomic<double> new_heading_gps;
 		static std::atomic<bool> chasing_mogo;
 		static std::atomic<bool> record;
 		static std::atomic<double> turn_coefficient;
@@ -66,7 +69,8 @@ class Robot{
 		static void depth_angler(void *ptr);
 		static void imu_clamp(void *ptr);
 		static void fps(void *ptr);
-		static void gps_fps(void *ptr);
+        static void gps_fps(void *ptr);
+        static void move_to_gps(void *ptr);
 		static void move_to(void *ptr);
 		static void controller_print(void *ptr);
 
