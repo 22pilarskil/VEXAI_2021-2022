@@ -72,6 +72,7 @@ const double meters_to_inches = 39.3701;
 void Robot::receive_mogo(nlohmann::json msg) {
 
     double angle_threshold = 1;
+   
 
     if (!task_exists("DEPTH")) start_task("DEPTH", Robot::check_depth);
 
@@ -80,18 +81,21 @@ void Robot::receive_mogo(nlohmann::json msg) {
 
     double lidar_depth = std::stod(msgS.substr(1, found - 1));
     double angle = std::stod(msgS.substr(found + 1, msgS.size() - found - 1));
-
-    if (angle != 0) {
+    
+   if (angle != 0) {
         chasing_mogo = true;
         //flicker = 127;
     }
    
     std::map<std::string, std::vector<double*>> objects;
    
-    objects["mogo"] = std::vector<double*>({new double[]{lidar_depth * meters_to_inches, angle} });
+    objects["mogo"] = std::vector<double*>({new double[]{lidar_depth * meters_to_inches, angle/180*pi} });
    
-    gridMapper.map(x, y, std::fmod(std::fmod((pi/2 - heading), 2*pi) + 2*pi, 2*pi); //the fmod stuff makes sure the heading to trig angle is between 0 and 2pi
-
+    double theta = std::fmod(std::fmod( (pi/2 - heading + 2*pi), 2*pi);
+   
+    gridMapper.map(new double[]{x, y, theta}, objects ); //the fmod stuff makes sure the heading to trig angle is between 0 and 2pi
+    gridMapper.viewed_boxes(new double[]{x, y, theta});
+   
     double coefficient = lidar_depth * meters_to_inches * inches_to_encoder;
 
     if (abs(angle) > angle_threshold) coefficient = 250;
