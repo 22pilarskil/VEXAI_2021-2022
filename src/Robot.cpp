@@ -94,7 +94,14 @@ void Robot::receive_mogo(nlohmann::json msg) {
     double theta = std::fmod(std::fmod( (pi/2 - heading + 2*pi), 2*pi);
    
     gridMapper.map(new double[]{x, y, theta}, objects ); //the fmod stuff makes sure the heading to trig angle is between 0 and 2pi
-    gridMapper.viewed_boxes(new double[]{x, y, theta});
+    
+    for (int i = 1; i <= 6; i++) { // TEST CODE
+       std::string print_string = "";
+       for (int j = 0; j < 6; j++) {
+          print_string += ("%i:%i  ", (i + 6 * j), gridMapper.getBox((i + 6 * j))["mogo"]);
+       }
+       lcd::print(i, print_string);
+    } // TEST CODE
    
     double coefficient = lidar_depth * meters_to_inches * inches_to_encoder;
 
