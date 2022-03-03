@@ -55,7 +55,7 @@ std::atomic<double> Robot::new_heading_gps = 0;
 std::atomic<double> Robot::imu_val = 0;
 std::atomic<bool> Robot::chasing_mogo = false;
 
-GridMapper gridMapper = new GridMapper();
+GridMapper gridMapper* = new GridMapper();
 
 double pi = 3.141592653589793238;
 int counter = 0;
@@ -89,19 +89,19 @@ void Robot::receive_mogo(nlohmann::json msg) {
    
     std::map<std::string, std::vector<double*>> objects;
    
-    objects["mogo"] = std::vector<double*>({new double[]{lidar_depth * meters_to_inches, angle/180*pi} });
+    objects["mogo"].push_back(new double[] {lidar_depth * meters_to_inches, angle/180*pi});
    
-    double theta = std::fmod(std::fmod( (pi/2 - heading + 2*pi), 2*pi);
+    double theta = std::fmod( (pi/2 - heading/180*pi + 2*pi), 2*pi) );
                              
     double x_in_inches = x / inches_to_encoder;
     double y_in_inches = y / inches_to_encoder;
    
-    gridMapper.map(new double[]{x_in_inches, y_in_inches, theta}, objects ); //the fmod stuff makes sure the heading to trig angle is between 0 and 2pi
+    gridMapper->map(new double[] {x_in_inches, y_in_inches, theta}, objects ); //the fmod stuff makes sure the heading to trig angle is between 0 and 2pi
     
     for (int i = 1; i <= 6; i++) { // TEST CODE
        std::string print_string = "";
        for (int j = 0; j < 6; j++) {
-          print_string += ("%i:%i  ", (i + 6 * j), gridMapper.getBox((i + 6 * j))["mogo"]);
+          print_string += ("%i:%i  ", (i + 6 * j), gridMapper->getBox((i + 6 * j))["mogo"]);
        }
        lcd::print(i, print_string);
     } // TEST CODE
