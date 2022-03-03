@@ -73,7 +73,6 @@ def determine_depth(det, depth_image, do_depth_ring=False):
     if not do_depth_ring and not det[5] == 2:
         d = depth_image[int(det[1] + (float(det[3] - det[1]) * (2 / 10))):int(det[1] + (float(det[3] - det[1]) * (4.0 / 10))), int(det[0] + (float(det[2] - det[0]) * (4.0 / 10))):int(det[0] + (float(det[2] - det[0]) * (6.0 / 10)))]
         d = d[d > 0]
-        d = np.argsort(d)[:-int(len(d)/2)]
         return np.mean(d)
     elif do_depth_ring:
         d = depth_image[int(det[1] + (float(det[3] - det[1]) * (2 / 10))):int(det[1] + (float(det[3] - det[1]) * (4.0 / 10))), int(det[0] + (float(det[2] - det[0]) * (4.0 / 10))):int(det[0] + (float(det[2] - det[0]) * (6.0 / 10)))]
