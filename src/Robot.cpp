@@ -55,7 +55,7 @@ std::atomic<double> Robot::new_heading_gps = 0;
 std::atomic<double> Robot::imu_val = 0;
 std::atomic<bool> Robot::chasing_mogo = false;
 
-GridMapper gridMapper* = new GridMapper();
+GridMapper* gridMapper = new GridMapper();
 
 double pi = 3.141592653589793238;
 int counter = 0;
@@ -89,7 +89,9 @@ void Robot::receive_mogo(nlohmann::json msg) {
    
     std::map<std::string, std::vector<double*>> objects;
    
-    objects["mogo"].push_back({lidar_depth * meters_to_inches, angle/180*pi});
+    double[] location = {lidar_depth * meters_to_inches, angle/180*pi};
+   
+    objects["mogo"].push_back(location);
    
     double theta = std::fmod( (pi/2 - heading/180*pi + 2*pi), 2*pi) );
                              
