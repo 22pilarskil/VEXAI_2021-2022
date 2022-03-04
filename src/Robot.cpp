@@ -89,7 +89,7 @@ void Robot::receive_mogo(nlohmann::json msg) {
    
     std::map<std::string, std::vector<double*>> objects;
    
-    double[] location = {lidar_depth * meters_to_inches, angle/180*pi};
+    double location[] = {lidar_depth * meters_to_inches, angle/180*pi};
    
     objects["mogo"].push_back(location);
    
