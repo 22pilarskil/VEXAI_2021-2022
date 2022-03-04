@@ -89,7 +89,7 @@ void Robot::receive_mogo(nlohmann::json msg) {
    
     std::map<std::string, std::vector<double*>> objects;
    
-    objects["mogo"].push_back(new double[] {lidar_depth * meters_to_inches, angle/180*pi});
+    objects["mogo"].push_back(new double[]({lidar_depth * meters_to_inches, angle/180*pi}));
    
     double theta = std::fmod( (pi/2 - heading/180*pi + 2*pi), 2*pi) );
                              
