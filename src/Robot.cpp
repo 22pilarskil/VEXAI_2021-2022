@@ -93,12 +93,14 @@ void Robot::receive_mogo(nlohmann::json msg) {
    
     objects["mogo"].push_back(location);
    
-    double theta = std::fmod( (pi/2 - heading/180*pi + 2*pi), 2*pi) );
+    double theta = std::fmod( (pi/2 - heading/180*pi + 2*pi), 2*pi );
                              
     double x_in_inches = x / inches_to_encoder;
     double y_in_inches = y / inches_to_encoder;
    
-    gridMapper->map(new double[] {x_in_inches, y_in_inches, theta}, objects ); //the fmod stuff makes sure the heading to trig angle is between 0 and 2pi
+   double position_temp[] = {x_in_inches, y_in_inches, theta}
+   
+    gridMapper->map(position_temp, objects ); //the fmod stuff makes sure the heading to trig angle is between 0 and 2pi
     
     for (int i = 1; i <= 6; i++) { // TEST CODE
        std::string print_string = "";
