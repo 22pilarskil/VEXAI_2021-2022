@@ -52,6 +52,7 @@ class Robot{
         static std::atomic<double> new_heading_gps;
 		static std::atomic<bool> chasing_mogo;
 		static std::atomic<bool> record;
+		static std::atomic<double> turn_coefficient;
 
 		static double offset_back;
 		static double offset_middle;
