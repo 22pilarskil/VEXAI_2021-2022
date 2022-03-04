@@ -1,6 +1,9 @@
+#ifndef OPCONTROL
+#define OPCONTROL
 #include "main.h"
 #include "Robot.h"
 #include "system/Serial.h"
+
 using namespace pros;
 
 /* Creates all tasks required for our Robot's driver control period */
@@ -27,3 +30,5 @@ void opcontrol() {
 
 
 }
+
+#endif
