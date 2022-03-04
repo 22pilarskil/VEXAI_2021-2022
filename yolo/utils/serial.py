@@ -22,6 +22,7 @@ class Coms:
         self.ser.open()
 
     def send(self, header, body):
+         print("SENDING {}".format(body))
          self.ser.write((header + "#" + json.dumps(body) + "\n").encode('ascii', 'replace'))
 
     def read(self, signal):

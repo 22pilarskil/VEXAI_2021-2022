@@ -12,7 +12,7 @@ from utils.camera import Camera
 from utils.models import Model
 from sklearn.cluster import DBSCAN
 
-
+fflag = True
 parser = argparse.ArgumentParser()
 parser.add_argument("--display", metavar="display", type=int, default=1)
 parser.add_argument("--cluster", metavar="cluster", type=bool, default=False)
@@ -114,22 +114,16 @@ try:
 
         try:
             print("Depth: {}, Turn angle: {}".format(data[0], data[1]))
-            if(cluster):
-                print("ring")
-                comm.send("ring", data)
-            else:
-                comm.send("mogo", data)
+            if not data == [0, 0]:
+                if cluster:
+                    comm.send("ring", data)
+                    while not comm.read("continue"):
+                        print("Awaiting continue signal")
+                elif not cluster:
+                    comm.send("mogo", data)
             comm.send("fps", time.time() - start)
             if (comm.read("stop")): 
-                while not comm.read("continue"):
-                    print("Awaiting continue signal")
-                    if comm.read("l515_front"): 
-                        cam.switch_cameras("l515_front")
-                        cluster = True
-                    if comm.read("l515_back"): 
-                        cam.switch_cameras("l515_front")
-                        cluster = False
-                data = cam.poll_frames()
+                data = None
         except:
             comm.open()
 
