@@ -1,4 +1,4 @@
-   
+
 #include "main.h"
 #include "Robot.h"
 #include "system/json.hpp"
@@ -54,6 +54,7 @@ std::atomic<double> Robot::new_heading_gps = 0;
 std::atomic<double> Robot::imu_val = 0;
 std::atomic<bool> Robot::chasing_mogo = false;
 std::atomic<double> Robot::turn_coefficient = 1;
+std::atomic<bool> Robot::turn_in_place = true;
 
 double pi = 3.141592653589793238;
 int counter = 0;
@@ -93,48 +94,52 @@ void Robot::receive_mogo(nlohmann::json msg) {
     new_y = y + coefficient * cos(heading / 180 * pi);
     new_x = x - coefficient * sin(heading / 180 * pi);
 
-    lcd::print(3, "X: %d Y: %d L: %d", (int)new_y, (int)new_x, (int)lidar_depth);
-    lcd::print(4, "Heading: %d Angle: %d", (int)heading, (int)angle);
     delay(5);
 }
-
 void Robot::receive_ring(nlohmann::json msg) {
-    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#stop#");
+    turn_in_place = false;
+    heading = heading - 30;
+    turn_coefficient = 3;
+    while(abs(heading - imu_val) > 3){
+        lcd::print(3, "loss: %d", (int)abs(imu_val- heading));
+        delay(5);
+    }
+
     conveyor = -127;
     string msgS = msg.dump();
     std::size_t found = msgS.find(",");
 
     double lidar_depth = std::stod(msgS.substr(1, found - 1));
     double angle = std::stod(msgS.substr(found + 1, msgS.size() - found - 1));
-    double coefficient = lidar_depth * meters_to_inches * inches_to_encoder + 100;
+    double coefficient = lidar_depth * meters_to_inches * inches_to_encoder + 300;
     double angle_threshold = 1;
     double target_heading = imu_val + angle;
     heading = target_heading;
-    turn_coefficient = 2;
     while (abs(imu_val - target_heading) > 3){
-        // lcd::print(1, "imu: %d, targ: %d", (int)imu_val, (int)target_heading);
-        lcd::print(2, "loss: %d", (int)abs(imu_val- target_heading));
+        lcd::print(3, "loss: %d", (int)abs(imu_val- target_heading));
         delay(5);
     }
-    lcd::print(2, "out");
+    lcd::print(3, "out");
     new_y = y - coefficient * cos(heading / 180 * pi);
     new_x = x + coefficient * sin(heading / 180 * pi);
-    while (abs(new_y - y) > 30 or abs(new_x - x) > 30){
+    while (abs(new_y - y) > 100 or abs(new_x - x) > 100){
         delay(5);
+        lcd::print(3, "in");
     }
     conveyor = 0;
     delay(500);
-    lcd::print(3, "X: %d Y: %d", (int)y, (int)x);
-    lcd::print(3, "nX: %d nY: %d L: %d", (int)new_y, (int)new_x, (int)lidar_depth);
-    lcd::print(4, "Heading: %d Angle: %d", (int)heading, (int)angle);
-    turn_coefficient = 1;
+    lcd::print(3, "outt");
     lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#");
+    turn_in_place = true;
 }
 
 
 
 void Robot::receive_fps(nlohmann::json msg){
     lcd::print(7, "Seconds per frame: %s", msg.dump());
+    if (turn_in_place){
+            heading = imu_val + 30;
+    }
     delay(5);
 }
 
@@ -295,9 +300,6 @@ void Robot::fps(void *ptr) {
         last_x = cur_x;
         last_phi = cur_phi;
 
-        //lcd::print(1,"Y: %d X: %d IMU: %f", (int)y, (int)x, IMU.get_rotation());
-        //lcd::print(2,"angler_pot %d - Dist. %d", angler_pot.get_value(), angler_dist.get());
-
         delay(5);
     }
 }
@@ -306,8 +308,8 @@ void Robot::fps(void *ptr) {
 
 void Robot::gps_fps(void *ptr){
     while (true){
-        lcd::print(1, "Y: %f - X: %f", (float)(gps.get_status().y), (float)(gps.get_status().x));
-        lcd::print(2, "Heading: %f", (float)gps.get_heading());
+        lcd::print(5, "Y: %f - X: %f", (float)(gps.get_status().y), (float)(gps.get_status().x));
+        lcd::print(6, "Heading: %f", (float)gps.get_heading());
         delay(5);
     }
 }
@@ -367,6 +369,15 @@ void Robot::controller_print(void *ptr){
     while (true){
         master.print(1, 0, "lift pot %d", lift_pot.get_value());
         delay(100);
+    }
+}
+
+
+void Robot::display(void *ptr){
+    while (true){
+        lcd::print(1, "X: %d, Y: %d", (int)x, (int)y);
+        lcd::print(2, "nX: %d, nY: %d", (int)new_x, (int)new_y);
+        delay(5);
     }
 }
 
