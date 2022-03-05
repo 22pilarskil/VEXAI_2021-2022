@@ -45,13 +45,13 @@ Distance Robot::mogo_dist(15);
 
 std::atomic<double> Robot::y = 0;
 std::atomic<double> Robot::x = 0;
+std::atomic<double> Robot::imu_val = 0;
 std::atomic<double> Robot::new_x = 0;
 std::atomic<double> Robot::new_y = 0;
 std::atomic<double> Robot::heading = 0;
 std::atomic<double> Robot::new_x_gps = 0;
 std::atomic<double> Robot::new_y_gps = 0;
 std::atomic<double> Robot::new_heading_gps = 0;
-std::atomic<double> Robot::imu_val = 0;
 std::atomic<bool> Robot::chasing_mogo = false;
 std::atomic<double> Robot::turn_coefficient = 1;
 std::atomic<bool> Robot::turn_in_place = true;

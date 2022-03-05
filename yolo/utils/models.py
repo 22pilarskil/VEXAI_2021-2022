@@ -10,7 +10,7 @@ try:
     import tensorrt as trt
     from utils.trt.common import allocate_buffers
 except ImportError:
-    print(bcolors.FAIL + "TRT import fail, check that it is installed or don't use it" + bcolors.ENDC)
+    bcolors.print("TRT import fail, check that it is installed or don't use it", 'red')
 
 from models.experimental import attempt_load
 

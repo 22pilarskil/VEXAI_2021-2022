@@ -30,4 +30,8 @@ class Coms:
         if signal in msg: return True
         return False
 
+    def wait(self, signal):
+        while not self.read(signal):
+            print("Awaiting {} signal".format(signal))
+
 

@@ -2,40 +2,42 @@ import pyrealsense2 as rs
 import numpy as np
 import cv2
 
-from utils.decorators import timer
+from utils.decorators import timer, bcolors
 
 
 class Camera:
 
-    def __init__ (self, cameras, start_camera):
+    def __init__ (self, cameras, name):
+
         self.cameras = cameras
+        self.name = name
+
         self.pipeline = rs.pipeline()
-        self.initialize_config(self.cameras[start_camera][0])
-        self.flip = self.cameras[start_camera][1]
+        self.initialize_config(self.cameras[self.name]['id'])
+
         self.img_size = (640, 640)
+        self.align = rs.align(rs.stream.color)
+        self.config = rs.config()
+
+
         self.color_ts = 0
         self.depth_ts = 0
         self.stale_frames = 0
         self.total_frames = 0
-        print(rs.context())
-
 
 
     def initialize_config(self, device_number):
 
-        self.config = rs.config()
-        self.device_number = device_number
         self.config.enable_device(device_number)
         pipeline_wrapper = rs.pipeline_wrapper(self.pipeline)
         pipeline_profile = self.config.resolve(pipeline_wrapper)
         device = pipeline_profile.get_device().first_depth_sensor()
-        self.align = rs.align(rs.stream.color)
         device.set_option(rs.option.min_distance, 0)
-        device_product_line = str(device.get_info(rs.camera_info.product_line))
-        print(device.get_info(rs.camera_info.serial_number))
+        bcolors.printc("Initializing device {}".format(device_number), "violet")
 
         self.config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
 
+        device_product_line = str(device.get_info(rs.camera_info.product_line))
         if device_product_line == 'L500':
             self.config.enable_stream(rs.stream.color, 960, 540, rs.format.bgr8, 30)
         else:
@@ -75,7 +77,7 @@ class Camera:
         depth_image = np.asanyarray(depth_frame.get_data())
         color_image = np.asanyarray(color_frame.get_data())
 
-        if self.flip:
+        if self.cameras[self.name]['flip']:
             depth_image = np.flipud(depth_image)
             color_image = np.flipud(color_image)
 
@@ -93,11 +95,11 @@ class Camera:
 
     
 
-    def switch_cameras(self, camera):
+    def switch_cameras(self, name):
         self.pipeline.stop()
+        self.name = name
         try:
-            self.initialize_config(self.cameras[camera][0])
-            self.flip = self.cameras[camera][1]
+            self.initialize_config(self.cameras[self.name]['id'])
         except:
             self.pipeline.start(self.config)
             return False

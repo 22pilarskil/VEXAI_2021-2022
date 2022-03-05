@@ -4,15 +4,14 @@ import time
 import argparse
 
 import torch
-from utils.yolo.general import non_max_suppression, scale_coords
 from utils.yolo.plots import Annotator, colors
 from utils.serial import Coms
 from utils.data import return_data, determine_color, determine_depth, degree
 from utils.camera import Camera
 from utils.models import Model
 from sklearn.cluster import DBSCAN
+from utils.decorators import bcolors
 
-fflag = True
 parser = argparse.ArgumentParser()
 parser.add_argument("--display", metavar="display", type=int, default=1)
 parser.add_argument("--cluster", metavar="cluster", type=bool, default=False)
@@ -23,9 +22,16 @@ model = Model("models/best.engine")
 
 
 cameras = {
-    'l515_front': ('f1180887', True),
-    'l515_back': ('f1181848', True),
+    'l515_front': {
+        'id': 'f1180887',
+        'flip': True,
+        },
+    'l515_back': {
+        'id': 'f1181848',
+        'flip': True,
+        },
     }
+
 cam = Camera(cameras, 'l515_front')
 cluster = args.cluster
 
@@ -99,32 +105,32 @@ try:
 
             if det is not None and len(det) > 0:
                 turn_angle = degree(det)
-                data = [round(float(det[4]), 3), int(turn_angle)]
+                data = [round(det[4], 3), round(turn_angle, 3)]
 
 
-            if args.display:
-                if det is not None and len(det) > 0:
-                    color_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(0, True))
-                    depth_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(0, True))
-                color_image, depth_colormap = color_annotator.result(), depth_annotator.result()
-                images = np.hstack((color_image, depth_colormap))
-                cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
-                cv2.imshow('RealSense', images)
-                cv2.waitKey(1)
+        if args.display:
+            if det is not None and len(det) > 0:
+                color_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(0, True))
+                depth_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(0, True))
+            color_image, depth_colormap = color_annotator.result(), depth_annotator.result()
+            images = np.hstack((color_image, depth_colormap))
+            cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
+            cv2.imshow('RealSense', images)
+            cv2.waitKey(1)
 
         try:
             print("Depth: {}, Turn angle: {}".format(data[0], data[1]))
             if not data == [0, 0]:
                 if cluster:
                     comm.send("ring", data)
-                    while not comm.read("continue"):
-                        print("Awaiting continue signal")
+                    comm.wait("continue")
                 elif not cluster:
                     comm.send("mogo", data)
             comm.send("fps", time.time() - start)
             if (comm.read("stop")): 
-                data = None
-        except:
+                comm.wait("continue")
+        except Exception as e:
+            bcolors.print(str(e), "red")
             comm.open()
 
           
