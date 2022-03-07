@@ -151,4 +151,17 @@ class GridMapper {
     {
       g->add(name,box);
     }
+
+    std::map<std::string, int> getBox(int boxNumber) {
+      return g->getBox(boxNumber);
+    }
+
+    std::map<int, int> getPos(std::string objName) {
+      return g->getPos(objName);
+    }
+
+    void add(std::string name, int box)
+    {
+      g->add(name,box);
+    }
 };
