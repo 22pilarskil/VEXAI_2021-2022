@@ -93,21 +93,21 @@ void Robot::receive_mogo(nlohmann::json msg) {
    
     objects["mogo"].push_back(location);
    
-    double theta = std::fmod( (pi/2 - heading/180*pi + 2*pi), 2*pi );
+    double theta = std::fmod( (pi/2 - heading/180*pi + 2*pi), 2*pi );  //the fmod stuff makes sure the heading to trig angle is between 0 and 2pi
                              
     double x_in_inches = x / inches_to_encoder;
     double y_in_inches = y / inches_to_encoder;
    
-   double position_temp[] = {x_in_inches, y_in_inches, theta}
+    double position_temp[] = {0, 0, pi/4};
    
-    gridMapper->map(position_temp, objects ); //the fmod stuff makes sure the heading to trig angle is between 0 and 2pi
+    gridMapper->map(position_temp, objects ); 
     
     for (int i = 1; i <= 6; i++) { // TEST CODE
        std::string print_string = "";
        for (int j = 0; j < 6; j++) {
           print_string += ("%i:%i  ", (i + 6 * j), gridMapper->getBox((i + 6 * j))["mogo"]);
        }
-       lcd::print(i, print_string);
+       lcd::print(i, print_string.c_str());
     } // TEST CODE
    
     double coefficient = lidar_depth * meters_to_inches * inches_to_encoder;
@@ -119,8 +119,6 @@ void Robot::receive_mogo(nlohmann::json msg) {
     new_y = y + coefficient * cos(heading / 180 * pi);
     new_x = x - coefficient * sin(heading / 180 * pi);
 
-    lcd::print(3, "X: %d Y: %d L: %d", (int)new_y, (int)new_x, (int)lidar_depth);
-    lcd::print(4, "Heading: %d Angle: %d", (int)heading, (int)angle);
     delay(5);
 }
 
@@ -140,14 +138,11 @@ void Robot::receive_ring(nlohmann::json msg) {
         heading = target_heading;
         while (abs(imu_val - target_heading) > 3){
             // lcd::print(1, "imu: %d, targ: %d", (int)imu_val, (int)target_heading);
-            lcd::print(2, "loss: %d", (int)abs(imu_val- target_heading));
             delay(5);
         }
         new_y = y - coefficient*cos(heading / 180 * pi)-2;
         new_x = x + coefficient*sin(heading / 180 * pi);
-        lcd::print(3, "X: %d Y: %d", (int)y, (int)x);
-        lcd::print(3, "nX: %d nY: %d L: %d", (int)new_y, (int)new_x, (int)lidar_depth);
-        lcd::print(4, "Heading: %d Angle: %d", (int)heading, (int)angle);
+    
         //fflag = true;
     }
 }
@@ -155,7 +150,6 @@ void Robot::receive_ring(nlohmann::json msg) {
 
 
 void Robot::receive_fps(nlohmann::json msg){
-    lcd::print(7, "Seconds per frame: %s", msg.dump());
     delay(5);
 }
 
@@ -324,15 +318,6 @@ void Robot::fps(void *ptr) {
 }
 
 
-
-void Robot::gps_fps(void *ptr){
-    while (true){
-        lcd::print(1, "Y: %f - X: %f", (float)(gps.get_status().y), (float)(gps.get_status().x));
-        lcd::print(2, "Heading: %f", (float)gps.get_heading());
-        delay(5);
-    }
-}
-
 /* new_y, new_x, and new_heading_gps are all in absolute field terms 
  * new_y_gps and new_x_gps should be declared in meters
  * new_y_gps and new_x_gps are based on gps camera position not center of the bot
@@ -394,7 +379,7 @@ void Robot::controller_print(void *ptr){
 
 void Robot::start_task(std::string name, void (*func)(void *)) {
     if (!task_exists(name)) {
-        tasks.insert(std::pair<std::string, std::unique_ptr<pros::Task>>(name, std::move(std::make_unique<pros::Task>(func, &x, TASK_PRIORITY_DEFAULT, TASK_STACK_DEPTH_DEFAULT, ""))));
+        //tasks.insert(std::pair<std::string, std::unique_ptr<pros::Task>>(name, std::move(std::make_unique<pros::Task>(func, &x, TASK_PRIORITY_DEFAULT, TASK_STACK_DEPTH_DEFAULT, ""))));
     }
 }
 
