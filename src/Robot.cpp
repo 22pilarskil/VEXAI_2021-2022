@@ -103,6 +103,7 @@ void Robot::receive_mogo(nlohmann::json msg) {
     gridMapper->map(position_temp, objects ); 
     
     for (int i = 1; i <= 6; i++) { // TEST CODE
+       lcd::print_string("bored monkey nft"); 
        std::string print_string = "";
        for (int j = 0; j < 6; j++) {
           print_string += ("%i:%i  ", (i + 6 * j), gridMapper->getBox((i + 6 * j))["mogo"]);
