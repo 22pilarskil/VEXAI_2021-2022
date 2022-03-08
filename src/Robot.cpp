@@ -43,6 +43,10 @@ Imu Robot::IMU(12);
 Distance Robot::angler_dist(21);
 Distance Robot::mogo_dist(15);
 
+const double inches_to_encoder = 41.669;
+const double meters_to_inches = 39.3701;
+const double pi = 3.141592653589793238;
+
 std::atomic<double> Robot::y = 0;
 std::atomic<double> Robot::x = 0;
 std::atomic<double> Robot::imu_val = 0;
@@ -52,23 +56,27 @@ std::atomic<double> Robot::heading = 0;
 std::atomic<double> Robot::new_x_gps = 0;
 std::atomic<double> Robot::new_y_gps = 0;
 std::atomic<double> Robot::new_heading_gps = 0;
-std::atomic<bool> Robot::chasing_mogo = false;
-std::atomic<double> Robot::turn_coefficient = 1;
-std::atomic<bool> Robot::turn_in_place = true;
 
-double pi = 3.141592653589793238;
-int counter = 0;
-int counter2 = 0;
 double Robot::offset_back = 5.25;
 double Robot::offset_middle = 7.625;
 double Robot::wheel_circumference = 2.75 * pi;
 
+
+std::atomic<bool> chasing_mogo = false;
+std::atomic<double> turn_coefficient = 1;
+std::atomic<bool> turn_in_place = true;
+int failed_update = 0;
+
+
+
 std::map<std::string, std::unique_ptr<pros::Task>> Robot::tasks;
 
-const double inches_to_encoder = 41.669;
-const double meters_to_inches = 39.3701;
+
 
 void Robot::receive_mogo(nlohmann::json msg) {
+    failed_update = 0;
+    turn_in_place = false;
+    chasing_mogo = true;
 
     double angle_threshold = 1;
 
@@ -80,15 +88,10 @@ void Robot::receive_mogo(nlohmann::json msg) {
     double lidar_depth = std::stod(msgS.substr(1, found - 1));
     double angle = std::stod(msgS.substr(found + 1, msgS.size() - found - 1));
 
-    if (angle != 0) {
-        chasing_mogo = true;
-        //flicker = 127;
-    }
-
     double coefficient = lidar_depth * meters_to_inches * inches_to_encoder;
 
-    if (abs(angle) > angle_threshold) coefficient = 250;
-    else if (abs(angle) < angle_threshold && chasing_mogo == true) coefficient = mogo_dist.get() + 100;
+    if (abs(angle) > angle_threshold) coefficient = 250 * lidar_depth;
+    else if (abs(angle) < angle_threshold && chasing_mogo == true) coefficient = 600;
 
     heading = imu_val + angle;
     new_y = y + coefficient * cos(heading / 180 * pi);
@@ -96,6 +99,8 @@ void Robot::receive_mogo(nlohmann::json msg) {
 
     delay(5);
 }
+
+
 void Robot::receive_ring(nlohmann::json msg) {
     turn_in_place = false;
     heading = heading - 30;
@@ -140,6 +145,7 @@ void Robot::receive_fps(nlohmann::json msg){
     if (turn_in_place){
             heading = imu_val + 30;
     }
+    if (chasing_mogo) failed_update += 1;
     delay(5);
 }
 
@@ -197,30 +203,34 @@ void Robot::check_depth(void *ptr){
 
     double depth_threshold = 10;
     std::deque<double> depth_vals;
+    double depth_average = 0;
 
-    while(true){
-
+    do {
         if ((int)depth_vals.size() == 10) depth_vals.pop_front();
         depth_vals.push_back(mogo_dist.get());
         double sum = 0;
         for (int i = 0; i < depth_vals.size(); i++) sum += depth_vals[i];
-        double depth_average = sum / 10;
-
-        if (abs(depth_average - mogo_dist.get()) < 1 && mogo_dist.get() > 0 && mogo_dist.get() < 50){
-            new_x = (float)x;
-            new_y = (float)y;
-            lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#stop#");
-
-            // flicker = 0;
-            // chasing_mogo = false;
-            // angler_piston.set_value(true);
-            // delay(250);
-            // start_task("ANGLER", Robot::depth_angler);
-
-            kill_task("DEPTH");
-        }
+        depth_average = sum / 10;
         delay(5);
-    }
+
+        if (failed_update > 3){
+            new_y = y + 150 * cos(imu_val / 180 * pi);
+            new_x = x - 150 * sin(imu_val / 180 * pi);
+        }
+    } while (!(abs(depth_average - mogo_dist.get()) < 1 && (mogo_dist.get() > 0 && mogo_dist.get() < 30)));
+
+    delay(350);
+
+    new_x = (float)x;
+    new_y = (float)y;
+    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#stop#");
+
+    flicker = 0;
+    chasing_mogo = false;
+    angler_piston.set_value(true);
+    delay(250);
+    //start_task("ANGLER", Robot::depth_angler);
+    kill_task("DEPTH");
 }
 
 

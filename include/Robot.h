@@ -50,10 +50,6 @@ class Robot{
 		static std::atomic<double> new_x_gps;
         static std::atomic<double> new_y_gps;
         static std::atomic<double> new_heading_gps;
-		static std::atomic<bool> chasing_mogo;
-		static std::atomic<bool> record;
-		static std::atomic<double> turn_coefficient;
-
 		static double offset_back;
 		static double offset_middle;
 		static double wheel_circumference;
@@ -73,6 +69,7 @@ class Robot{
         static void move_to_gps(void *ptr);
 		static void move_to(void *ptr);
 		static void controller_print(void *ptr);
+		static void display(void *ptr);
 
 		static void start_task(std::string name, void (*func)(void *));
 		static bool task_exists(std::string name);
