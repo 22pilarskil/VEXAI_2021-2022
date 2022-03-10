@@ -25,13 +25,15 @@ class Coms:
          print("SENDING {}".format(body))
          self.ser.write((header + "#" + json.dumps(body) + "\n").encode('ascii', 'replace'))
 
-    def read(self, signal):
+    def read(self, signals):
+        data = {}
         msg = self.ser.readline().decode('ascii').strip('\n').strip('\r').split("#")
-        if signal in msg: return True
-        return False
+        for signal in signals:
+            if signal in msg: data[signal] = msg[msg.index(signal) + 1]
+        return data
 
     def wait(self, signal):
-        while not self.read(signal):
+        while not self.read([signal])[signal]:
             print("Awaiting {} signal".format(signal))
 
 
