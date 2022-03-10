@@ -13,11 +13,12 @@ class Camera:
         self.name = name
 
         self.pipeline = rs.pipeline()
+        self.config = rs.config()
         self.initialize_config(self.cameras[self.name]['id'])
 
         self.img_size = (640, 640)
         self.align = rs.align(rs.stream.color)
-        self.config = rs.config()
+ 
 
 
         self.color_ts = 0
@@ -33,7 +34,7 @@ class Camera:
         pipeline_profile = self.config.resolve(pipeline_wrapper)
         device = pipeline_profile.get_device().first_depth_sensor()
         device.set_option(rs.option.min_distance, 0)
-        bcolors.printc("Initializing device {}".format(device_number), "violet")
+        bcolors.print("Initializing device {}".format(device_number), "violet")
 
         self.config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
 

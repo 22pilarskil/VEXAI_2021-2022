@@ -14,6 +14,7 @@ from utils.decorators import bcolors
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--display", metavar="display", type=int, default=1)
+parser.add_argument("--camera", metavar="camera", type=str, default="l515_back")
 parser.add_argument("--cluster", metavar="cluster", type=bool, default=False)
 args = parser.parse_args()
     
@@ -32,7 +33,7 @@ cameras = {
         },
     }
 
-cam = Camera(cameras, 'l515_front')
+cam = Camera(cameras, args.camera)
 cluster = args.cluster
 
 comm = Coms()
@@ -105,7 +106,7 @@ try:
 
             if det is not None and len(det) > 0:
                 turn_angle = degree(det)
-                data = [round(det[4], 3), round(turn_angle, 3)]
+                data = [round(float(det[4]), 3), round(float(turn_angle), 3)]
 
 
         if args.display:
@@ -127,7 +128,12 @@ try:
                 elif not cluster:
                     comm.send("mogo", data)
             comm.send("fps", time.time() - start)
-            if (comm.read("stop")): 
+            switch = comm.read(["camera", "mode"])
+            if switch:
+                bcolors.print(str(switch), "green")
+                if "camera" in switch: cam.switch_cameras(switch["camera"])
+                if "mode" in switch: cluster = True if switch["mode"] == "true" else False
+            if (comm.read(["stop"])): 
                 comm.wait("continue")
         except Exception as e:
             bcolors.print(str(e), "red")
