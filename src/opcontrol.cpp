@@ -12,6 +12,7 @@ void opcontrol() {
 	//Robot::start_task("GPS", Robot::gps_fps);
 	Robot::start_task("DRIVE", Robot::drive);
 	Robot::start_task("CONTROLLER", Robot::controller_print);
+	lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#camera#l515_back#mode#false#");
 
 	Robot::IMU.reset();
 	delay(2500);
@@ -20,7 +21,7 @@ void opcontrol() {
 	lib7405x::Serial::Instance()->onReceive("mogo", Robot::receive_mogo);
 	lib7405x::Serial::Instance()->onReceive("ring", Robot::receive_ring);
 	lib7405x::Serial::Instance()->onReceive("fps", Robot::receive_fps);
-	lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#");
+	lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#mode#false#");
 	Robot::start_task("MOVETO", Robot::move_to);
 	Robot::start_task("IMU", Robot::imu_clamp);
 	// delay(1000);

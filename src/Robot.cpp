@@ -37,7 +37,7 @@ ADIEncoder Robot::RE({{16, 1, 2}});
 ADIEncoder Robot::BE({{16, 3, 4}});
 ADIAnalogIn Robot::angler_pot({{16, 8}});
 ADIAnalogIn Robot::lift_pot(3);
-ADIDigitalOut Robot::angler_piston(1);
+ADIDigitalOut Robot::angler_piston(2);
 Gps Robot::gps(4);
 Imu Robot::IMU(12);
 Distance Robot::angler_dist(21);
@@ -65,18 +65,17 @@ double Robot::wheel_circumference = 2.75 * pi;
 std::atomic<bool> chasing_mogo = false;
 std::atomic<double> turn_coefficient = 1;
 std::atomic<bool> turn_in_place = true;
+double seconds_per_frame = 0.20;
 int failed_update = 0;
 
-
-
 std::map<std::string, std::unique_ptr<pros::Task>> Robot::tasks;
-
 
 
 void Robot::receive_mogo(nlohmann::json msg) {
     failed_update = 0;
     turn_in_place = false;
     chasing_mogo = true;
+    flicker = 127;
 
     double angle_threshold = 1;
 
@@ -88,9 +87,9 @@ void Robot::receive_mogo(nlohmann::json msg) {
     double lidar_depth = std::stod(msgS.substr(1, found - 1));
     double angle = std::stod(msgS.substr(found + 1, msgS.size() - found - 1));
 
-    double coefficient = lidar_depth * meters_to_inches * inches_to_encoder;
+    double coefficient;
 
-    if (abs(angle) > angle_threshold) coefficient = 250 * lidar_depth;
+    if (abs(angle) > angle_threshold) coefficient = 200 * lidar_depth * (0.20 / seconds_per_frame);
     else if (abs(angle) < angle_threshold && chasing_mogo == true) coefficient = 600;
 
     heading = imu_val + angle;
@@ -134,19 +133,19 @@ void Robot::receive_ring(nlohmann::json msg) {
     conveyor = 0;
     delay(500);
     lcd::print(3, "outt");
-    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#");
+    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#");
     turn_in_place = true;
 }
 
 
-
 void Robot::receive_fps(nlohmann::json msg){
-    lcd::print(7, "Seconds per frame: %s", msg.dump());
+    double seconds_per_frame = std::stod(msg.dump());
+    lcd::print(7, "Seconds per frame: %f", seconds_per_frame);
+
     if (turn_in_place){
             heading = imu_val + 30;
     }
     if (chasing_mogo) failed_update += 1;
-    delay(5);
 }
 
 
@@ -182,12 +181,6 @@ void Robot::drive(void *ptr) {
         if (angler_piston_open) angler_piston.set_value(true);
         else if (angler_piston_close) angler_piston.set_value(false);
 
-        // if (conveyor_forward) conveyor = 100;
-        // else if (conveyor_backward) conveyor = -100;
-        // else conveyor = 0;
-
-        if (flicker_on) flicker = 127;
-        else flicker = 0;
 
         if (lift_up) lift = 127;
         else if (lift_down) lift = -127;
@@ -213,7 +206,7 @@ void Robot::check_depth(void *ptr){
         depth_average = sum / 10;
         delay(5);
 
-        if (failed_update > 3){
+        if (failed_update > 1){
             new_y = y + 150 * cos(imu_val / 180 * pi);
             new_x = x - 150 * sin(imu_val / 180 * pi);
         }
@@ -223,41 +216,27 @@ void Robot::check_depth(void *ptr){
 
     new_x = (float)x;
     new_y = (float)y;
-    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#stop#");
 
     flicker = 0;
     chasing_mogo = false;
     angler_piston.set_value(true);
     delay(250);
-    //start_task("ANGLER", Robot::depth_angler);
+    start_task("ANGLER", Robot::depth_angler);
+    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#camera#l515_front#mode#true#");
     kill_task("DEPTH");
 }
 
 
 void Robot::depth_angler(void *ptr){
     int angler_pot_threshold = 270;
-    int depth_threshold = 42;
-    int depth_coefficient = 3;
+    int depth_threshold = 47;
+    int depth_coefficient = 6;
     while (true){
 
         if(master.get_digital(DIGITAL_Y)) break;
 
-        if(master.get_digital(DIGITAL_DOWN)) {
-            while (angler_pot.get_value() < 2415){
-                angler = -127;
-            }
-            break;
-        }
-
-        if (abs(angler_pot.get_value() - angler_pot_threshold) > 50){
-            if (angler_pot.get_value() > angler_pot_threshold) angler = 127;
-            else angler = -127;
-        }
-        else {
-            double distance = angler_dist.get();
-            if (abs(distance - depth_threshold) < 10) angler = depth_coefficient * (angler_dist.get() - depth_threshold);
-            else angler = 0;
-        }
+        if (angler_dist.get() == 0) angler = 127;
+        else angler = depth_coefficient * (angler_dist.get() - depth_threshold);
         delay(5);
     }
     kill_task("ANGLER");
@@ -313,7 +292,6 @@ void Robot::fps(void *ptr) {
         delay(5);
     }
 }
-
 
 
 void Robot::gps_fps(void *ptr){
@@ -387,6 +365,7 @@ void Robot::display(void *ptr){
     while (true){
         lcd::print(1, "X: %d, Y: %d", (int)x, (int)y);
         lcd::print(2, "nX: %d, nY: %d", (int)new_x, (int)new_y);
+        lcd::print(3, "%d", angler_dist.get());
         delay(5);
     }
 }
