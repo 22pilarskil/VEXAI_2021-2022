@@ -13,7 +13,7 @@ class GridMapper {
       // I'm going to be working under the assumption that we can get the position, true heading and distance / angle of all objects we see.
 
       // For this, I will be using a sample dictionary.
-      remove_viewed(robot_pos);
+      std::vector<int> validBoxes = remove_viewed(robot_pos);
       robot_pos[0] *= 24;
       robot_pos[1] *= 24;
       for (auto const& x : objects) {
@@ -25,7 +25,7 @@ class GridMapper {
           truePos[0] = robot_pos[0] + pos_list[i][0] * cos(robot_pos[2] + pos_list[i][1]);
           truePos[1] = robot_pos[1] + pos_list[i][0] * sin(robot_pos[2] + pos_list[i][1]);
           std::cout << std::to_string(truePos[0] / 24) + " " + std::to_string(truePos[1] / 24) << std::endl;
-          g->add(name, truePos);
+          g->add(name, truePos, validBoxes);
         }
       }
     }
@@ -137,19 +137,6 @@ class GridMapper {
       }
 
       return viewed_boxes;
-    }
-
-    std::map<std::string, int> getBox(int boxNumber) {
-      return g->getBox(boxNumber);
-    }
-
-    std::map<int, int> getPos(std::string objName) {
-      return g->getPos(objName);
-    }
-
-    void add(std::string name, int box)
-    {
-      g->add(name,box);
     }
 
     std::map<std::string, int> getBox(int boxNumber) {

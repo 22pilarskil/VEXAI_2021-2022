@@ -70,6 +70,7 @@ const double inches_to_encoder = 41.669;
 const double meters_to_inches = 39.3701;
 
 void Robot::receive_mogo(nlohmann::json msg) {
+    //lcd::print(1, "bored monkey");
 
     double angle_threshold = 1;
    
@@ -77,6 +78,7 @@ void Robot::receive_mogo(nlohmann::json msg) {
     if (!task_exists("DEPTH")) start_task("DEPTH", Robot::check_depth);
 
     string msgS = msg.dump();
+    lcd::print(1, msgS.c_str());
     std::size_t found = msgS.find(",");
 
     double lidar_depth = std::stod(msgS.substr(1, found - 1));
@@ -89,28 +91,36 @@ void Robot::receive_mogo(nlohmann::json msg) {
    
     std::map<std::string, std::vector<double*>> objects;
    
-    double location[] = {lidar_depth * meters_to_inches, angle/180*pi};
+    double location[] = {lidar_depth * meters_to_inches, angle*-1/180*pi};
    
     objects["mogo"].push_back(location);
-   cd 
+   
     double theta = std::fmod( (pi/2 - heading/180*pi + 2*pi), 2*pi );  //the fmod stuff makes sure the heading to trig angle is between 0 and 2pi
                              
     double x_in_inches = x / inches_to_encoder;
     double y_in_inches = y / inches_to_encoder;
    
-    double position_temp[] = {0, 0, pi/4};
+    double position_temp[] = {24, 24, pi/4};
    
     gridMapper->map(position_temp, objects ); 
     
-    for (int i = 1; i <= 6; i++) { // TEST CODE
-       lcd::print_string("bored monkey nft"); 
+    // for (int i = 1; i <= 6; i++) { // TEST CODE
+    //    std::string print_string = "";
+    //    for (int j = 0; j < 6; j++) {
+    //       print_string += ("%i:%i  ", (i + 6 * j), gridMapper->getBox((i + 6 * j))["mogo"]);
+    //    }
+    //    //lcd::print(i, print_string.c_str());
+    // } // TEST CODE
+   
+    for (int i = 2; i <= 6; i++) { // TEST CODE
        std::string print_string = "";
        for (int j = 0; j < 6; j++) {
-          print_string += ("%i:%i  ", (i + 6 * j), gridMapper->getBox((i + 6 * j))["mogo"]);
+          print_string += (std::to_string((i-1) * 6 + j + 1) + "," + 
+            std::to_string(gridMapper->getBox((i-1) * 6 + j + 1)["mogo"]) + " ");
        }
        lcd::print(i, print_string.c_str());
     } // TEST CODE
-   
+
     double coefficient = lidar_depth * meters_to_inches * inches_to_encoder;
 
     if (abs(angle) > angle_threshold) coefficient = 250;
@@ -280,6 +290,7 @@ void Robot::imu_clamp(void *ptr){
 
 
 void Robot::fps(void *ptr) {
+    //lcd::print(2, "bored monkey nft in fps");
     double last_x = 0;
     double last_y = 0;
     double last_phi = 0;

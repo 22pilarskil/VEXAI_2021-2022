@@ -2,6 +2,7 @@
 #include <string>
 #include <list>
 #include <cmath>
+#include <vector>
 
 class Grid
 {
@@ -36,11 +37,18 @@ class Grid
       return pos_to_object[box];
     }
   
-    void add(std::string name, double *pos)
+    void add(std::string name, double *pos, std::vector<int> validBoxes)
     {
       int box = 1 + floor(pos[0] / 24.0) + x_length * (6 - ceil(pos[1] / 24.0));
-      object_to_pos[name][box]++;
-      pos_to_object[box][name]++;
+
+      for (int i = 0; i < validBoxes.size(); i++)
+      {
+        if (box == validBoxes[i])
+        {
+            object_to_pos[name][box]++;
+            pos_to_object[box][name]++;
+        }
+      }
     }
 
     void add(std::string name, int box)
