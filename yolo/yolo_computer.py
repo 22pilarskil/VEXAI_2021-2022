@@ -8,7 +8,7 @@ from utils.data import return_data, determine_color, determine_depth, degree
 import time
 import os
 from sklearn.cluster import DBSCAN
-PATH = os.getcwd() + "/data/labelbox2yolo/best.pt" #"/data/labelbox2yolo/best.pt"
+PATH = os.getcwd() + "/data/labelbox2yolo/best_yolov5n.pt" #"/data/labelbox2yolo/best.pt"
 do_depth_ring = False
 
 import argparse
@@ -21,7 +21,7 @@ args = parser.parse_args()
 
 model = Model(PATH)
 
-cap = cv2.VideoCapture('/Users/hongm/Downloads/test_video.mp4')
+cap = cv2.VideoCapture('/Users/michaelpilarski/Downloads/20220214_150616.mp4')
 count = 0
 try:
     while(cap.isOpened()):
@@ -30,7 +30,7 @@ try:
 
         ret, color_frame = cap.read()
         count += 1
-        if not count % 10 == 0: continue
+        #if not count % 2 == 0: continue
 
 
         # Convert images to numpy arrays
@@ -43,16 +43,7 @@ try:
 #possible necessary change(liam's worked so idk??")
         pred = model.predict(color_image, color_image.shape)
 
-        color_image_t = None
-        if torch.cuda.is_available():
-            color_image_t = torch.cuda.FloatTensor(color_image)
-        else:
-            color_image_t = torch.FloatTensor(color_image)
-        color_image_t = torch.moveaxis(color_image_t, 2, 0)[None] / 255.0
-        
-        pred[:,:4] = scale_coords(color_image_t.shape[2:], pred[:, :4], color_image.shape).round()
 
-        start = time.time()
         print("TORCH: {}".format(time.time()-start))
 
         color_image0 = color_image
@@ -69,7 +60,8 @@ try:
 
         if int(pred.shape[0]) > 0:
             for x in pred:
-                color_annotator.box_label(x[:4], f'{names[int(x[5]) + 1]} {x[4]:.2f}', color=colors(x[5], True))
+                index = 0 if names[int(x[5]) + 1] == "ring" else 5
+                color_annotator.box_label(x[:4], f'{names[int(x[5]) + 1]} {x[4]:.2f}', color=colors(index, True))
 
         if args.display:
             color_image = color_annotator.result()

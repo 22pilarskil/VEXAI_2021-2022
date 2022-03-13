@@ -65,7 +65,7 @@ class Model:
             image_t = torch.moveaxis(image_t, 2, 0)[None] / 255.0
             pred = self.model(image_t)[0]
 
-        pred = non_max_suppression(pred, conf_thres=.01)[0]
+        pred = non_max_suppression(pred, conf_thres=.3)[0]
         print(img.shape)
         pred[:,:4] = scale_coords(img.shape, pred[:,:4], img_shape).round()
         return pred

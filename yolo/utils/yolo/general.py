@@ -89,6 +89,13 @@ def set_logging(rank=-1, verbose=True):
         format="%(message)s",
         level=logging.INFO if (verbose and rank in [-1, 0]) else logging.WARN)
 
+LOGGER = set_logging('yolov5')
+
+
+def print_args(name, opt):
+    # Print argparser arguments
+    LOGGER.info(colorstr(f'{name}: ') + ', '.join(f'{k}={v}' for k, v in vars(opt).items()))
+
 
 def init_seeds(seed=0):
     # Initialize random number generator (RNG) seeds
@@ -309,6 +316,13 @@ def check_dataset(data, autodownload=True):
                 raise Exception('Dataset not found.')
 
     return data  # dictionary
+    
+
+def url2file(url):
+    # Convert URL to filename, i.e. https://url.com/file.txt?auth -> file.txt
+    url = str(Path(url)).replace(':/', '://')  # Pathlib turns :// -> :/
+    file = Path(urllib.parse.unquote(url)).name.split('?')[0]  # '%2F' to '/', split https://url.com/file.txt?auth
+    return file
 
 
 def download(url, dir='.', unzip=True, delete=True, curl=False, threads=1):
