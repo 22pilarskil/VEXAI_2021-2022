@@ -1,4 +1,4 @@
-
+'''
 sudo apt-get update
 sudo apt-get upgrade
 sudo apt-get install python3-pip protobuf-compiler libprotoc-dev
@@ -49,20 +49,21 @@ sudo apt-get install python3-libnvinfer-dev
 dpkg -l | grep TensorRT
 
 cd /usr/src/tensorrt/samples/trtexec && sudo make
-
+'''
 #Installing pyrealsense2
 echo "\033[0;96m~/Installing pyrealsense2\033[0m"
 sudo apt-get install -y git libssl-dev libusb-1.0-0-dev pkg-config libgtk-3-dev
 sudo apt-get install -y libglfw3-dev libgl1-mesa-dev libglu1-mesa-dev
+sudo apt autoremove
 git clone https://github.com/IntelRealSense/librealsense.git
 cd ./librealsense
 ./scripts/setup_udev_rules.sh
 mkdir build && cd build
-sudo make uninstall && sudo make clean && sudo make -j4 -DBUILD_WITH_CUDA=true && sudo make install
+sudo make clean && sudo make -j4 -DBUILD_WITH_CUDA:bool=true && sudo make install
 echo "export PYTHONPATH=$PYTHONPATH:/usr/local/lib/python3.6/pyrealsense2" >> ~/.bashrc
 export PYTHONPATH=$PYTHONPATH:/usr/local/lib/python3.6/pyrealsense2
 
-
+'''
 #Installing other dependencies
 echo "\033[0;96m~/Installing other dependencies\033[0m"
 pip3 install numpy==1.19.0
@@ -73,5 +74,5 @@ pip3 install tqdm
 pip3 install seaborn
 pip3 install gitpython
 pip3 install onnx
-
+'''
 
