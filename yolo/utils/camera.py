@@ -101,7 +101,9 @@ class Camera:
         self.name = name
         try:
             self.initialize_config(self.cameras[self.name]['id'])
-        except:
+            return True
+        except Exception as e:
+            bcolors.print(str(e), "red")
             self.pipeline.start(self.config)
             return False
 

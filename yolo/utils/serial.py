@@ -33,7 +33,7 @@ class Coms:
         return data
 
     def wait(self, signal):
-        while not self.read([signal])[signal]:
+        while not self.read([signal]):
             print("Awaiting {} signal".format(signal))
 
 

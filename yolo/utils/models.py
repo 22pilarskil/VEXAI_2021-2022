@@ -42,7 +42,7 @@ class Model:
             self.model.to(device)
 
     @timer("Model Time")
-    def predict(self, img, img_shape):
+    def predict(self, img, img_shape, conf_thres=.3):
         pred = None
 
         if self.mode == "trt":
@@ -65,6 +65,6 @@ class Model:
             image_t = torch.moveaxis(image_t, 2, 0)[None] / 255.0
             pred = self.model(image_t)[0]
 
-        pred = non_max_suppression(pred, conf_thres=.3)[0]
+        pred = non_max_suppression(pred, conf_thres=conf_thres)[0]
         pred[:,:4] = scale_coords(img.shape[2:], pred[:,:4], img_shape).round()
         return pred

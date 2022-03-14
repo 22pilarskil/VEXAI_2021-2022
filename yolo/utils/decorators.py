@@ -19,18 +19,18 @@ class bcolors:
         print(bcolors.color_dict[color] + string + bcolors.color_dict['end'])
 
 def exception(func):
-    def wrapper(*args):
+    def wrapper(*args, **kwargs):
         try:
-            func(*args)
+            func(*args, **kwargs)
         except Exception as e:
             bcolors.print(str(e), "red")
     return wrapper
 
 def timer(msg="Time elapsed"):
     def decorator(func):
-        def wrapper(*args):
+        def wrapper(*args, **kwargs):
             start = time.time()
-            result = func(*args)
+            result = func(*args, **kwargs)
             print("{} : {}".format(msg, time.time()-start))
             return result
         return wrapper

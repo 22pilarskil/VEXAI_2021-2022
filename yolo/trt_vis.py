@@ -13,13 +13,13 @@ from sklearn.cluster import DBSCAN
 from utils.decorators import bcolors
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--display", metavar="display", type=int, default=1)
+parser.add_argument("--display", metavar="display", type=bool, default=True)
 parser.add_argument("--camera", metavar="camera", type=str, default="l515_back")
 parser.add_argument("--cluster", metavar="cluster", type=bool, default=False)
 args = parser.parse_args()
     
 names = ["red-mogo","yellow-mogo", "blue-mogo", "unknown_color", "ring"]
-model = Model("models/best.engine")
+model = Model("models/best2.engine")
 
 
 cameras = {
@@ -47,7 +47,7 @@ try:
             continue
         color_image, depth_image, color_image_t, depth_colormap, depth_frame = data
 
-        pred = model.predict(color_image_t, color_image.shape)
+        pred = model.predict(color_image_t, color_image.shape, conf_thres=.3)
 
         for i, det in enumerate(pred):
             if(det[5] == 0): # COLOR
@@ -131,12 +131,12 @@ try:
             switch = comm.read(["camera", "mode"])
             if switch:
                 bcolors.print(str(switch), "green")
-                if "camera" in switch: cam.switch_cameras(switch["camera"])
+                if "camera" in switch: print(cam.switch_cameras(switch["camera"]))
                 if "mode" in switch: cluster = True if switch["mode"] == "true" else False
             if (comm.read(["stop"])): 
                 comm.wait("continue")
         except Exception as e:
-            bcolors.print(str(e), "red")
+            bcolors.print(str(e), "blue")
             comm.open()
 
           
