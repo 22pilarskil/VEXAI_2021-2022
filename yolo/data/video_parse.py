@@ -7,7 +7,7 @@ import imagehash
 from PIL import Image
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--file_path", metavar="file_path", type=str, default="")
+parser.add_argument("--file_path", metavar="file_path", type=str)
 
 
 def read_video(VIDEO_PATH, FRAME_CAPTURE_RATE, SIMMILAR_CUTOFF, SAVED_HASHES):
@@ -56,7 +56,7 @@ def read_video(VIDEO_PATH, FRAME_CAPTURE_RATE, SIMMILAR_CUTOFF, SAVED_HASHES):
 
 if __name__ == "__main__":
 	args = parser.parse_args()
-	VIDEO_PATH = args.file_path if args.file_path else "test_video.mp4"
+	VIDEO_PATH = args.file_path
 	FRAME_CAPTURE_RATE = 30
 	SIMMILAR_CUTOFF = 5
 	SAVED_HASHES = 10

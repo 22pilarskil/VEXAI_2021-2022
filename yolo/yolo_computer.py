@@ -8,7 +8,7 @@ from utils.data import return_data, determine_color, determine_depth, degree
 import time
 import os
 from sklearn.cluster import DBSCAN
-PATH = os.getcwd() + "/models/best.pt" #"/data/labelbox2yolo/best.pt"
+PATH = os.getcwd() + "/models/weights/best_yolov5n.pt"
 do_depth_ring = False
 
 import argparse
@@ -30,7 +30,7 @@ try:
 
         ret, color_frame = cap.read()
         count += 1
-        if not count % 10 == 0: continue
+        if not count % 5 == 0: continue
 
 
         # Convert images to numpy arrays
@@ -39,19 +39,15 @@ try:
         color_image = cv2.resize(color_image, dsize=(640, 640), interpolation=cv2.INTER_AREA)
 
         color_colormap_dim = color_image.shape
+        
+        pred = model.predict(color_image, color_image.shape)
 
 
-        pred = model.predict(color_image)
+        print("TORCH: {}".format(time.time()-start))
 
-        color_image_t = None
-        if torch.cuda.is_available():
-            color_image_t = torch.cuda.FloatTensor(color_image)
-        else:
-            color_image_t = torch.FloatTensor(color_image)
-        color_image_t = torch.moveaxis(color_image_t, 2, 0)[None] / 255.0
-        pred[:,:4] = scale_coords(color_image_t.shape[2:], pred[:, :4], color_image.shape).round()
+        color_image0 = color_image
 
-        start = time.time()
+        color_annotator = Annotator(color_image0, line_width=2, pil=not ascii)
         print("TORCH: {}".format(time.time()-start))
 
         color_image0 = color_image
@@ -68,7 +64,8 @@ try:
 
         if int(pred.shape[0]) > 0:
             for x in pred:
-                color_annotator.box_label(x[:4], f'{names[int(x[5]) + 1]} {x[4]:.2f}', color=colors(x[5], True))
+                index = 0 if names[int(x[5]) + 1] == "ring" else 5
+                color_annotator.box_label(x[:4], f'{names[int(x[5]) + 1]} {x[4]:.2f}', color=colors(index, True))
 
         if args.display:
             color_image = color_annotator.result()

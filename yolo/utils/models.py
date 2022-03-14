@@ -66,5 +66,5 @@ class Model:
             pred = self.model(image_t)[0]
 
         pred = non_max_suppression(pred, conf_thres=conf_thres)[0]
-        pred[:,:4] = scale_coords(img.shape[2:], pred[:,:4], img_shape).round()
+        pred[:,:4] = scale_coords(img.shape, pred[:,:4], img_shape).round()
         return pred
