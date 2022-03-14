@@ -2,18 +2,17 @@ import colorsys
 import numpy as np
 import torch
 
-def return_data(mogos, find="all", colors=[-1, 0, 1], close_thresh=200):
+def return_data(mogos, find="all", colors=[-1, 0, 1], conf_thres=.3, close_thresh=200):
     # Takes in data in the order: [det:[x,y,x,y,dist,color (-1 = red, 0 = yellow, 1 = blue)], det[], .., det[]]
     mask = []
     #goes through every detection and appends true or false to the mask depending on if it is in colors
-    if not colors == [-1, 0, 1, 3]:
-        for i, mogo in enumerate(mogos):
-            if not mogo[5] in colors:
-                mask.append(False)
-            else:
-                mask.append(True)
+    for i, mogo in enumerate(mogos):
+        if not mogo[5] in colors or mogo[4] < conf_thres:
+            mask.append(False)
+        else: 
+            mask.append(True)
         #mask is applied to mogos, only indices that are true in the mask are kept
-        mogos = mogos[mask]
+    mogos = mogos[mask]
     if find == "close":
         mogos = mogos
         mogos[mogos != mogos] = 0 #set all nans to 0
@@ -55,7 +54,7 @@ def convert_rgb_to_hsv(r, g, b):
 
 def determine_color(det, color_image):
     bgr = color_image[int(det[1] + (float(det[3] - det[1]) * (2 / 10))):int(det[1] + (float(det[3] - det[1]) * (4.0 / 10))), int(det[0] + (float(det[2] - det[0]) * (4.0 / 10))):int(det[0] + (float(det[2] - det[0]) * (6.0 / 10)))]
-    bgr = np.mean(bgr, axis=(0,1))
+    bgr = np.mean(bgr, axis=(0,1))    
     hsv = convert_rgb_to_hsv(bgr[2],bgr[1], bgr[0])
     min_difference = np.argmin(np.absolute(np.subtract(np.full((1,3),hsv[0], dtype=float), np.array([60.0, 0.0, 240.0]))))
     if min_difference == 0:
@@ -67,7 +66,8 @@ def determine_color(det, color_image):
     else:
         #blue
         return 1
-    
+
+   
 
 def determine_depth(det, depth_image, do_depth_ring=False):
     if not do_depth_ring and not det[5] == 2:

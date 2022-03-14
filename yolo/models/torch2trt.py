@@ -24,8 +24,8 @@ if __name__ == '__main__':
 		prefix = PATH + "/" + args.weights.split(".")[0]
 		onnx = prefix + ".onnx"
 		engine = prefix + ".engine"
-		#os.chdir()
-		os.system("trtexec --onnx={} --explicitBatch --saveEngine={} --workspace={} --fp16".format(onnx, engine, args.workspace))
+		os.chdir("/usr/src/tensorrt/bin")
+		os.system("./trtexec --onnx={} --explicitBatch --saveEngine={} --workspace={} --fp16".format(onnx, engine, args.workspace))
 
 
 	except Exception as e:

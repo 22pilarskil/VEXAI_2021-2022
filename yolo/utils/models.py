@@ -62,9 +62,9 @@ class Model:
                 image_t = torch.cuda.FloatTensor(img)
             else:
                 image_t = torch.FloatTensor(img)
-            image_t = torch.moveaxis(image_t, 2, 0)[None] / 255.0
             pred = self.model(image_t)[0]
 
+
         pred = non_max_suppression(pred, conf_thres=conf_thres)[0]
-        pred[:,:4] = scale_coords(img.shape, pred[:,:4], img_shape).round()
+        pred[:,:4] = scale_coords(img_shape, pred[:,:4], img_shape).round()
         return pred

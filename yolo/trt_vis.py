@@ -19,8 +19,8 @@ parser.add_argument("--cluster", metavar="cluster", type=bool, default=False)
 args = parser.parse_args()
     
 names = ["red-mogo","yellow-mogo", "blue-mogo", "unknown_color", "ring"]
-model = Model("models/best2.engine")
-
+model = Model("models/weights/best_yolov5n.engine")
+conf_thres = .4
 
 cameras = {
     'l515_front': {
@@ -47,7 +47,8 @@ try:
             continue
         color_image, depth_image, color_image_t, depth_colormap, depth_frame = data
 
-        pred = model.predict(color_image_t, color_image.shape, conf_thres=.3)
+
+        pred = model.predict(color_image_t, color_image.shape, conf_thres=conf_thres)
 
         for i, det in enumerate(pred):
             if(det[5] == 0): # COLOR
@@ -101,7 +102,7 @@ try:
                     det = return_data(det, find="close", colors=[3])
        
             else:
-                det = return_data(pred, find="close", colors=[-1, 0, 1])            
+                det = return_data(pred, find="close", colors=[-1, 0, 1], conf_thres=conf_thres)            
 
 
             if det is not None and len(det) > 0:
