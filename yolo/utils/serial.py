@@ -12,6 +12,7 @@ class Coms:
          self.ser = serial.Serial(timeout=.1)
          self.ser.baudrate = BAUD_RATE
          self.open()
+         self.data = {}
 
     @exception
     def open(self):
@@ -26,15 +27,16 @@ class Coms:
          self.ser.write((header + "#" + json.dumps(body) + "\n").encode('ascii', 'replace'))
 
     def read(self, signals):
-        data = {}
-        msg = self.ser.readline().decode('ascii').strip('\n').strip('\r').split("#")
+        msg = self.ser.readline().decode('ascii').strip('\n').strip('\r').split("#") 
         for signal in signals:
-            if signal in msg: data[signal] = msg[msg.index(signal) + 1]
+            if signal in msg: self.data[signal] = msg[msg.index(signal) + 1]
+        data = self.data
+        if not "@" in msg: self.data = {}
         return data
 
     def wait(self, signal):
         print("Awaiting {} signal".format(signal))
-        while not self.read([signal]):
+        while not self.read([signal, "camera", "mode"]):
             pass
 
 

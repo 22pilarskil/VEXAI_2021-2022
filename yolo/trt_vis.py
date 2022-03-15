@@ -123,6 +123,13 @@ try:
             cv2.waitKey(1)
 
         try:
+            comm.send("fps", time.time() - start)
+            switch = comm.read(["camera", "mode"])
+            if switch:
+                bcolors.print(str(switch), "green")
+                if "camera" in switch and not cam.name == switch["camera"]: print(cam.switch_cameras(switch["camera"]))
+                if "mode" in switch: cluster = True if switch["mode"] == "true" else False
+                continue
             print("Depth: {}, Turn angle: {}".format(data[0], data[1]))
             if not data == [0, 0]:
                 if cluster:
@@ -130,14 +137,6 @@ try:
                     comm.wait("continue")
                 elif not cluster:
                     comm.send("mogo", data)
-            comm.send("fps", time.time() - start)
-            switch = comm.read(["camera", "mode"])
-            if switch:
-                bcolors.print(str(switch), "green")
-                if "camera" in switch: print(cam.switch_cameras(switch["camera"]))
-                if "mode" in switch: cluster = True if switch["mode"] == "true" else False
-            if (comm.read(["stop"])): 
-                comm.wait("continue")
         except Exception as e:
             bcolors.print(str(e), "blue")
             comm.open()
