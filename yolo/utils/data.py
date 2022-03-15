@@ -2,12 +2,12 @@ import colorsys
 import numpy as np
 import torch
 
-def return_data(mogos, find="all", colors=[-1, 0, 1], conf_thres=.3, close_thresh=200):
+def return_data(mogos, find="all", colors=[-1, 0, 1], conf_thres=1, close_thresh=200):
     # Takes in data in the order: [det:[x,y,x,y,dist,color (-1 = red, 0 = yellow, 1 = blue)], det[], .., det[]]
     mask = []
     #goes through every detection and appends true or false to the mask depending on if it is in colors
     for i, mogo in enumerate(mogos):
-        if not mogo[5] in colors or mogo[4] < conf_thres:
+        if not mogo[5] in colors: #or mogo[4] < conf_thres:
             mask.append(False)
         else: 
             mask.append(True)
@@ -35,7 +35,7 @@ def return_data(mogos, find="all", colors=[-1, 0, 1], conf_thres=.3, close_thres
             return
 
 
-        mogos.sort(key=lambda x:x[4])
+        mogos.sort(key=lambda x:x[6])
         for mogo in mogos:
             if mogo[5] in colors:
                 return mogo
@@ -73,7 +73,7 @@ def determine_depth(det, depth_image, do_depth_ring=False):
     if not do_depth_ring and not det[5] == 2:
         d = depth_image[int(det[1] + (float(det[3] - det[1]) * (2 / 10))):int(det[1] + (float(det[3] - det[1]) * (4.0 / 10))), int(det[0] + (float(det[2] - det[0]) * (4.0 / 10))):int(det[0] + (float(det[2] - det[0]) * (6.0 / 10)))]
         d = d[d > 0]
-        return np.mean(d)
+        return np.mean(d[np.argsort(d)[len(d) // 2 :]])
     elif do_depth_ring:
         d = depth_image[int(det[1] + (float(det[3] - det[1]) * (2 / 10))):int(det[1] + (float(det[3] - det[1]) * (4.0 / 10))), int(det[0] + (float(det[2] - det[0]) * (4.0 / 10))):int(det[0] + (float(det[2] - det[0]) * (6.0 / 10)))]
         return np.mean(d)

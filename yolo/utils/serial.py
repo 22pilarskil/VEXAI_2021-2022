@@ -2,7 +2,7 @@
 import serial
 import json
 import os
-from utils.decorators import exception
+from utils.decorators import exception, bcolors
 
 DELIMETER = '#'
 BAUD_RATE = 9600
@@ -22,7 +22,7 @@ class Coms:
         self.ser.open()
 
     def send(self, header, body):
-         print("SENDING {}".format(body))
+         bcolors.print("SENDING {}".format(body),"cyan")
          self.ser.write((header + "#" + json.dumps(body) + "\n").encode('ascii', 'replace'))
 
     def read(self, signals):
@@ -33,7 +33,8 @@ class Coms:
         return data
 
     def wait(self, signal):
+        print("Awaiting {} signal".format(signal))
         while not self.read([signal]):
-            print("Awaiting {} signal".format(signal))
+            pass
 
 

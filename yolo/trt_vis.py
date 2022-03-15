@@ -49,13 +49,15 @@ try:
 
 
         pred = model.predict(color_image_t, color_image.shape, conf_thres=conf_thres)
+        pred = torch.column_stack((pred, torch.ones(len(pred))))
 
         for i, det in enumerate(pred):
             if(det[5] == 0): # COLOR
                 pred[i, 5] = determine_color(det, color_image)
             else:
                 pred[i, 5] = 3
-            pred[i, 4] = determine_depth(det, depth_image) * depth_frame.get_units()
+           
+            pred[i, 6] = determine_depth(det, depth_image) * depth_frame.get_units()
 
         data = [0, 0]
 
@@ -107,7 +109,7 @@ try:
 
             if det is not None and len(det) > 0:
                 turn_angle = degree(det)
-                data = [round(float(det[4]), 3), round(float(turn_angle), 3)]
+                data = [round(float(det[6]), 3), round(float(turn_angle), 3)]
 
 
         if args.display:

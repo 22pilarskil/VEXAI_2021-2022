@@ -44,37 +44,28 @@ class Camera:
 
     @timer("Frame Time")
     def poll_frames(self, conn=None):
-        start = time.time()
         frames = self.pipeline.wait_for_frames()
-        print("Wait {}".format(time.time()-start))
-        start = time.time()
         aligned_frames = self.align.process(frames)
     
         depth_frame = aligned_frames.get_depth_frame()
         color_frame = aligned_frames.get_color_frame()
-        print("Align {}".format(time.time()-start))
         
         if not depth_frame or not color_frame:
             return None
         
-        start = time.time()
+
         depth_image = np.asanyarray(depth_frame.get_data())
         color_image = np.asanyarray(color_frame.get_data())
 
         if self.cameras[self.name]['flip']:
             depth_image = np.flipud(depth_image)
             color_image = np.flipud(color_image)
-        print("Numpy {}".format(time.time()-start))
 
-        start = time.time()
         depth_image = cv2.resize(depth_image, dsize=self.img_size, interpolation=cv2.INTER_AREA)
         color_image = cv2.resize(color_image, dsize=self.img_size, interpolation=cv2.INTER_AREA)
 
         depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET)
-        print("Scale {}".format(time.time()-start))
-        start = time.time()
         color_image_t = np.transpose(color_image, [2, 0, 1])[None] / 255.0
-        print("Transpose {}".format(time.time()-start))
 
         return color_image, depth_image, color_image_t, depth_colormap, depth_frame
 

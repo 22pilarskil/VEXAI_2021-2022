@@ -40,7 +40,8 @@ try:
 
         color_colormap_dim = color_image.shape
         
-        pred = model.predict(color_image, color_image.shape)
+        color_image_t = np.transpose(color_image, [2, 0, 1])[None]/ 255.0
+        pred = model.predict(color_image_t, color_image.shape)
 
 
         print("TORCH: {}".format(time.time()-start))
