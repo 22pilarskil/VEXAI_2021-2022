@@ -123,7 +123,6 @@ try:
             cv2.waitKey(1)
 
         try:
-            comm.send("fps", time.time() - start)
             switch = comm.read(["camera", "mode"])
             if switch:
                 bcolors.print(str(switch), "green")
@@ -131,6 +130,7 @@ try:
                 if "mode" in switch: cluster = True if switch["mode"] == "true" else False
                 continue
             print("Depth: {}, Turn angle: {}".format(data[0], data[1]))
+            comm.send("fps", time.time() - start)
             if not data == [0, 0]:
                 if cluster:
                     comm.send("ring", data)
