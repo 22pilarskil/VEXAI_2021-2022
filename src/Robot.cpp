@@ -56,6 +56,18 @@ std::atomic<double> Robot::heading = 0;
 std::atomic<double> Robot::new_x_gps = 0;
 std::atomic<double> Robot::new_y_gps = 0;
 std::atomic<double> Robot::new_heading_gps = 0;
+std::atomic<double> Robot::new_x_gps = 0;
+std::atomic<double> Robot::new_y_gps = 0;
+std::atomic<double> Robot::new_heading_gps = 0;
+std::atomic<double> Robot::cur_x_gps = 0;
+std::atomic<double> Robot::cur_y_gps = 0;
+std::atomic<double> Robot::cur_pitch_gps = 0;
+std::atomic<double> Robot::cur_roll_gps = 0;
+std::atomic<double> Robot::cur_yaw_gps = 0;
+std::atomic<double> Robot::cur_heading_gps = 0;
+std::atomic<double> Robot::last_x_gps = 0;
+std::atomic<double> Robot::last_y_gps = 0;
+std::atomic<bool> Robot::is_moving = false;
 
 double Robot::offset_back = 5.25;
 double Robot::offset_middle = 7.625;
@@ -296,15 +308,26 @@ void Robot::fps(void *ptr) {
 
 void Robot::gps_fps(void *ptr){
     while (true){
-        lcd::print(5, "Y: %f - X: %f", (float)(gps.get_status().y), (float)(gps.get_status().x));
-        lcd::print(6, "Heading: %f", (float)gps.get_heading());
+        double temp1 = cur_x_gps;
+        last_x_gps = temp1;
+        double temp2 = cur_y_gps;
+        last_y_gps = temp2; // don't ask me why the fuck we need to do this because I don't fucking know
+        pros::c::gps_status_s cur_status = gps.get_status();
+        cur_x_gps = cur_status.x;
+        cur_y_gps = cur_status.y;
+        cur_pitch_gps = cur_status.pitch;
+        cur_roll_gps = cur_status.roll;
+        cur_yaw_gps = cur_status.yaw;
+        cur_heading_gps = gps.get_heading();
+        //lcd::print(1, "Y: %f - X: %f", (float)(cur_y_gps), (float)(cur_x_gps));
+        //lcd::print(2, "Heading: %f", (float)cur_heading_gps);
         delay(5);
     }
 }
 
 /* new_y, new_x, and new_heading_gps are all in absolute field terms 
- * new_y_gps and new_x_gps should be declared in meters
- * new_y_gps and new_x_gps are based on gps camera position not center of the bot
+ * gps values are in meters
+ * gps values are based on gps camera position not center of the bot
  * (0,0) in the center of the field in meters
  * 0 degrees is facing north (red side on left, blue side on right)
  */
@@ -312,20 +335,21 @@ void Robot::move_to_gps(void *ptr) {
     while (true)
     {
         double angle_adjust = 0;
-        if (gps.get_heading()+90 >= 360) angle_adjust = -270;
+        if (cur_heading_gps+90 >= 360) angle_adjust = -270;
         else angle_adjust = 90;
 
-        double phi = (gps.get_heading()+angle_adjust) * pi / 180;
+        double phi = (cur_heading_gps+angle_adjust) * pi / 180;
 
-        double gps_error = new_heading_gps - gps.get_heading();
-        double y_error = (new_y - gps.get_status().y) * meters_to_inches * inches_to_encoder;
-        double x_error = (new_x - gps.get_status().x) * meters_to_inches * inches_to_encoder;
+        double gps_error = new_heading_gps - cur_heading_gps;
+        double y_error = (new_y_gps - cur_y_gps) * meters_to_inches * inches_to_encoder;
+        double x_error = (new_x_gps - cur_x_gps) * meters_to_inches * inches_to_encoder;
 
         double power = power_PD.get_value(y_error * std::cos(phi) + x_error * std::sin(phi));
         double strafe = strafe_PD.get_value(x_error * std::cos(phi) - y_error * std::sin(phi));
         double turn = turn_PD.get_value(gps_error);
 
         mecanum(power, strafe, turn, 127);
+        is_moving = is_moving_gps((int)power, (int)strafe, 127, 5);
 
         delay(5);
     }
@@ -347,6 +371,101 @@ void Robot::move_to(void *ptr)
         double turn = turn_PD.get_value(imu_error) * turn_coefficient;
 
         mecanum(power, strafe, turn, 127);
+
+        delay(5);
+    }
+}
+
+/* gps measurements, sideways
+ * first x: 0.6969
+ * second x: -0.0211
+ * first y: -0.7503
+ * second y: -0.0717
+ * max gps speed sideways is about 0.9879 m/s
+ */
+
+// delay and the number that the difference is being compared to can be adjusted if the method isn't working well
+bool Robot::is_moving_gps(int power, int strafe, int max_power, int this_delay) {
+
+    double max_speed_side = 1;
+    double max_speed_diag = 1; //1 on this line is ONLY A PLACEHOLDER
+
+    double small_over_big = power > strafe ? strafe/power : power/strafe;
+    double direction_adjustment = max_speed_side + (max_speed_diag - max_speed_side) * small_over_big; //this is for the fact that you go faster diagonally than sideways
+    double theoretical_speed = max_power/127 * direction_adjustment;
+    double actual_speed = sqrt(pow(last_x_gps - cur_x_gps, 2) + (last_y_gps - cur_y_gps));
+    double threshold = 0.3;
+    if (actual_speed < theoretical_speed * threshold) return true;
+    else return false;
+
+
+
+    //proving david wrong
+    if (sqrt(pow(last_x_gps - cur_x_gps, 2) + (last_y_gps - cur_y_gps)) < (max_power/127 * (1 + (sqrt(2) - 1.2) * (power > strafe ? strafe/power : power/strafe))) * 0.3) return true;
+    else return false;
+
+
+
+    /*old stuff, maybe useful
+    double max_gps_error = 0.025;
+    double max_rpm = 282;
+    double acceptable_movement_percent = 30;
+    double acceptable_movement_percent_variation = 5;
+    double wheel_diameter = 4 / meters_to_inches; 39.3701;
+    double max_speed = max_rpm * wheel_diameter / 60; //2.62467333 (3 repeats)
+    double this_delay = (max_gps_error / max_speed) * 1000 * 5;
+
+    while(true) {
+        double former_x = cur_x_gps;
+        double former_y = cur_y_gps;
+        delay(5);
+        double x_dif = abs(cur_x_gps - former_x);
+        double y_dif = abs(cur_y_gps - former_y);
+        if (x_dif < 0.002 || y_dif < 0.002) is_moving = true;
+        else is_moving = false;
+        double max_move = 0;
+        if (x_dif > max_move) max_move = x_dif;
+        if (y_dif > max_move) max_move = y_dif;
+
+        //temp stuff
+        //lcd::print(5, "E: %f", (float)max_move);
+    }*/
+}
+
+
+/* 
+ * 
+ * 
+ * 
+ * 
+ * 
+ * 
+ * 
+ * 
+ * 
+ */
+void Robot::is_moving_print(void *ptr) {
+    delay(5000);
+    lcd::print(1, "3: %s", "");
+    delay(1000);
+    lcd::print(1, "2: %s", "");
+    delay(1000);
+    lcd::print(1, "1: %s", "");
+    delay(1000);
+    lcd::print(1, "%s", "0");
+    delay(100);
+    double xInitial = cur_x_gps;
+    double yInitial = cur_y_gps;
+    delay(1000);
+    double xFinal = cur_x_gps;
+    double yFinal = cur_y_gps;
+ 
+    while(true) {
+        
+        lcd::print(2, "firstx: %f", (float)xInitial);
+        lcd::print(3, "firsty: %f", (float)yInitial);
+        lcd::print(4, "secondx: %f", (float)xFinal);
+        lcd::print(5, "secondy: %f", (float)yFinal);
 
         delay(5);
     }

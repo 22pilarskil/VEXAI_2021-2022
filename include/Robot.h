@@ -47,9 +47,22 @@ class Robot{
 		static std::atomic<double> new_y;
 		static std::atomic<double> heading;
 		static std::atomic<double> imu_val;
+		static std::atomic<double> cur_x_gps;
+		static std::atomic<double> cur_y_gps;
+		static std::atomic<double> cur_pitch_gps;
+		static std::atomic<double> cur_roll_gps;
+		static std::atomic<double> cur_yaw_gps;
+		static std::atomic<double> cur_heading_gps;
+		static std::atomic<double> last_x_gps;
+		static std::atomic<double> last_y_gps;
 		static std::atomic<double> new_x_gps;
         static std::atomic<double> new_y_gps;
         static std::atomic<double> new_heading_gps;
+        static std::atomic<bool> is_moving;
+		static std::atomic<bool> chasing_mogo;
+		static std::atomic<bool> record;
+		static std::atomic<double> turn_coefficient;
+		static std::atomic<bool> turn_in_place;
 		static double offset_back;
 		static double offset_middle;
 		static double wheel_circumference;
@@ -68,6 +81,8 @@ class Robot{
         static void gps_fps(void *ptr);
         static void move_to_gps(void *ptr);
 		static void move_to(void *ptr);
+		static bool is_moving_gps(int power, int strafe, int max_speed, int this_delay);
+		static void is_moving_print(void *ptr);
 		static void controller_print(void *ptr);
 		static void display(void *ptr);
 
