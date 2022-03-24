@@ -36,6 +36,8 @@ class Robot{
 		static ADIAnalogIn angler_pot;
 		static ADIAnalogIn lift_pot;
 		static ADIDigitalOut angler_piston;
+		static ADIDigitalOut lift_piston;
+		static ADIUltrasonic ring_ultrasonic;
 		static Gps gps;
 		static Imu IMU;
 		static Distance angler_dist;
