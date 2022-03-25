@@ -56,9 +56,6 @@ std::atomic<double> Robot::heading = 0;
 std::atomic<double> Robot::new_x_gps = 0;
 std::atomic<double> Robot::new_y_gps = 0;
 std::atomic<double> Robot::new_heading_gps = 0;
-std::atomic<double> Robot::new_x_gps = 0;
-std::atomic<double> Robot::new_y_gps = 0;
-std::atomic<double> Robot::new_heading_gps = 0;
 std::atomic<double> Robot::cur_x_gps = 0;
 std::atomic<double> Robot::cur_y_gps = 0;
 std::atomic<double> Robot::cur_pitch_gps = 0;
@@ -190,6 +187,8 @@ void Robot::drive(void *ptr) {
 
         if (angler_start_thread  && !task_exists("ANGLER")) start_task("ANGLER", Robot::depth_angler);
 
+        if (flicker_on) flicker = 127;
+
         if (angler_piston_open) angler_piston.set_value(true);
         else if (angler_piston_close) angler_piston.set_value(false);
 
@@ -199,6 +198,7 @@ void Robot::drive(void *ptr) {
         else lift = 0;
 
         mecanum(power, strafe, turn);
+        lcd::print(3, "MOVING?: %s", is_moving_gps(power,strafe,127,5) ? "yes" : "no");
         delay(5);
     }
 }
@@ -243,9 +243,9 @@ void Robot::depth_angler(void *ptr){
     int angler_pot_threshold = 270;
     int depth_threshold = 47;
     int depth_coefficient = 6;
-    while (true){
+    while (true){ 
 
-        if(master.get_digital(DIGITAL_Y)) break;
+        if(master.get_digital(DIGITAL_Y) || master.get_digital(DIGITAL_UP) || angler_pot.get_value() < angler_pot_threshold) break;
 
         if (angler_dist.get() == 0) angler = 127;
         else angler = depth_coefficient * (angler_dist.get() - depth_threshold);
@@ -305,13 +305,13 @@ void Robot::fps(void *ptr) {
     }
 }
 
-
+//must be run before using any cur or last gps variables
 void Robot::gps_fps(void *ptr){
     while (true){
         double temp1 = cur_x_gps;
         last_x_gps = temp1;
         double temp2 = cur_y_gps;
-        last_y_gps = temp2; // don't ask me why the fuck we need to do this because I don't fucking know
+        last_y_gps = temp2; // don't ask me why the fuck we need to do this because I don't fucking know - Chris
         pros::c::gps_status_s cur_status = gps.get_status();
         cur_x_gps = cur_status.x;
         cur_y_gps = cur_status.y;
@@ -319,8 +319,8 @@ void Robot::gps_fps(void *ptr){
         cur_roll_gps = cur_status.roll;
         cur_yaw_gps = cur_status.yaw;
         cur_heading_gps = gps.get_heading();
-        //lcd::print(1, "Y: %f - X: %f", (float)(cur_y_gps), (float)(cur_x_gps));
-        //lcd::print(2, "Heading: %f", (float)cur_heading_gps);
+        lcd::print(1, "Y: %f - X: %f", (float)(cur_y_gps), (float)(cur_x_gps));
+        lcd::print(2, "Heading: %f", (float)cur_heading_gps);
         delay(5);
     }
 }
@@ -349,7 +349,7 @@ void Robot::move_to_gps(void *ptr) {
         double turn = turn_PD.get_value(gps_error);
 
         mecanum(power, strafe, turn, 127);
-        is_moving = is_moving_gps((int)power, (int)strafe, 127, 5);
+        is_moving = is_moving_gps(power, strafe, 127, 5);
 
         delay(5);
     }
@@ -384,67 +384,31 @@ void Robot::move_to(void *ptr)
  * max gps speed sideways is about 0.9879 m/s
  */
 
-// delay and the number that the difference is being compared to can be adjusted if the method isn't working well
+//max_speed_diag and threshold are arbetrary rn. test would be good.
 bool Robot::is_moving_gps(int power, int strafe, int max_power, int this_delay) {
 
     double max_speed_side = 1;
-    double max_speed_diag = 1; //1 on this line is ONLY A PLACEHOLDER
+    double max_speed_diag = 1.2;
 
-    double small_over_big = power > strafe ? strafe/power : power/strafe;
-    double direction_adjustment = max_speed_side + (max_speed_diag - max_speed_side) * small_over_big; //this is for the fact that you go faster diagonally than sideways
-    double theoretical_speed = max_power/127 * direction_adjustment;
-    double actual_speed = sqrt(pow(last_x_gps - cur_x_gps, 2) + (last_y_gps - cur_y_gps));
+    double small_over_big = power > strafe ? (double)strafe/(double)power : (double)power/(double)strafe;
+    double direction_adjustment = max_speed_side + ((max_speed_diag - max_speed_side) * small_over_big); //this is for the fact that you go faster diagonally than sideways
+    double theoretical_speed = ((double)max_power/127 * direction_adjustment) / ((double)this_delay / 5); //5 is the delay value in gps_fps
+    double actual_speed = sqrt(pow(last_x_gps - cur_x_gps, 2) + pow((last_y_gps - cur_y_gps), 2)); //distance formula
     double threshold = 0.3;
-    if (actual_speed < theoretical_speed * threshold) return true;
+    lcd::print(5, "actual_speed: %f", (float)actual_speed);
+    lcd::print(6, "theoretical_speed: %f", (float)theoretical_speed);//ready for compile and test
+    if (actual_speed > theoretical_speed * threshold) return true;
     else return false;
 
-
-
-    //proving david wrong
-    if (sqrt(pow(last_x_gps - cur_x_gps, 2) + (last_y_gps - cur_y_gps)) < (max_power/127 * (1 + (sqrt(2) - 1.2) * (power > strafe ? strafe/power : power/strafe))) * 0.3) return true;
-    else return false;
-
-
-
-    /*old stuff, maybe useful
-    double max_gps_error = 0.025;
-    double max_rpm = 282;
-    double acceptable_movement_percent = 30;
-    double acceptable_movement_percent_variation = 5;
-    double wheel_diameter = 4 / meters_to_inches; 39.3701;
-    double max_speed = max_rpm * wheel_diameter / 60; //2.62467333 (3 repeats)
-    double this_delay = (max_gps_error / max_speed) * 1000 * 5;
-
-    while(true) {
-        double former_x = cur_x_gps;
-        double former_y = cur_y_gps;
-        delay(5);
-        double x_dif = abs(cur_x_gps - former_x);
-        double y_dif = abs(cur_y_gps - former_y);
-        if (x_dif < 0.002 || y_dif < 0.002) is_moving = true;
-        else is_moving = false;
-        double max_move = 0;
-        if (x_dif > max_move) max_move = x_dif;
-        if (y_dif > max_move) max_move = y_dif;
-
-        //temp stuff
-        //lcd::print(5, "E: %f", (float)max_move);
-    }*/
 }
 
 
-/* 
- * 
- * 
- * 
- * 
- * 
- * 
- * 
- * 
- * 
+/* Commented out stuff is used to find max speed of the bot 
+ * going diagonally and straight for is_moving function; 
+ * Comments be deleted if values are already found.
  */
 void Robot::is_moving_print(void *ptr) {
+    /* 
     delay(5000);
     lcd::print(1, "3: %s", "");
     delay(1000);
@@ -452,7 +416,7 @@ void Robot::is_moving_print(void *ptr) {
     delay(1000);
     lcd::print(1, "1: %s", "");
     delay(1000);
-    lcd::print(1, "%s", "0");
+    lcd::print(1, "0: %s", "");
     delay(100);
     double xInitial = cur_x_gps;
     double yInitial = cur_y_gps;
@@ -468,6 +432,9 @@ void Robot::is_moving_print(void *ptr) {
         lcd::print(5, "secondy: %f", (float)yFinal);
 
         delay(5);
+    }*/
+    while(true) {
+        lcd::print(3, "MOVING?: %s", is_moving_gps(0,0,0,0) ? "yes" : "no");
     }
 }
 

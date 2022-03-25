@@ -14,7 +14,7 @@ void opcontrol() {
 	//Robot::start_task("GPSFPS", Robot::gps_fps);
 	//Robot::start_task("ISMOVING", Robot::is_moving_gps);
 	Robot::start_task("GPSFPS", Robot::gps_fps);
-	Robot::start_task("ISMOVINGPRINT", Robot::is_moving_print);
+	//Robot::start_task("ISMOVINGPRINT", Robot::is_moving_print);
 
 
 }
