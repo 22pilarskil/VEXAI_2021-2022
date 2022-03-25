@@ -159,6 +159,7 @@ void Robot::receive_fps(nlohmann::json msg){
 
 
 void Robot::drive(void *ptr) {
+    bool flicker_on = false;
     while (true) {
         int power = master.get_analog(ANALOG_LEFT_Y);
         int strafe = master.get_analog(ANALOG_LEFT_X);
@@ -175,7 +176,10 @@ void Robot::drive(void *ptr) {
         bool conveyor_forward = master.get_digital(DIGITAL_R1);
         bool conveyor_backward = master.get_digital(DIGITAL_R2);
 
-        bool flicker_on = master.get_digital(DIGITAL_UP);
+        if(master.get_digital(DIGITAL_UP)) {
+            if(flicker_on) flicker_on = false;
+            else flicker_on = true;
+        }
 
         bool lift_up = master.get_digital(DIGITAL_LEFT);
         bool lift_down = master.get_digital(DIGITAL_RIGHT);
@@ -395,8 +399,10 @@ bool Robot::is_moving_gps(int power, int strafe, int max_power, int this_delay) 
     double theoretical_speed = ((double)max_power/127 * direction_adjustment) / ((double)this_delay / 5); //5 is the delay value in gps_fps
     double actual_speed = sqrt(pow(last_x_gps - cur_x_gps, 2) + pow((last_y_gps - cur_y_gps), 2)); //distance formula
     double threshold = 0.3;
-    lcd::print(5, "actual_speed: %f", (float)actual_speed);
-    lcd::print(6, "theoretical_speed: %f", (float)theoretical_speed);//ready for compile and test
+    lcd::print(5, "actual_speed: %d", actual_speed);
+    lcd::print(6, "theoretical_speed: %d", theoretical_speed);//ready for compile and test
+    lcd::print(7, "CURX: %d", cur_x_gps);
+    lcd::print(8, "LASTX: %d", last_x_gps);
     if (actual_speed > theoretical_speed * threshold) return true;
     else return false;
 
