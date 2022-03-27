@@ -7,6 +7,7 @@
 #include <deque>
 #include "system/json.hpp"
 #include "PD.h"
+
 #include <atomic>
 using namespace pros;
 
@@ -61,6 +62,8 @@ class Robot{
 		static void receive_mogo(nlohmann::json msg);
 		static void receive_ring(nlohmann::json msg);
 		static void receive_fps(nlohmann::json msg);
+		static bool ring_receive(nlohmann::json msg);
+		static void organize_by_depth(std::vector<std::vector<double>> x);
 
 		static void drive(void *ptr);
 		static void check_depth(void *ptr);

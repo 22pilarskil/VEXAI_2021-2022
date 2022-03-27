@@ -16,8 +16,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--display", metavar="display", type=bool, default=True)
 parser.add_argument("--camera", metavar="camera", type=str, default="l515_back")
 parser.add_argument("--cluster", metavar="cluster", type=bool, default=False)
+parser.add_argument("--send_to_c", metavar = "all", type=bool, default=False)
 args = parser.parse_args()
-    
+whole_str = ""
 names = ["red-mogo","yellow-mogo", "blue-mogo", "unknown_color", "ring"]
 model = Model("models/weights/best_yolov5n.engine")
 conf_thres = .4
@@ -43,7 +44,7 @@ try:
         start = time.time()
 
         data = cam.poll_frames()
-        if data is None: 
+        if data is None:
             continue
         color_image, depth_image, color_image_t, depth_colormap, depth_frame = data
 
@@ -56,7 +57,7 @@ try:
                 pred[i, 5] = determine_color(det, color_image)
             else:
                 pred[i, 5] = 3
-           
+
             pred[i, 6] = determine_depth(det, depth_image) * depth_frame.get_units()
 
         data = [0, 0]
@@ -70,9 +71,9 @@ try:
         det = None
 
         if int(pred.shape[0]) > 0:
-      
+
             if cluster:
-                    
+
                 det = return_data(pred, find="all", colors=[3])
 
                 if det is not None and len(det) > 0:
@@ -101,15 +102,25 @@ try:
                     if add_zeros:
                         det = np.append(det, np.zeros((det.shape[0], 1)), axis=1)
                     det = torch.tensor(det)
-                    det = return_data(det, find="close", colors=[3])
-       
+                    if send_to_c:
+                        det = return_data(pred, find="all", colors = [3])
+                    else:
+                        det = return_data(det, find="close", colors=[3])
+
             else:
-                det = return_data(pred, find="close", colors=[-1, 0, 1], conf_thres=conf_thres)            
+                det = return_data(pred, find="close", colors=[-1, 0, 1], conf_thres=conf_thres)
 
 
             if det is not None and len(det) > 0:
-                turn_angle = degree(det)
-                data = [round(float(det[6]), 3), round(float(turn_angle), 3)]
+                if(send_to_c):
+                    #load the string with all the data
+                    for i, single_det in enumerate(det):
+                        turn_angle = degree(single_det)
+                        det_str = round(float(single_det[6]), 3) +  "," + round(float(turn_angle), 3)] + "|"
+                        whole_str = whole_str+det_str
+                else:
+                    turn_angle = degree(det)
+                    data = [round(float(det[6]), 3), round(float(turn_angle), 3)]
 
 
         if args.display:
@@ -133,7 +144,10 @@ try:
             comm.send("fps", time.time() - start)
             if not data == [0, 0]:
                 if cluster:
-                    comm.send("ring", data)
+                    if send_to_c:
+                        comm.send("ring", whole_str)
+                    else:
+                        comm.send("ring", data)
                     comm.wait("continue")
                 elif not cluster:
                     comm.send("mogo", data)
@@ -141,6 +155,6 @@ try:
             bcolors.print(str(e), "blue")
             comm.open()
 
-          
+
 finally:
     cam.stop()

@@ -20,13 +20,13 @@ PD Robot::strafe_PD(.4, 0, 0);
 PD Robot::turn_PD(1.0, 0, 0);
 
 Motor Robot::BRB(1, true);
-Motor Robot::BRT(3); 
-Motor Robot::BLT(10, true); 
+Motor Robot::BRT(3);
+Motor Robot::BLT(10, true);
 Motor Robot::BLB(9);
-Motor Robot::FLT(18, true); 
+Motor Robot::FLT(18, true);
 Motor Robot::FLB(19);
 Motor Robot::FRB(13, true);
-Motor Robot::FRT(11); 
+Motor Robot::FRT(11);
 Motor Robot::flicker(17);
 Motor Robot::angler(20);
 Motor Robot::conveyor(2);
@@ -96,7 +96,7 @@ void Robot::receive_mogo(nlohmann::json msg) {
 
     if (!task_exists("DEPTH")) start_task("DEPTH", Robot::check_depth);
 
-    string msgS = msg.dump(); 
+    string msgS = msg.dump();
     std::size_t found = msgS.find(",");
 
     double lidar_depth = max(std::stod(msgS.substr(1, found - 1)), 0.2);
@@ -114,9 +114,105 @@ void Robot::receive_mogo(nlohmann::json msg) {
     delay(5);
     turn_coefficient = 1;
 }
+bool Robot::ring_receive(nlohmann::json msg)//new ring receive; haven't reset anything so old ring receive still gets the data
+{
+  //msg: "det_1: depth, angle | det_2: depth, angle | .... det_n: depth, angle|"
+  string msgS = msg.dump();
+  vector<string> det_holder;
+  string delimiter = "|";
+  //data loading
+  int pos = 0;
+  string token;
+  while ((pos = msgS.find(delimiter)) != std::string::npos) {
+    token = msgS.substr(0, pos);
+    det_holder.push_back(token);
+    msgS.erase(0, pos + delimiter.length());
+  }
+
+  delimiter = ",";
+  vector<vector<double>> all_dets;
+  for(string f : det_holder)
+  {
+    string token;
+    vector<double> temp;
+    while ((pos = f.find(delimiter)) != std::string::npos) {
+      token = f.substr(0, pos);
+      temp.push_back(std::stod(token));
+      f.erase(0, pos + delimiter.length());
+    }
+    all_dets.push_back(temp);
+  }
+  Robot::organize_by_depth(all_dets);
+  //start choosing
+  vector<double> det_to_use;
+  bool found = false;
+  for(vector<double> det : all_dets)
+  {
+    double lidar_depth = det[0];
+    double x = gps.get_status().x;
+    double y = gps.get_status().y;
+    double gps_heading = gps.get_heading();
+    double sin_f = sin(gps_heading)*lidar_depth+y;
+    double cos_f = cos(gps_heading)*lidar_depth+x;
+    if(sin_f<=-1.9*12/meters_to_inches || sin_f>=1.9*12/meters_to_inches || cos_f <= -1.9*12/meters_to_inches
+    || cos_f >= 1.9*12/meters_to_inches)//1.9 feet from the wall on all sides = we don't wanna go there
+    {
+      continue;
+    }
+    else
+    {
+      det_to_use = det;
+      found = true;
+    }
+  }
+
+  if (found)
+  {
+    //copy and pasted
+    double angle = det_to_use[1];
+    double coefficient = det_to_use[0] * meters_to_inches * inches_to_encoder + 300;
+    double angle_threshold = 1;
+    double target_heading = imu_val + angle;
+    heading = target_heading;
+    while (abs(imu_val - target_heading) > 3) delay(5);
+    new_y = y - coefficient * cos(heading / 180 * pi);
+    new_x = x + coefficient * sin(heading / 180 * pi);
+    while (abs(new_y - y) > 100 or abs(new_x - x) > 100) delay(5);
+    conveyor = 0;
+    delay(500);
+    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#");
+    turn_in_place = true;
+  }
+  else
+  {
+    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#");//make it find new rings
+  }
+  return found;
+}
+
+void organize_by_depth(vector<vector<double>> x)//could use some work but eh
+{
+  bool sorted = false;
+  while(!sorted)
+  {
+    sorted = true;
+    for(int i = 0; i<x.size()-1; i++)
+    {
+      if(x[i][0]>x[i+1][0])//compare depths
+      {
+        vector<double> temp = x[i];
+        x[i] = x[i+1];
+        x[i+1] = x[i];
+        sorted = false;
+      }
+    }
+  }
+}
 
 
 void Robot::receive_ring(nlohmann::json msg) {
+    //original ring receive, technically works(?) with the new stuff i put in trt_vis
+    //[unsure as of 3/27 if they do actually work in conjunction]
     turn_in_place = false;
     heading = last_heading;
     turn_coefficient = 3;
@@ -129,20 +225,36 @@ void Robot::receive_ring(nlohmann::json msg) {
     double lidar_depth = std::stod(msgS.substr(1, found - 1));
     double angle = std::stod(msgS.substr(found + 1, msgS.size() - found - 1));
     double coefficient = lidar_depth * meters_to_inches * inches_to_encoder + 300;
-    double angle_threshold = 1;
-    double target_heading = imu_val + angle;
-    heading = target_heading;
-    while (abs(imu_val - target_heading) > 3) delay(5);
+    double x = gps.get_status().x;
+    double y = gps.get_status().y;
 
-    new_y = y - coefficient * cos(heading / 180 * pi);
-    new_x = x + coefficient * sin(heading / 180 * pi);
-    while (abs(new_y - y) > 100 or abs(new_x - x) > 100) delay(5);
+    double gps_heading = gps.get_heading();
+    double sin_f = sin(gps_heading)*lidar_depth+y;
+    double cos_f = cos(gps_heading)*lidar_depth+x;
 
-    conveyor = 0;
-    delay(500);
+    if(sin_f<=-1.9*12/meters_to_inches || sin_f>=1.9*12/meters_to_inches || cos_f <= -1.9*12/meters_to_inches
+    || cos_f >= 1.9*12/meters_to_inches)
+    {
+      delay(5);
 
-    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#");
-    turn_in_place = true;
+    }
+    else
+    {
+      double angle_threshold = 1;
+      double target_heading = imu_val + angle;
+      heading = target_heading;
+      while (abs(imu_val - target_heading) > 3) delay(5);
+
+      new_y = y - coefficient * cos(heading / 180 * pi);
+      new_x = x + coefficient * sin(heading / 180 * pi);
+      while (abs(new_y - y) > 100 or abs(new_x - x) > 100) delay(5);
+
+      conveyor = 0;
+      delay(500);
+
+      lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#");
+      turn_in_place = true;
+    }
 }
 
 void Robot::receive_fps(nlohmann::json msg){
@@ -343,7 +455,7 @@ void Robot::gps_fps(void *ptr){
     }
 }
 
-/* new_y, new_x, and new_heading_gps are all in absolute field terms 
+/* new_y, new_x, and new_heading_gps are all in absolute field terms
  * new_y_gps and new_x_gps should be declared in meters
  * new_y_gps and new_x_gps are based on gps camera position not center of the bot
  * (0,0) in the center of the field in meters
