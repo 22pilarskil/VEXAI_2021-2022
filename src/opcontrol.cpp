@@ -20,8 +20,9 @@ void opcontrol() {
 	Robot::start_task("FPS", Robot::fps);
 	Robot::start_task("DISPLAY", Robot::display);
 	lib7405x::Serial::Instance()->onReceive("fps", Robot::receive_fps);
-	lib7405x::Serial::Instance()->onReceive("mogo", Robot::receive_mogo);
-	lib7405x::Serial::Instance()->onReceive("ring", Robot::receive_ring);
+	lib7405x::Serial::Instance()->onReceive("whole_data", Robot::receive_data);
+	//lib7405x::Serial::Instance()->onReceive("mogo", Robot::receive_mogo);
+	//lib7405x::Serial::Instance()->onReceive("ring", Robot::receive_ring);
 	//Robot::start_task("MOVETO", Robot::move_to);
 	Robot::start_task("IMU", Robot::imu_clamp);
 

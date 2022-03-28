@@ -16,7 +16,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--display", metavar="display", type=bool, default=True)
 parser.add_argument("--camera", metavar="camera", type=str, default="l515_back")
 parser.add_argument("--cluster", metavar="cluster", type=bool, default=False)
-parser.add_argument("--send_to_c", metavar = "all", type=bool, default=False)
+
+
+
 args = parser.parse_args()
 whole_str = ""
 names = ["red-mogo","yellow-mogo", "blue-mogo", "unknown_color", "ring"]
@@ -71,14 +73,11 @@ try:
         det = None
 
         if int(pred.shape[0]) > 0:
-
-            if cluster:
-
-                det = return_data(pred, find="all", colors=[3])
-
-                if det is not None and len(det) > 0:
-                    det = det[det[:,5]==3]
-                    for x in det:
+            det_rings = return_data(pred, find="all", colors=[3])
+            if cluster: #apply cluster function
+                if det_rings is not None and len(det_rings) > 0:
+                    det_rings = det_rings[det_rings[:,5]==3]
+                    for x in det_rings:
                         if args.display:
                             color_annotator.box_label(x[:4], f'{names[int(x[5]) + 1]} {x[4]:.2f}', color=colors(x[5], True))
                             depth_annotator.box_label(x[:4], f'{names[int(x[5]) + 1]} {x[4]:.2f}', color=colors(x[5], True))
@@ -92,35 +91,52 @@ try:
                         if len(cluster_labels)>0:
                             mask2 = cluster_labels==np.bincount(cluster_labels).argmax()
                             cluster_labels = cluster_labels[mask2]
-                            det = det[mask1]
-                            det = det[mask2]
+                            det_rings = det_rings[mask1]
+                            det_rings = det_rings[mask2]
                             cluster_pos = np.average(xys, axis=0)
-                            det = np.append(det, cluster_labels.reshape(cluster_labels.shape[0],1), axis=1)
+                            det_rings = np.append(det_rings, cluster_labels.reshape(cluster_labels.shape[0],1), axis=1)
                             add_zeros = False
 
 
                     if add_zeros:
-                        det = np.append(det, np.zeros((det.shape[0], 1)), axis=1)
-                    det = torch.tensor(det)
-                    if send_to_c:
-                        det = return_data(pred, find="all", colors = [3])
-                    else:
-                        det = return_data(det, find="close", colors=[3])
+                        det_rings = np.append(det_rings, np.zeros((det_rings.shape[0], 1)), axis=1)
+                    det_rings = torch.tensor(det_rings)
+                    det_rings = return_data(det_rings, find="all", colors = [3])
+                    det_rings = sort_distance(det_rings)
+            det_red = return_data(pred, find="all", colors=[-1], conf_thres=conf_thres)
+            det_red = sort_distance(det_red)
+            det_blue = return_data(pred, find="all",colors = [1], conf_thres = conf_thres)
+            det_blue = sort_distance(det_blue)
+            det_yellow = return_data(pred, find = "all",colors =[0],conf_thres = conf_thres)
+            det_yellow = sort_distance(det_yellow)
 
-            else:
-                det = return_data(pred, find="close", colors=[-1, 0, 1], conf_thres=conf_thres)
+            #if pred is not None and len(pred) > 0:
+            #load strings into the data in form rings, reds, yellows, blues
+            for i, single_det in enumerate(det_rings):
+                turn_angle = degree(single_det)
+                det_str = round(float(single_det[6]), 3) +  "," + round(float(turn_angle), 3)] + "|"
+                whole_str = whole_str+det_str
 
+            whole_str = whole_str+ "!"
+            for i, single_det in enumerate(det_red):
+                turn_angle = degree(single_det)
+                det_str = round(float(single_det[6]), 3) +  "," + round(float(turn_angle), 3)] + "|"
+                whole_str = whole_str+det_str
 
-            if det is not None and len(det) > 0:
-                if(send_to_c):
-                    #load the string with all the data
-                    for i, single_det in enumerate(det):
-                        turn_angle = degree(single_det)
-                        det_str = round(float(single_det[6]), 3) +  "," + round(float(turn_angle), 3)] + "|"
-                        whole_str = whole_str+det_str
-                else:
-                    turn_angle = degree(det)
-                    data = [round(float(det[6]), 3), round(float(turn_angle), 3)]
+            whole_str = whole_str+"!"
+            for i, single_det in enumerate(det_yellow):
+                turn_angle = degree(single_det)
+                det_str = round(float(single_det[6]), 3) +  "," + round(float(turn_angle), 3)] + "|"
+                whole_str = whole_str+det_str
+
+            whole_str = whole_str+"!"
+            for i, single_det in enumerate(det_blue):
+                turn_angle = degree(single_det)
+                det_str = round(float(single_det[6]), 3) +  "," + round(float(turn_angle), 3)] + "|"
+                whole_str = whole_str+det_str
+
+            whole_str = whole_str+"!"
+
 
 
         if args.display:
@@ -142,19 +158,25 @@ try:
                 continue
             print("Depth: {}, Turn angle: {}".format(data[0], data[1]))
             comm.send("fps", time.time() - start)
-            if not data == [0, 0]:
-                if cluster:
-                    if send_to_c:
-                        comm.send("ring", whole_str)
-                    else:
-                        comm.send("ring", data)
-                    comm.wait("continue")
-                elif not cluster:
-                    comm.send("mogo", data)
+
+            comm.send("whole_data", whole_str)
         except Exception as e:
             bcolors.print(str(e), "blue")
             comm.open()
 
-
+#sort by distance within color, sort by color/ring
 finally:
     cam.stop()
+
+def sort_distance(list):
+    #sort distance (index 6)
+    sorted = False
+    while(!sorted):
+        sorted = True
+        for i in range(0, len(list)-1):
+            if(list[i][6] > list[i+1][6]):
+                sorted = False
+                temp = list[i]
+                list[i] = list[i+1]
+                list[i+1] = temp
+    return list

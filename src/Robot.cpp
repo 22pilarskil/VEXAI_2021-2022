@@ -84,6 +84,198 @@ std::vector<int> find_location(std::string sample, char find){
     return character_locations;
 }
 
+void Robot::receive_data(nlohmann::json msg)
+{
+  //data in form rings(det[depth, angle],...)!red()!yellow()!blue()!
+  string whole_str = msg.dump();
+  vector<string> color_separated;
+
+  string delimiter = "!";
+  //data loading
+  int pos = 0;
+  string token;
+  while ((pos = whole_str.find(delimiter)) != std::string::npos) {
+    token = whole_str.substr(0, pos);
+    color_separated.push_back(token);
+    whole_str.erase(0, pos + delimiter.length());
+  }
+
+
+  vector<vector<double>> ring_dets;
+  vector<vector<double>> red_mogo_dets;
+  vector<vector<double>> yellow_mogo_dets;
+  vector<vector<double>> blue_mogo_dets;
+
+  string det_delimiter = "|";
+  string attribute_delimiter = ",";
+
+  //ring dets
+  pos = 0;
+
+  while ((pos = color_separated[0].find(det_delimiter)) != std::string::npos) {
+    token = color_separated[0].substr(0, pos);
+    int pos_1 =0;
+    string token1;
+    vector<double> temp;
+    while((pos_1 = token.find(attribute_delimiter)!=std::string::npos))
+    {
+      token1 = token.substr(0,pos_1);
+      temp.push_back(std::stod(token1));
+      token.erase(0,pos_1+attribute_delimiter.length());
+    }
+    ring_dets.push_back(temp);
+    color_separated[0].erase(0, pos + delimiter.length());
+  }
+  //red_mogo_dets
+  pos = 0;
+  while ((pos = color_separated[1].find(det_delimiter)) != std::string::npos) {
+    token = color_separated[1].substr(0, pos);
+    int pos_1 =0;
+    string token1;
+    vector<double> temp;
+    while((pos_1 = token.find(attribute_delimiter)!=std::string::npos))
+    {
+      token1 = token.substr(0,pos_1);
+      temp.push_back(std::stod(token1));
+      token.erase(0,pos_1+attribute_delimiter.length());
+    }
+    red_mogo_dets.push_back(temp);
+    color_separated[1].erase(0, pos + delimiter.length());
+  }
+
+  //yellow_mogo_dets
+  pos = 0;
+  while ((pos = color_separated[2].find(det_delimiter)) != std::string::npos) {
+    token = color_separated[2].substr(0, pos);
+    int pos_1 =0;
+    string token1;
+    vector<double> temp;
+    while((pos_1 = token.find(attribute_delimiter)!=std::string::npos))
+    {
+      token1 = token.substr(0,pos_1);
+      temp.push_back(std::stod(token1));
+      token.erase(0,pos_1+attribute_delimiter.length());
+    }
+    yellow_mogo_dets.push_back(temp);
+    color_separated[2].erase(0, pos + delimiter.length());
+  }
+  //blue_mogo_dets
+  pos = 0;
+  while ((pos = color_separated[2].find(det_delimiter)) != std::string::npos) {
+    token = color_separated[2].substr(0, pos);
+    int pos_1 =0;
+    string token1;
+    vector<double> temp;
+    while((pos_1 = token.find(attribute_delimiter)!=std::string::npos))
+    {
+      token1 = token.substr(0,pos_1);
+      temp.push_back(std::stod(token1));
+      token.erase(0,pos_1+attribute_delimiter.length());
+    }
+    blue_mogo_dets.push_back(temp);
+    color_separated[2].erase(0, pos + delimiter.length());
+  }
+  /**
+    do stuff with these dets
+    load stuff into the map
+
+  **/
+  ring_receive(ring_dets);
+
+}
+void Robot::ring_receive(vector<vector<double>> input)
+{
+  //changed to work with inputs from receive_data
+  turn_in_place = false;
+  heading = last_heading;
+  turn_coefficient = 3;
+  while(abs(heading - imu_val) > 3) delay(5);
+
+  conveyor = -127;
+
+  //find best input
+  bool found = false;
+  int pos = 0;
+  double x = gps.get_status().x;
+  double y = gps.get_status().y;
+  double gps_heading = gps.get_heading();
+
+  double depth;
+  double ang;
+  while(!found && pos<input.size())
+  {
+    double lidar_depth = input[pos][0];
+    double angle = input[pos][1];
+
+    double sin_f = sin(gps_heading)*lidar_depth+y;
+    double cos_f = cos(gps_heading)*lidar_depth+x;
+
+    if(sin_f<=-2.1*12/meters_to_inches || sin_f>=2.1*12/meters_to_inches || cos_f <= -2.1*12/meters_to_inches
+    || cos_f >= 2.1*12/meters_to_inches)
+    {
+      pos++;
+    }
+    else
+    {
+      found = true;
+      depth = lidar_depth;
+      ang = angle;
+      break;
+    }
+  }
+
+  if(found)
+  {
+    double coefficient = depth * meters_to_inches * inches_to_encoder + 300;
+    double angle_threshold = 1;
+    double target_heading = imu_val + ang;
+    heading = target_heading;
+    while (abs(imu_val - target_heading) > 3) delay(5);
+
+    new_y = y - coefficient * cos(heading / 180 * pi);
+    new_x = x + coefficient * sin(heading / 180 * pi);
+    while (abs(new_y - y) > 100 or abs(new_x - x) > 100) delay(5);
+
+    conveyor = 0;
+    delay(500);
+
+    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#");
+    turn_in_place = true;
+  }
+  else
+  {
+    delay(5);
+  }
+}
+void Robot::mogo_receive(vector<double> f)
+{
+  //copy and pasted, changed to work with the attributes given by receive_data
+  failed_update = 0;
+  turn_in_place = false;
+  chasing_mogo = true;
+  flicker = 127;
+
+  double angle_threshold = 1;
+  turn_coefficient = 2;
+
+  if (!task_exists("DEPTH")) start_task("DEPTH", Robot::check_depth);
+
+
+  double lidar_depth = max(f[0], 0.2);
+  double angle = f[1];
+
+  double coefficient;
+
+  if (abs(angle) > angle_threshold) coefficient = 300 * lidar_depth * (0.20 / seconds_per_frame);
+  else if (abs(angle) < angle_threshold && chasing_mogo == true) coefficient = 600;
+
+  heading = imu_val + angle;
+  new_y = y + coefficient * cos(heading / 180 * pi);
+  new_x = x - coefficient * sin(heading / 180 * pi);
+
+  delay(5);
+  turn_coefficient = 1;
+}
 
 void Robot::receive_mogo(nlohmann::json msg) {
     failed_update = 0;
@@ -114,100 +306,8 @@ void Robot::receive_mogo(nlohmann::json msg) {
     delay(5);
     turn_coefficient = 1;
 }
-bool Robot::ring_receive(nlohmann::json msg)//new ring receive; haven't reset anything so old ring receive still gets the data
-{
-  //msg: "det_1: depth, angle | det_2: depth, angle | .... det_n: depth, angle|"
-  string msgS = msg.dump();
-  vector<string> det_holder;
-  string delimiter = "|";
-  //data loading
-  int pos = 0;
-  string token;
-  while ((pos = msgS.find(delimiter)) != std::string::npos) {
-    token = msgS.substr(0, pos);
-    det_holder.push_back(token);
-    msgS.erase(0, pos + delimiter.length());
-  }
 
-  delimiter = ",";
-  vector<vector<double>> all_dets;
-  for(string f : det_holder)
-  {
-    string token;
-    vector<double> temp;
-    while ((pos = f.find(delimiter)) != std::string::npos) {
-      token = f.substr(0, pos);
-      temp.push_back(std::stod(token));
-      f.erase(0, pos + delimiter.length());
-    }
-    all_dets.push_back(temp);
-  }
-  Robot::organize_by_depth(all_dets);
-  //start choosing
-  vector<double> det_to_use;
-  bool found = false;
-  for(vector<double> det : all_dets)
-  {
-    double lidar_depth = det[0];
-    double x = gps.get_status().x;
-    double y = gps.get_status().y;
-    double gps_heading = gps.get_heading();
-    double sin_f = sin(gps_heading)*lidar_depth+y;
-    double cos_f = cos(gps_heading)*lidar_depth+x;
-    if(sin_f<=-1.9*12/meters_to_inches || sin_f>=1.9*12/meters_to_inches || cos_f <= -1.9*12/meters_to_inches
-    || cos_f >= 1.9*12/meters_to_inches)//1.9 feet from the wall on all sides = we don't wanna go there
-    {
-      continue;
-    }
-    else
-    {
-      det_to_use = det;
-      found = true;
-    }
-  }
 
-  if (found)
-  {
-    //copy and pasted
-    double angle = det_to_use[1];
-    double coefficient = det_to_use[0] * meters_to_inches * inches_to_encoder + 300;
-    double angle_threshold = 1;
-    double target_heading = imu_val + angle;
-    heading = target_heading;
-    while (abs(imu_val - target_heading) > 3) delay(5);
-    new_y = y - coefficient * cos(heading / 180 * pi);
-    new_x = x + coefficient * sin(heading / 180 * pi);
-    while (abs(new_y - y) > 100 or abs(new_x - x) > 100) delay(5);
-    conveyor = 0;
-    delay(500);
-    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#");
-    turn_in_place = true;
-  }
-  else
-  {
-    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#");//make it find new rings
-  }
-  return found;
-}
-
-void organize_by_depth(vector<vector<double>> x)//could use some work but eh
-{
-  bool sorted = false;
-  while(!sorted)
-  {
-    sorted = true;
-    for(int i = 0; i<x.size()-1; i++)
-    {
-      if(x[i][0]>x[i+1][0])//compare depths
-      {
-        vector<double> temp = x[i];
-        x[i] = x[i+1];
-        x[i+1] = x[i];
-        sorted = false;
-      }
-    }
-  }
-}
 
 
 void Robot::receive_ring(nlohmann::json msg) {
@@ -232,8 +332,8 @@ void Robot::receive_ring(nlohmann::json msg) {
     double sin_f = sin(gps_heading)*lidar_depth+y;
     double cos_f = cos(gps_heading)*lidar_depth+x;
 
-    if(sin_f<=-1.9*12/meters_to_inches || sin_f>=1.9*12/meters_to_inches || cos_f <= -1.9*12/meters_to_inches
-    || cos_f >= 1.9*12/meters_to_inches)
+    if(sin_f<=-2.1*12/meters_to_inches || sin_f>=2.1*12/meters_to_inches || cos_f <= -2.1*12/meters_to_inches
+    || cos_f >= 2.1*12/meters_to_inches)
     {
       delay(5);
 
