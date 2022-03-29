@@ -55,14 +55,15 @@ class Robot{
 		static std::atomic<double> cur_heading_gps;
 		static std::atomic<double> last_x_gps;
 		static std::atomic<double> last_y_gps;
+		static std::atomic<double> cur_x_gps_slow;
+		static std::atomic<double> cur_y_gps_slow;
+		static std::atomic<double> last_x_gps_slow;
+		static std::atomic<double> last_y_gps_slow;
 		static std::atomic<double> new_x_gps;
         static std::atomic<double> new_y_gps;
         static std::atomic<double> new_heading_gps;
         static std::atomic<bool> is_moving;
-		static std::atomic<bool> chasing_mogo;
-		static std::atomic<bool> record;
-		static std::atomic<double> turn_coefficient;
-		static std::atomic<bool> turn_in_place;
+		
 		static double offset_back;
 		static double offset_middle;
 		static double wheel_circumference;

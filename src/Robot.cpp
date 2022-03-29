@@ -64,6 +64,10 @@ std::atomic<double> Robot::cur_yaw_gps = 0;
 std::atomic<double> Robot::cur_heading_gps = 0;
 std::atomic<double> Robot::last_x_gps = 0;
 std::atomic<double> Robot::last_y_gps = 0;
+std::atomic<double> Robot::cur_x_gps_slow = 0;
+std::atomic<double> Robot::cur_y_gps_slow = 0;
+std::atomic<double> Robot::last_x_gps_slow = 0;
+std::atomic<double> Robot::last_y_gps_slow = 0;
 std::atomic<bool> Robot::is_moving = false;
 
 double Robot::offset_back = 5.25;
@@ -202,7 +206,7 @@ void Robot::drive(void *ptr) {
         else lift = 0;
 
         mecanum(power, strafe, turn);
-        lcd::print(3, "MOVING?: %s", is_moving_gps(power,strafe,127,5) ? "yes" : "no");
+        for (int i = 0; i < 4; i++) {if(i==0)lcd::print(3, "MOVING?: %s", is_moving_gps(power,strafe,127,20) ? "yes" : "no");}
         delay(5);
     }
 }
@@ -311,11 +315,10 @@ void Robot::fps(void *ptr) {
 
 //must be run before using any cur or last gps variables
 void Robot::gps_fps(void *ptr){
+    int i = 0;
     while (true){
-        double temp1 = cur_x_gps;
-        last_x_gps = temp1;
-        double temp2 = cur_y_gps;
-        last_y_gps = temp2; // don't ask me why the fuck we need to do this because I don't fucking know - Chris
+        last_x_gps = (double)cur_x_gps;
+        last_y_gps = (double)cur_y_gps;
         pros::c::gps_status_s cur_status = gps.get_status();
         cur_x_gps = cur_status.x;
         cur_y_gps = cur_status.y;
@@ -323,9 +326,16 @@ void Robot::gps_fps(void *ptr){
         cur_roll_gps = cur_status.roll;
         cur_yaw_gps = cur_status.yaw;
         cur_heading_gps = gps.get_heading();
-        lcd::print(1, "Y: %f - X: %f", (float)(cur_y_gps), (float)(cur_x_gps));
-        lcd::print(2, "Heading: %f", (float)cur_heading_gps);
-        delay(5);
+        //lcd::print(1, "Y: %f - X: %f", (float)(cur_y_gps), (float)(cur_x_gps));
+        //lcd::print(2, "Heading: %f", (float)cur_heading_gps);
+        if(i % 10 == 0) {
+            last_x_gps_slow = (double)cur_x_gps_slow;
+            last_y_gps_slow = (double)cur_y_gps_slow;
+            cur_x_gps_slow = (double)cur_x_gps;
+            cur_y_gps_slow = (double)cur_y_gps;
+        }
+        i++;
+        delay(20);
     }
 }
 
@@ -380,65 +390,21 @@ void Robot::move_to(void *ptr)
     }
 }
 
-/* gps measurements, sideways
- * first x: 0.6969
- * second x: -0.0211
- * first y: -0.7503
- * second y: -0.0717
- * max gps speed sideways is about 0.9879 m/s
- */
 
-//max_speed_diag and threshold are arbetrary rn. test would be good.
+
+//threshold can and should be adjusted if return value is inacurate
 bool Robot::is_moving_gps(int power, int strafe, int max_power, int this_delay) {
 
-    double max_speed_side = 1;
-    double max_speed_diag = 1.2;
-
-    double small_over_big = power > strafe ? (double)strafe/(double)power : (double)power/(double)strafe;
-    double direction_adjustment = max_speed_side + ((max_speed_diag - max_speed_side) * small_over_big); //this is for the fact that you go faster diagonally than sideways
-    double theoretical_speed = ((double)max_power/127 * direction_adjustment) / ((double)this_delay / 5); //5 is the delay value in gps_fps
-    double actual_speed = sqrt(pow(last_x_gps - cur_x_gps, 2) + pow((last_y_gps - cur_y_gps), 2)); //distance formula
+    double raw_speed = abs((double)power) + abs((double)strafe);
+    double theoretical_speed = ((raw_speed > max_power) ? max_power : raw_speed) / 127; //this could maybe be multiplied by some constant, but max speed is pretty close to 1 anyways
+    double actual_speed = sqrt(pow(abs(last_x_gps_slow - cur_x_gps_slow), 2) + pow(abs(last_y_gps_slow - cur_y_gps_slow), 2)) * (double)(1000/200); //distance formula
     double threshold = 0.3;
-    lcd::print(5, "actual_speed: %d", actual_speed);
-    lcd::print(6, "theoretical_speed: %d", theoretical_speed);//ready for compile and test
-    lcd::print(7, "CURX: %d", cur_x_gps);
-    lcd::print(8, "LASTX: %d", last_x_gps);
     if (actual_speed > theoretical_speed * threshold) return true;
     else return false;
 
 }
 
-
-/* Commented out stuff is used to find max speed of the bot 
- * going diagonally and straight for is_moving function; 
- * Comments be deleted if values are already found.
- */
 void Robot::is_moving_print(void *ptr) {
-    /* 
-    delay(5000);
-    lcd::print(1, "3: %s", "");
-    delay(1000);
-    lcd::print(1, "2: %s", "");
-    delay(1000);
-    lcd::print(1, "1: %s", "");
-    delay(1000);
-    lcd::print(1, "0: %s", "");
-    delay(100);
-    double xInitial = cur_x_gps;
-    double yInitial = cur_y_gps;
-    delay(1000);
-    double xFinal = cur_x_gps;
-    double yFinal = cur_y_gps;
- 
-    while(true) {
-        
-        lcd::print(2, "firstx: %f", (float)xInitial);
-        lcd::print(3, "firsty: %f", (float)yInitial);
-        lcd::print(4, "secondx: %f", (float)xFinal);
-        lcd::print(5, "secondy: %f", (float)yFinal);
-
-        delay(5);
-    }*/
     while(true) {
         lcd::print(3, "MOVING?: %s", is_moving_gps(0,0,0,0) ? "yes" : "no");
     }
