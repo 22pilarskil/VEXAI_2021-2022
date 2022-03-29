@@ -38,6 +38,8 @@ ADIEncoder Robot::BE({{16, 3, 4}});
 ADIAnalogIn Robot::angler_pot({{16, 8}});
 ADIAnalogIn Robot::lift_pot(3);
 ADIDigitalOut Robot::angler_piston(2);
+ADIDigitalOut Robot::lift_piston(1);
+ADIUltrasonic Robot::ring_ultrasonic(5, 6);
 Gps Robot::gps(4);
 Imu Robot::IMU(12);
 Distance Robot::angler_dist(21);
@@ -80,8 +82,20 @@ std::atomic<double> turn_coefficient = 1;
 std::atomic<bool> turn_in_place = true;
 double seconds_per_frame = 0.20;
 int failed_update = 0;
+double last_heading = 0;
 
 std::map<std::string, std::unique_ptr<pros::Task>> Robot::tasks;
+
+
+std::vector<int> find_location(std::string sample, char find){
+    std::vector<int> character_locations;
+    for(int i = 0; i < sample.size(); i++){
+        if (sample[i] == find){
+            character_locations.push_back(i);
+        }
+    }
+    return character_locations;
+}
 
 
 void Robot::receive_mogo(nlohmann::json msg) {
@@ -91,18 +105,19 @@ void Robot::receive_mogo(nlohmann::json msg) {
     flicker = 127;
 
     double angle_threshold = 1;
+    turn_coefficient = 2;
 
     if (!task_exists("DEPTH")) start_task("DEPTH", Robot::check_depth);
 
-    string msgS = msg.dump();
+    string msgS = msg.dump(); 
     std::size_t found = msgS.find(",");
 
-    double lidar_depth = std::stod(msgS.substr(1, found - 1));
+    double lidar_depth = max(std::stod(msgS.substr(1, found - 1)), 0.2);
     double angle = std::stod(msgS.substr(found + 1, msgS.size() - found - 1));
 
     double coefficient;
 
-    if (abs(angle) > angle_threshold) coefficient = 200 * lidar_depth * (0.20 / seconds_per_frame);
+    if (abs(angle) > angle_threshold) coefficient = 300 * lidar_depth * (0.20 / seconds_per_frame);
     else if (abs(angle) < angle_threshold && chasing_mogo == true) coefficient = 600;
 
     heading = imu_val + angle;
@@ -110,17 +125,15 @@ void Robot::receive_mogo(nlohmann::json msg) {
     new_x = x - coefficient * sin(heading / 180 * pi);
 
     delay(5);
+    turn_coefficient = 1;
 }
 
 
 void Robot::receive_ring(nlohmann::json msg) {
     turn_in_place = false;
-    heading = heading - 30;
+    heading = last_heading;
     turn_coefficient = 3;
-    while(abs(heading - imu_val) > 3){
-        lcd::print(3, "loss: %d", (int)abs(imu_val- heading));
-        delay(5);
-    }
+    while(abs(heading - imu_val) > 3) delay(5);
 
     conveyor = -127;
     string msgS = msg.dump();
@@ -132,29 +145,23 @@ void Robot::receive_ring(nlohmann::json msg) {
     double angle_threshold = 1;
     double target_heading = imu_val + angle;
     heading = target_heading;
-    while (abs(imu_val - target_heading) > 3){
-        lcd::print(3, "loss: %d", (int)abs(imu_val- target_heading));
-        delay(5);
-    }
-    lcd::print(3, "out");
+    while (abs(imu_val - target_heading) > 3) delay(5);
+
     new_y = y - coefficient * cos(heading / 180 * pi);
     new_x = x + coefficient * sin(heading / 180 * pi);
-    while (abs(new_y - y) > 100 or abs(new_x - x) > 100){
-        delay(5);
-        lcd::print(3, "in");
-    }
+    while (abs(new_y - y) > 100 or abs(new_x - x) > 100) delay(5);
+
     conveyor = 0;
     delay(500);
-    lcd::print(3, "outt");
+
     lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#");
     turn_in_place = true;
 }
 
-
 void Robot::receive_fps(nlohmann::json msg){
     double seconds_per_frame = std::stod(msg.dump());
     lcd::print(7, "Seconds per frame: %f", seconds_per_frame);
-
+    last_heading = imu_val;
     if (turn_in_place){
             heading = imu_val + 30;
     }
@@ -172,10 +179,13 @@ void Robot::drive(void *ptr) {
         bool angler_forward = master.get_digital(DIGITAL_L1);
         bool angler_backward = master.get_digital(DIGITAL_L2);
 
-        bool angler_start_thread = master.get_digital(DIGITAL_X) || master.get_digital(DIGITAL_DOWN);
+        bool angler_start_thread = master.get_digital(DIGITAL_DOWN);
 
         bool angler_piston_open = master.get_digital(DIGITAL_A);
         bool angler_piston_close = master.get_digital(DIGITAL_B);
+
+        bool lift_piston_open = master.get_digital(DIGITAL_X);
+        bool lift_piston_close = master.get_digital(DIGITAL_Y);
 
         bool conveyor_forward = master.get_digital(DIGITAL_R1);
         bool conveyor_backward = master.get_digital(DIGITAL_R2);
@@ -199,6 +209,13 @@ void Robot::drive(void *ptr) {
 
         if (angler_piston_open) angler_piston.set_value(true);
         else if (angler_piston_close) angler_piston.set_value(false);
+
+        if (lift_piston_open) lift_piston.set_value(true);
+        else if (lift_piston_close) lift_piston.set_value(false);
+
+        if (conveyor_forward) conveyor = 127;
+        else if (conveyor_backward) conveyor = -127;
+        else conveyor = 0;
 
 
         if (lift_up) lift = 127;
@@ -242,21 +259,45 @@ void Robot::check_depth(void *ptr){
     angler_piston.set_value(true);
     delay(250);
     start_task("ANGLER", Robot::depth_angler);
-    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#camera#l515_front#mode#true#");
+    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#camera#l515_front#mode#true#@#");
+    turn_in_place = true;
     kill_task("DEPTH");
 }
 
 
 void Robot::depth_angler(void *ptr){
+    std::deque<double> depth_vals;
+
     int angler_pot_threshold = 270;
     int depth_threshold = 47;
     int depth_coefficient = 6;
-    while (true){ 
+    int cap = 20;
+    bool reached = false;
+    while (abs(angler_dist.get() - depth_threshold) > cap){
+        angler = 127;
+    }
+    while (true){
 
-        if(master.get_digital(DIGITAL_Y) || master.get_digital(DIGITAL_UP) || angler_pot.get_value() < angler_pot_threshold) break;
+        if ((int)depth_vals.size() == 100) depth_vals.pop_front();
+        depth_vals.push_back(ring_ultrasonic.get_value());
+        double sum = 0;
+        for (int i = 0; i < depth_vals.size(); i++) sum += depth_vals[i];
+        double depth_average = sum / 100;
 
-        if (angler_dist.get() == 0) angler = 127;
-        else angler = depth_coefficient * (angler_dist.get() - depth_threshold);
+        if (abs(angler_dist.get() - depth_threshold) <= cap){
+            angler = depth_coefficient * (angler_dist.get() - depth_threshold);
+        }
+        lcd::print(5, "%d", int(depth_average));
+        if (depth_average < 100 && depth_vals.size() == 100){
+            lcd::print(4, "Here");
+            delay(250);
+            while (angler_pot.get_value() < 2150){
+                angler = -127;
+            }
+            angler = 0;
+            angler_piston.set_value(false);
+            break;
+        }
         delay(5);
     }
     kill_task("ANGLER");
@@ -423,7 +464,7 @@ void Robot::display(void *ptr){
     while (true){
         lcd::print(1, "X: %d, Y: %d", (int)x, (int)y);
         lcd::print(2, "nX: %d, nY: %d", (int)new_x, (int)new_y);
-        lcd::print(3, "%d", angler_dist.get());
+        lcd::print(3, "%d %d", angler_dist.get(), ring_ultrasonic.get_value());
         delay(5);
     }
 }
