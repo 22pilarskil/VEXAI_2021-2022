@@ -25,6 +25,5 @@ void opcontrol() {
 	//Robot::start_task("MOVETO", Robot::move_to);
 	Robot::start_task("IMU", Robot::imu_clamp);
 
-
-
 }
+

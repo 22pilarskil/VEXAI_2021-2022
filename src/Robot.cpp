@@ -58,6 +58,19 @@ std::atomic<double> Robot::heading = 0;
 std::atomic<double> Robot::new_x_gps = 0;
 std::atomic<double> Robot::new_y_gps = 0;
 std::atomic<double> Robot::new_heading_gps = 0;
+std::atomic<double> Robot::cur_x_gps = 0;
+std::atomic<double> Robot::cur_y_gps = 0;
+std::atomic<double> Robot::cur_pitch_gps = 0;
+std::atomic<double> Robot::cur_roll_gps = 0;
+std::atomic<double> Robot::cur_yaw_gps = 0;
+std::atomic<double> Robot::cur_heading_gps = 0;
+std::atomic<double> Robot::last_x_gps = 0;
+std::atomic<double> Robot::last_y_gps = 0;
+std::atomic<double> Robot::cur_x_gps_slow = 0;
+std::atomic<double> Robot::cur_y_gps_slow = 0;
+std::atomic<double> Robot::last_x_gps_slow = 0;
+std::atomic<double> Robot::last_y_gps_slow = 0;
+std::atomic<bool> Robot::is_moving = false;
 
 double Robot::offset_back = 5.25;
 double Robot::offset_middle = 7.625;
@@ -157,6 +170,7 @@ void Robot::receive_fps(nlohmann::json msg){
 
 
 void Robot::drive(void *ptr) {
+    bool flicker_on = false;
     while (true) {
         int power = master.get_analog(ANALOG_LEFT_Y);
         int strafe = master.get_analog(ANALOG_LEFT_X);
@@ -176,7 +190,10 @@ void Robot::drive(void *ptr) {
         bool conveyor_forward = master.get_digital(DIGITAL_R1);
         bool conveyor_backward = master.get_digital(DIGITAL_R2);
 
-        bool flicker_on = master.get_digital(DIGITAL_UP);
+        if(master.get_digital(DIGITAL_UP)) {
+            if(flicker_on) flicker_on = false;
+            else flicker_on = true;
+        }
 
         bool lift_up = master.get_digital(DIGITAL_LEFT);
         bool lift_down = master.get_digital(DIGITAL_RIGHT);
@@ -187,6 +204,8 @@ void Robot::drive(void *ptr) {
         else angler = 0;
 
         if (angler_start_thread  && !task_exists("ANGLER")) start_task("ANGLER", Robot::depth_angler);
+
+        if (flicker_on) flicker = 127;
 
         if (angler_piston_open) angler_piston.set_value(true);
         else if (angler_piston_close) angler_piston.set_value(false);
@@ -204,6 +223,7 @@ void Robot::drive(void *ptr) {
         else lift = 0;
 
         mecanum(power, strafe, turn);
+        for (int i = 0; i < 4; i++) {if(i==0)lcd::print(3, "MOVING?: %s", is_moving_gps(power,strafe,127,20) ? "yes" : "no");}
         delay(5);
     }
 }
@@ -334,18 +354,35 @@ void Robot::fps(void *ptr) {
     }
 }
 
-
+//must be run before using any cur or last gps variables
 void Robot::gps_fps(void *ptr){
+    int i = 0;
     while (true){
-        lcd::print(5, "Y: %f - X: %f", (float)(gps.get_status().y), (float)(gps.get_status().x));
-        lcd::print(6, "Heading: %f", (float)gps.get_heading());
-        delay(5);
+        last_x_gps = (double)cur_x_gps;
+        last_y_gps = (double)cur_y_gps;
+        pros::c::gps_status_s cur_status = gps.get_status();
+        cur_x_gps = cur_status.x;
+        cur_y_gps = cur_status.y;
+        cur_pitch_gps = cur_status.pitch;
+        cur_roll_gps = cur_status.roll;
+        cur_yaw_gps = cur_status.yaw;
+        cur_heading_gps = gps.get_heading();
+        //lcd::print(1, "Y: %f - X: %f", (float)(cur_y_gps), (float)(cur_x_gps));
+        //lcd::print(2, "Heading: %f", (float)cur_heading_gps);
+        if(i % 10 == 0) {
+            last_x_gps_slow = (double)cur_x_gps_slow;
+            last_y_gps_slow = (double)cur_y_gps_slow;
+            cur_x_gps_slow = (double)cur_x_gps;
+            cur_y_gps_slow = (double)cur_y_gps;
+        }
+        i++;
+        delay(20);
     }
 }
 
 /* new_y, new_x, and new_heading_gps are all in absolute field terms 
- * new_y_gps and new_x_gps should be declared in meters
- * new_y_gps and new_x_gps are based on gps camera position not center of the bot
+ * gps values are in meters
+ * gps values are based on gps camera position not center of the bot
  * (0,0) in the center of the field in meters
  * 0 degrees is facing north (red side on left, blue side on right)
  */
@@ -353,20 +390,21 @@ void Robot::move_to_gps(void *ptr) {
     while (true)
     {
         double angle_adjust = 0;
-        if (gps.get_heading()+90 >= 360) angle_adjust = -270;
+        if (cur_heading_gps+90 >= 360) angle_adjust = -270;
         else angle_adjust = 90;
 
-        double phi = (gps.get_heading()+angle_adjust) * pi / 180;
+        double phi = (cur_heading_gps+angle_adjust) * pi / 180;
 
-        double gps_error = new_heading_gps - gps.get_heading();
-        double y_error = (new_y - gps.get_status().y) * meters_to_inches * inches_to_encoder;
-        double x_error = (new_x - gps.get_status().x) * meters_to_inches * inches_to_encoder;
+        double gps_error = new_heading_gps - cur_heading_gps;
+        double y_error = (new_y_gps - cur_y_gps) * meters_to_inches * inches_to_encoder;
+        double x_error = (new_x_gps - cur_x_gps) * meters_to_inches * inches_to_encoder;
 
         double power = power_PD.get_value(y_error * std::cos(phi) + x_error * std::sin(phi));
         double strafe = strafe_PD.get_value(x_error * std::cos(phi) - y_error * std::sin(phi));
         double turn = turn_PD.get_value(gps_error);
 
         mecanum(power, strafe, turn, 127);
+        is_moving = is_moving_gps(power, strafe, 127, 5);
 
         delay(5);
     }
@@ -390,6 +428,26 @@ void Robot::move_to(void *ptr)
         mecanum(power, strafe, turn, 127);
 
         delay(5);
+    }
+}
+
+
+
+//threshold can and should be adjusted if return value is inacurate
+bool Robot::is_moving_gps(int power, int strafe, int max_power, int this_delay) {
+
+    double raw_speed = abs((double)power) + abs((double)strafe);
+    double theoretical_speed = ((raw_speed > max_power) ? max_power : raw_speed) / 127; //this could maybe be multiplied by some constant, but max speed is pretty close to 1 anyways
+    double actual_speed = sqrt(pow(abs(last_x_gps_slow - cur_x_gps_slow), 2) + pow(abs(last_y_gps_slow - cur_y_gps_slow), 2)) * (double)(1000/200); //distance formula
+    double threshold = 0.3;
+    if (actual_speed > theoretical_speed * threshold) return true;
+    else return false;
+
+}
+
+void Robot::is_moving_print(void *ptr) {
+    while(true) {
+        lcd::print(3, "MOVING?: %s", is_moving_gps(0,0,0,0) ? "yes" : "no");
     }
 }
 
