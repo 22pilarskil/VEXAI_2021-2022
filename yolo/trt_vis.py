@@ -115,25 +115,25 @@ try:
             #load strings into the data in form rings, reds, yellows, blues
             for i, single_det in enumerate(det_rings):
                 turn_angle = degree(single_det)
-                det_str = round(float(single_det[6]), 3) +  "," + round(float(turn_angle), 3) + "|"
+                det_str = str(round(float(single_det[6]), 3)) +  "," + str(round(float(turn_angle), 3)) + "|"
                 whole_str = whole_str+det_str
 
             whole_str = whole_str+ "!"
             for i, single_det in enumerate(det_red):
                 turn_angle = degree(single_det)
-                det_str = round(float(single_det[6]), 3) +  "," + round(float(turn_angle), 3) + "|"
+                det_str = str(round(float(single_det[6]), 3)) +  "," + str(round(float(turn_angle), 3)) + "|"
                 whole_str = whole_str+det_str
 
             whole_str = whole_str+"!"
             for i, single_det in enumerate(det_yellow):
                 turn_angle = degree(single_det)
-                det_str = round(float(single_det[6]), 3) +  "," + round(float(turn_angle), 3) + "|"
+                det_str = str(round(float(single_det[6]), 3)) +  "," + str(round(float(turn_angle), 3)) + "|"
                 whole_str = whole_str+det_str
 
             whole_str = whole_str+"!"
             for i, single_det in enumerate(det_blue):
                 turn_angle = degree(single_det)
-                det_str = round(float(single_det[6]), 3) +  "," + round(float(turn_angle), 3) + "|"
+                det_str = str(round(float(single_det[6]), 3)) +  "," + str(round(float(turn_angle), 3)) + "|"
                 whole_str = whole_str+det_str
 
             whole_str = whole_str+"!"
