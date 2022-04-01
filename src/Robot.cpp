@@ -230,7 +230,8 @@ void Robot::ring_receive(vector<vector<double>> input)
     
     double balance_y = 27; //in inches
     double balance_x = 50.5;
-    bool under_balance = (ring_y <= balance_y && ring_y >= -balance_y) && (ring_x >= balance_x || ring_x <= -balance_x);
+    double balance_dist = 12; //how close we want to allow our bot to get to the balance
+    bool under_balance = (ring_y <= balance_y + balance_dist && ring_y >= -balance_y - balance_dist) && (ring_x >= balance_x - balance_dist || ring_x <= -balance_x + balance_dist);
 
     if(too_close_to_wall || under_balance)
     {
