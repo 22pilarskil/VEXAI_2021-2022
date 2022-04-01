@@ -6,7 +6,7 @@ import argparse
 import torch
 from utils.yolo.plots import Annotator, colors
 from utils.serial import Coms
-from utils.data import return_data, determine_color, determine_depth, degree
+from utils.data import return_data, determine_color, determine_depth, degree, sort_distance
 from utils.camera import Camera
 from utils.models import Model
 from sklearn.cluster import DBSCAN
@@ -73,7 +73,7 @@ try:
         det = None
 
         if int(pred.shape[0]) > 0:
-            print("ALKDJLSJLDJKLSDJLKSAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+            #print("ALKDJLSJLDJKLSDJLKSAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
             det_rings = return_data(pred, find="all", colors=[3])
             if cluster: #apply cluster function
                 if det_rings is not None and len(det_rings) > 0:
@@ -168,16 +168,3 @@ try:
 #sort by distance within color, sort by color/ring
 finally:
     cam.stop()
-
-def sort_distance(list):
-    #sort distance (index 6)
-    sorted = False
-    while(!sorted):
-        sorted = True
-        for i in range(0, len(list)-1):
-            if(list[i][6] > list[i+1][6]):
-                sorted = False
-                temp = list[i]
-                list[i] = list[i+1]
-                list[i+1] = temp
-    return list
