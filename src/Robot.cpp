@@ -222,11 +222,17 @@ void Robot::ring_receive(vector<vector<double>> input)
     double lidar_depth = input[pos][0];
     double angle = input[pos][1];
 
-    double sin_f = sin(gps_heading)*lidar_depth+y;
-    double cos_f = cos(gps_heading)*lidar_depth+x;
+    double ring_y = sin(gps_heading)*lidar_depth+y;
+    double ring_x = cos(gps_heading)*lidar_depth+x;
 
-    if(sin_f<=-2.1*12/meters_to_inches || sin_f>=2.1*12/meters_to_inches || cos_f <= -2.1*12/meters_to_inches
-    || cos_f >= 2.1*12/meters_to_inches)
+    double min_wall_distance = 2.1; //in feet
+    bool too_close_to_wall = ring_y<=-min_wall_distance*12/meters_to_inches || ring_y>=min_wall_distance*12/meters_to_inches || ring_x <= -min_wall_distance*12/meters_to_inches || ring_x >= min_wall_distance*12/meters_to_inches;
+    
+    double balance_y = 27; //in inches
+    double balance_x = 50.5;
+    bool under_balance = (ring_y <= balance_y && ring_y >= -balance_y) && (ring_x >= balance_x || ring_x <= -balance_x);
+
+    if(too_close_to_wall || under_balance)
     {
       pos++;
     }
@@ -321,56 +327,6 @@ void Robot::receive_mogo(nlohmann::json msg) {
 
     delay(5);
     turn_coefficient = 1;
-}
-
-
-
-
-void Robot::receive_ring(nlohmann::json msg) {
-    //original ring receive, technically works(?) with the new stuff i put in trt_vis
-    //[unsure as of 3/27 if they do actually work in conjunction]
-    turn_in_place = false;
-    heading = last_heading;
-    turn_coefficient = 3;
-    while(abs(heading - imu_val) > 3) delay(5);
-
-    conveyor = -127;
-    string msgS = msg.dump();
-    std::size_t found = msgS.find(",");
-
-    double lidar_depth = std::stod(msgS.substr(1, found - 1));
-    double angle = std::stod(msgS.substr(found + 1, msgS.size() - found - 1));
-    double coefficient = lidar_depth * meters_to_inches * inches_to_encoder + 300;
-    double x = gps.get_status().x;
-    double y = gps.get_status().y;
-
-    double gps_heading = gps.get_heading();
-    double sin_f = sin(gps_heading)*lidar_depth+y;
-    double cos_f = cos(gps_heading)*lidar_depth+x;
-
-    if(sin_f<=-2.1*12/meters_to_inches || sin_f>=2.1*12/meters_to_inches || cos_f <= -2.1*12/meters_to_inches
-    || cos_f >= 2.1*12/meters_to_inches)
-    {
-      delay(5);
-
-    }
-    else
-    {
-      double angle_threshold = 1;
-      double target_heading = imu_val + angle;
-      heading = target_heading;
-      while (abs(imu_val - target_heading) > 3) delay(5);
-
-      new_y = y - coefficient * cos(heading / 180 * pi);
-      new_x = x + coefficient * sin(heading / 180 * pi);
-      while (abs(new_y - y) > 100 or abs(new_x - x) > 100) delay(5);
-
-      conveyor = 0;
-      delay(500);
-
-      lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#");
-      turn_in_place = true;
-    }
 }
 
 void Robot::receive_fps(nlohmann::json msg){
