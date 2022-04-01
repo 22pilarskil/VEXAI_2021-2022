@@ -4,7 +4,7 @@ import torch
 def sort_distance(list):
     #sort distance (index 6)
     sorted = False
-    while(!sorted):
+    while(not sorted):
         sorted = True
         for i in range(0, len(list)-1):
             if(list[i][6] > list[i+1][6]):
