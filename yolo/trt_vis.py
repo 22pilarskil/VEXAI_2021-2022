@@ -73,6 +73,7 @@ try:
         det = None
 
         if int(pred.shape[0]) > 0:
+            print("ALKDJLSJLDJKLSDJLKSAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
             det_rings = return_data(pred, find="all", colors=[3])
             if cluster: #apply cluster function
                 if det_rings is not None and len(det_rings) > 0:
@@ -114,25 +115,25 @@ try:
             #load strings into the data in form rings, reds, yellows, blues
             for i, single_det in enumerate(det_rings):
                 turn_angle = degree(single_det)
-                det_str = round(float(single_det[6]), 3) +  "," + round(float(turn_angle), 3)] + "|"
+                det_str = round(float(single_det[6]), 3) +  "," + round(float(turn_angle), 3) + "|"
                 whole_str = whole_str+det_str
 
             whole_str = whole_str+ "!"
             for i, single_det in enumerate(det_red):
                 turn_angle = degree(single_det)
-                det_str = round(float(single_det[6]), 3) +  "," + round(float(turn_angle), 3)] + "|"
+                det_str = round(float(single_det[6]), 3) +  "," + round(float(turn_angle), 3) + "|"
                 whole_str = whole_str+det_str
 
             whole_str = whole_str+"!"
             for i, single_det in enumerate(det_yellow):
                 turn_angle = degree(single_det)
-                det_str = round(float(single_det[6]), 3) +  "," + round(float(turn_angle), 3)] + "|"
+                det_str = round(float(single_det[6]), 3) +  "," + round(float(turn_angle), 3) + "|"
                 whole_str = whole_str+det_str
 
             whole_str = whole_str+"!"
             for i, single_det in enumerate(det_blue):
                 turn_angle = degree(single_det)
-                det_str = round(float(single_det[6]), 3) +  "," + round(float(turn_angle), 3)] + "|"
+                det_str = round(float(single_det[6]), 3) +  "," + round(float(turn_angle), 3) + "|"
                 whole_str = whole_str+det_str
 
             whole_str = whole_str+"!"

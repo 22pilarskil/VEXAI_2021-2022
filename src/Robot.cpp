@@ -86,6 +86,7 @@ std::vector<int> find_location(std::string sample, char find){
 
 void Robot::receive_data(nlohmann::json msg)
 {
+  lcd::print(8, "HIHIHIHIHI");
   //data in form rings(det[depth, angle],...)!red()!yellow()!blue()!
   string whole_str = msg.dump();
   vector<string> color_separated;
@@ -204,6 +205,7 @@ void Robot::ring_receive(vector<vector<double>> input)
   double ang;
   while(!found && pos<input.size())
   {
+    lcd::print(10, "SUOISDIHSDIOSHDUISDUIHSDIUHHUISDHUIDHIUDUIHSIUH");
     double lidar_depth = input[pos][0];
     double angle = input[pos][1];
 
@@ -249,6 +251,7 @@ void Robot::ring_receive(vector<vector<double>> input)
 }
 void Robot::mogo_receive(vector<double> f)
 {
+
   //copy and pasted, changed to work with the attributes given by receive_data
   failed_update = 0;
   turn_in_place = false;
