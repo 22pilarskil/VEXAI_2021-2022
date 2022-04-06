@@ -63,23 +63,23 @@ try:
 
             pred[i, 6] = determine_depth(det, depth_image) * depth_frame.get_units()
 
-        data = [0, 0]
+        pred = sort_distance(pred)
 
 
         print("Time elapsed: {}".format(time.time() - start))
 
         color_annotator = Annotator(color_image, line_width=2, pil=not ascii)
         depth_annotator = Annotator(depth_colormap, line_width=2, pil=not ascii)
-        xys = []
+
         det = None
 
         if int(pred.shape[0]) > 0:
-            #print("ALKDJLSJLDJKLSDJLKSAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-            det_rings = return_data(pred, find="all", colors=[3])
+            det = return_data(pred, find="all", colors=[3])
             if cluster: #apply cluster function
-                if det_rings is not None and len(det_rings) > 0:
-                    det_rings = det_rings[det_rings[:,5]==3]
-                    for x in det_rings:
+                if det is not None and len(det_rings) > 0:
+                    det = det[det[:,5]==3]
+                    xys = []
+                    for x in det:
                         if args.display:
                             color_annotator.box_label(x[:4], f'{names[int(x[5]) + 1]} {x[4]:.2f}', color=colors(x[5], True))
                             depth_annotator.box_label(x[:4], f'{names[int(x[5]) + 1]} {x[4]:.2f}', color=colors(x[5], True))
@@ -93,57 +93,36 @@ try:
                         if len(cluster_labels)>0:
                             mask2 = cluster_labels==np.bincount(cluster_labels).argmax()
                             cluster_labels = cluster_labels[mask2]
-                            det_rings = det_rings[mask1]
-                            det_rings = det_rings[mask2]
+                            det = det[mask1]
+                            det = det[mask2]
                             cluster_pos = np.average(xys, axis=0)
-                            det_rings = np.append(det_rings, cluster_labels.reshape(cluster_labels.shape[0],1), axis=1)
+                            det = np.append(det, cluster_labels.reshape(cluster_labels.shape[0],1), axis=1)
                             add_zeros = False
 
 
                     if add_zeros:
-                        det_rings = np.append(det_rings, np.zeros((det_rings.shape[0], 1)), axis=1)
-                    det_rings = torch.tensor(det_rings)
-                    det_rings = return_data(det_rings, find="all", colors = [3])
-                    det_rings = sort_distance(det_rings)
-            det_red = return_data(pred, find="all", colors=[-1], conf_thres=conf_thres)
-            det_red = sort_distance(det_red)
-            det_blue = return_data(pred, find="all",colors = [1], conf_thres = conf_thres)
-            det_blue = sort_distance(det_blue)
-            det_yellow = return_data(pred, find = "all",colors =[0],conf_thres = conf_thres)
-            det_yellow = sort_distance(det_yellow)
+                        det = np.append(det, np.zeros((det.shape[0], 1)), axis=1)
+                    det = torch.tensor(det)
+                    det = return_data(det, find="close", colors = [3])
+            else: 
+                det = return_data(pred, find="close", colors=[-1,0,1], conf_thres=conf_thres)   
 
-            #if pred is not None and len(pred) > 0:
-            #load strings into the data in form rings, reds, yellows, blues
-            for i, single_det in enumerate(det_rings):
-                turn_angle = degree(single_det)
-                if(not math.isnan(single_det[6]) and not math.isnan(turn_angle)):
-                    det_str = str(round(float(single_det[6]), 3)) +  "," + str(round(float(turn_angle), 3)) + "|"
-                    whole_str = whole_str+det_str
-            print("WHOLE: "+whole_str+"ENDD")
 
-            whole_str = whole_str+ "!"
-            for i, single_det in enumerate(det_red):
-                turn_angle = degree(single_det)
-                det_str = str(round(float(single_det[6]), 3)) +  "," + str(round(float(turn_angle), 3)) + "|"
-                whole_str = whole_str+det_str
-
-            whole_str = whole_str+"!"
-            for i, single_det in enumerate(det_yellow):
-                turn_angle = degree(single_det)
-                det_str = str(round(float(single_det[6]), 3)) +  "," + str(round(float(turn_angle), 3)) + "|"
-                whole_str = whole_str+det_str
-
-            whole_str = whole_str+"!"
-            for i, single_det in enumerate(det_blue):
-                turn_angle = degree(single_det)
-                det_str = str(round(float(single_det[6]), 3)) +  "," + str(round(float(turn_angle), 3)) + "|"
-                whole_str = whole_str+det_str
-
-            whole_str = whole_str+"!"
-
+            whole_str = ""
+            for i, det in enumerate(pred):
+                turn_angle = degree(det)
+                if(not math.isnan(det[6]) and not math.isnan(turn_angle)):
+                    depth = str(round(float(det[6]), 3))
+                    turn_angle = str(round(float(turn_angle), 3))
+                    class_id = str(int(det[5]))
+                    whole_str += depth + "," + turn_angle + "," + class_id + ",|"
+            print(whole_str)
 
 
         if args.display:
+            for det in pred:
+                color_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(5, True))
+                depth_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(5, True))
             if det is not None and len(det) > 0:
                 color_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(0, True))
                 depth_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(0, True))
@@ -160,15 +139,11 @@ try:
                 if "camera" in switch and not cam.name == switch["camera"]: print(cam.switch_cameras(switch["camera"]))
                 if "mode" in switch: cluster = True if switch["mode"] == "true" else False
                 continue
-            print("Depth: {}, Turn angle: {}".format(data[0], data[1]))
             comm.send("fps", time.time() - start)
-
             comm.send("whole_data", whole_str)
-            whole_str = ""
         except Exception as e:
             bcolors.print(str(e), "blue")
             comm.open()
 
-#sort by distance within color, sort by color/ring
 finally:
     cam.stop()
