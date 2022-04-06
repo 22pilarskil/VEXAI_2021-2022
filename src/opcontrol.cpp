@@ -10,9 +10,9 @@ void opcontrol() {
 	lcd::initialize();
 	delay(100);
 	serial_initialize();
-	lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#camera#l515_back#mode#false#@#");
+	lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#camera#l515_back#mode#true#@#");
 	//Robot::start_task("GPS", Robot::gps_fps);
-	Robot::start_task("DRIVE", Robot::drive);
+	//Robot::start_task("DRIVE", Robot::drive);
 	Robot::start_task("CONTROLLER", Robot::controller_print);
 
 	Robot::IMU.reset();
