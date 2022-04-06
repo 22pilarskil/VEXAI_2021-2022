@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 import time
 import argparse
+import math
 
 import torch
 from utils.yolo.plots import Annotator, colors
@@ -115,8 +116,10 @@ try:
             #load strings into the data in form rings, reds, yellows, blues
             for i, single_det in enumerate(det_rings):
                 turn_angle = degree(single_det)
-                det_str = str(round(float(single_det[6]), 3)) +  "," + str(round(float(turn_angle), 3)) + "|"
-                whole_str = whole_str+det_str
+                if(not math.isnan(single_det[6]) and not math.isnan(turn_angle)):
+                    det_str = str(round(float(single_det[6]), 3)) +  "," + str(round(float(turn_angle), 3)) + "|"
+                    whole_str = whole_str+det_str
+            print("WHOLE: "+whole_str+"ENDD")
 
             whole_str = whole_str+ "!"
             for i, single_det in enumerate(det_red):
@@ -161,6 +164,7 @@ try:
             comm.send("fps", time.time() - start)
 
             comm.send("whole_data", whole_str)
+            whole_str = ""
         except Exception as e:
             bcolors.print(str(e), "blue")
             comm.open()
