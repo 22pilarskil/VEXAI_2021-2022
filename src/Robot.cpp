@@ -101,100 +101,35 @@ void Robot::receive_data(nlohmann::json msg)
 {
   lcd::print(8, "HIHIHIHIHI");
   //data in form rings(det[depth, angle],...)!red()!yellow()!blue()!
-  string whole_str = msg.dump();
-  vector<string> color_separated;
-
-  string delimiter = "!";
-  //data loading
-  int pos = 0;
+  string s = msg.dump();
+  s = s.substr(1, s.size()-2);
+  string delimiter = "|";
+  vector<vector<float>> pred;
+  size_t pos = 0;
   string token;
-  while ((pos = whole_str.find(delimiter)) != std::string::npos) {
-    token = whole_str.substr(0, pos);
-    color_separated.push_back(token);
-    whole_str.erase(0, pos + delimiter.length());
-  }
-
-
-  vector<vector<double>> ring_dets;
-  vector<vector<double>> red_mogo_dets;
-  vector<vector<double>> yellow_mogo_dets;
-  vector<vector<double>> blue_mogo_dets;
-
-  string det_delimiter = "|";
-  string attribute_delimiter = ",";
-
-  //ring dets
-  pos = 0;
-
-  while ((pos = color_separated[0].find(det_delimiter)) != std::string::npos) {
-    token = color_separated[0].substr(0, pos);
-    int pos_1 =0;
-    string token1;
-    vector<double> temp;
-    while((pos_1 = token.find(attribute_delimiter)!=std::string::npos))
-    {
-      token1 = token.substr(0,pos_1);
-      temp.push_back(std::stod(token1));
-      token.erase(0,pos_1+attribute_delimiter.length());
+  while ((pos = s.find(delimiter)) != string::npos) {
+    token = s.substr(0, pos);
+    s.erase(0, pos + delimiter.length());
+    vector<float> read_curr;
+    string delimiter2 = ",";
+    
+    size_t pos2 = 0;
+    string token2;
+    while ((pos2 = token.find(delimiter2)) != std::string::npos) {
+        token2 = token.substr(0, pos2);
+        token.erase(0, pos2 + delimiter2.length());
+      read_curr.push_back(float(std::stod(token2)));
     }
-    ring_dets.push_back(temp);
-    color_separated[0].erase(0, pos + delimiter.length());
+    pred.push_back(read_curr);
   }
-  //red_mogo_dets
-  pos = 0;
-  while ((pos = color_separated[1].find(det_delimiter)) != std::string::npos) {
-    token = color_separated[1].substr(0, pos);
-    int pos_1 =0;
-    string token1;
-    vector<double> temp;
-    while((pos_1 = token.find(attribute_delimiter)!=std::string::npos))
-    {
-      token1 = token.substr(0,pos_1);
-      temp.push_back(std::stod(token1));
-      token.erase(0,pos_1+attribute_delimiter.length());
+  for(vector<float> curr:pred){
+    string temp = "";
+    for(float curr2: curr){
+        temp += std::to_string(curr2)+", ";
     }
-    red_mogo_dets.push_back(temp);
-    color_separated[1].erase(0, pos + delimiter.length());
+    lcd::print(5, "%s", temp);
   }
-
-  //yellow_mogo_dets
-  pos = 0;
-  while ((pos = color_separated[2].find(det_delimiter)) != std::string::npos) {
-    token = color_separated[2].substr(0, pos);
-    int pos_1 =0;
-    string token1;
-    vector<double> temp;
-    while((pos_1 = token.find(attribute_delimiter)!=std::string::npos))
-    {
-      token1 = token.substr(0,pos_1);
-      temp.push_back(std::stod(token1));
-      token.erase(0,pos_1+attribute_delimiter.length());
-    }
-    yellow_mogo_dets.push_back(temp);
-    color_separated[2].erase(0, pos + delimiter.length());
-  }
-  //blue_mogo_dets
-  pos = 0;
-  while ((pos = color_separated[2].find(det_delimiter)) != std::string::npos) {
-    token = color_separated[2].substr(0, pos);
-    int pos_1 =0;
-    string token1;
-    vector<double> temp;
-    while((pos_1 = token.find(attribute_delimiter)!=std::string::npos))
-    {
-      token1 = token.substr(0,pos_1);
-      temp.push_back(std::stod(token1));
-      token.erase(0,pos_1+attribute_delimiter.length());
-    }
-    blue_mogo_dets.push_back(temp);
-    color_separated[2].erase(0, pos + delimiter.length());
-  }
-  /**
-    do stuff with these dets
-    load stuff into the map
-
-  **/
-  ring_receive(ring_dets);
+  //ring_receive(ring_dets);
 
 }
 void Robot::ring_receive(vector<vector<double>> input)
@@ -459,7 +394,7 @@ void Robot::depth_angler(void *ptr){
         if (abs(angler_dist.get() - depth_threshold) <= cap){
             angler = depth_coefficient * (angler_dist.get() - depth_threshold);
         }
-        lcd::print(5, "%d", int(depth_average));
+        //lcd::print(5, "%d", int(depth_average));
         if (depth_average < 100 && depth_vals.size() == 100){
             lcd::print(4, "Here");
             delay(250);
