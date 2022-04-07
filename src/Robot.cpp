@@ -112,7 +112,7 @@ void Robot::receive_data(nlohmann::json msg)
     s.erase(0, pos + delimiter.length());
     vector<float> read_curr;
     string delimiter2 = ",";
-    
+
     size_t pos2 = 0;
     string token2;
     while ((pos2 = token.find(delimiter2)) != std::string::npos) {
@@ -122,17 +122,52 @@ void Robot::receive_data(nlohmann::json msg)
     }
     pred.push_back(read_curr);
   }
+
+
   for(vector<float> curr:pred){
     string temp = "";
+
     for(float curr2: curr){
         temp += std::to_string(curr2)+", ";
     }
     lcd::print(5, "%s", temp);
   }
+
+
+
   //ring_receive(ring_dets);
 
 }
-void Robot::ring_receive(vector<vector<double>> input)
+vector<vector<float>> pred_id(vector<vector<float>> pred, int id)
+{
+  vector<vector<float>> tp;
+  for(vector<float> curr:pred)
+  {
+    if(curr[2]==id)
+    {
+      tp.push_back(curr);
+    }
+  }
+  return tp;
+}
+bool invalid_det(vector<float> det, double x, double y, double gps_heading)
+{
+
+  double lidar_depth = det[0];
+  double angle = det[1];
+
+  double ring_y = sin(gps_heading)*lidar_depth+y;
+  double ring_x = cos(gps_heading)*lidar_depth+x;
+  double min_wall_distance = 2.1; //in feet
+  bool too_close_to_wall = ring_y<=-min_wall_distance*12/meters_to_inches || ring_y>=min_wall_distance*12/meters_to_inches || ring_x <= -min_wall_distance*12/meters_to_inches || ring_x >= min_wall_distance*12/meters_to_inches;
+
+  double balance_y = 27; //in inches
+  double balance_x = 50.5;
+  double balance_dist = 12; //how close we want to allow our bot to get to the balance
+  bool under_balance = (ring_y <= balance_y + balance_dist && ring_y >= -balance_y - balance_dist) && (ring_x >= balance_x - balance_dist || ring_x <= -balance_x + balance_dist);
+  return too_close_to_wall || under_balance;
+}
+void Robot::ring_receive(vector<vector<float>> input)
 {
   //changed to work with inputs from receive_data
   turn_in_place = false;
@@ -153,30 +188,16 @@ void Robot::ring_receive(vector<vector<double>> input)
   double ang;
   while(!found && pos<input.size())
   {
-    lcd::print(10, "SUOISDIHSDIOSHDUISDUIHSDIUHHUISDHUIDHIUDUIHSIUH");
-    double lidar_depth = input[pos][0];
-    double angle = input[pos][1];
 
-    double ring_y = sin(gps_heading)*lidar_depth+y;
-    double ring_x = cos(gps_heading)*lidar_depth+x;
-
-    double min_wall_distance = 2.1; //in feet
-    bool too_close_to_wall = ring_y<=-min_wall_distance*12/meters_to_inches || ring_y>=min_wall_distance*12/meters_to_inches || ring_x <= -min_wall_distance*12/meters_to_inches || ring_x >= min_wall_distance*12/meters_to_inches;
-    
-    double balance_y = 27; //in inches
-    double balance_x = 50.5;
-    double balance_dist = 12; //how close we want to allow our bot to get to the balance
-    bool under_balance = (ring_y <= balance_y + balance_dist && ring_y >= -balance_y - balance_dist) && (ring_x >= balance_x - balance_dist || ring_x <= -balance_x + balance_dist);
-
-    if(too_close_to_wall || under_balance)
+    if(invalid_det(input[pos],x,y,gps_heading))
     {
       pos++;
     }
     else
     {
       found = true;
-      depth = lidar_depth;
-      ang = angle;
+      depth = input[pos][0];
+      ang = input[pos][1];
       break;
     }
   }
@@ -198,10 +219,12 @@ void Robot::ring_receive(vector<vector<double>> input)
 
     lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#");
     turn_in_place = true;
+    lcd::print(10, "RING FOUND");
   }
   else
   {
     delay(5);
+    lcd::print(10, "No ring found");
   }
 }
 void Robot::mogo_receive(vector<double> f)
@@ -487,7 +510,7 @@ void Robot::gps_fps(void *ptr){
     }
 }
 
-/* new_y, new_x, and new_heading_gps are all in absolute field terms 
+/* new_y, new_x, and new_heading_gps are all in absolute field terms
  * gps values are in meters
  * gps values are based on gps camera position not center of the bot
  * (0,0) in the center of the field in meters

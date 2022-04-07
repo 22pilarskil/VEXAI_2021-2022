@@ -66,7 +66,7 @@ class Robot{
         static std::atomic<double> new_y_gps;
         static std::atomic<double> new_heading_gps;
         static std::atomic<bool> is_moving;
-		
+
 		static double offset_back;
 		static double offset_middle;
 		static double wheel_circumference;
@@ -76,11 +76,13 @@ class Robot{
 		static void receive_mogo(nlohmann::json msg);
 		static void receive_ring(nlohmann::json msg);
 		static void receive_fps(nlohmann::json msg);
-		static void ring_receive(std::vector<std::vector<double>> f);
+		static void ring_receive(std::vector<std::vector<float>> f);
 		static void mogo_receive(std::vector<double> f);
 		static void organize_by_depth(std::vector<std::vector<double>> x);
 		static void receive_data(nlohmann::json msg);
 
+		static bool invalid_det(vector<float> det, double x, double y, double gps_heading);
+		static vector<vector<float>> pred_id(vector<vector<float>> pred);
 		static void drive(void *ptr);
 		static void check_depth(void *ptr);
 		static void depth_angler(void *ptr);
