@@ -150,22 +150,37 @@ vector<vector<float>> pred_id(vector<vector<float>> pred, int id)
   }
   return tp;
 }
-bool invalid_det(vector<float> det, double x, double y, double gps_heading)
+
+bool invalid_det(vector<float> det, double cur_x_gps, double cur_y_gps, double gps_heading)
 {
+    double lidar_depth = det[0];
+    double angle = det[1];
 
-  double lidar_depth = det[0];
-  double angle = det[1];
+    double ring_y = sin(gps_heading)*lidar_depth+cur_y_gps;
+    double ring_x = cos(gps_heading)*lidar_depth+cur_x_gps;
+    double min_wall_distance = 60 / meters_to_inches; //72 - 60 = 12 inches from wall is min
 
-  double ring_y = sin(gps_heading)*lidar_depth+y;
-  double ring_x = cos(gps_heading)*lidar_depth+x;
-  double min_wall_distance = 2.1; //in feet
-  bool too_close_to_wall = ring_y<=-min_wall_distance*12/meters_to_inches || ring_y>=min_wall_distance*12/meters_to_inches || ring_x <= -min_wall_distance*12/meters_to_inches || ring_x >= min_wall_distance*12/meters_to_inches;
+    double balance_threshold = 6 / meters_to_inches; //how close we want to allow our bot to get to the balance
+    double balance_corner_x = (50.5 - balance_threshold) / meters_to_inches;
+    double balance_corner_y = (27 + balance_threshold) / meters_to_inches;
 
-  double balance_y = 27; //in inches
-  double balance_x = 50.5;
-  double balance_dist = 12; //how close we want to allow our bot to get to the balance
-  bool under_balance = (ring_y <= balance_y + balance_dist && ring_y >= -balance_y - balance_dist) && (ring_x >= balance_x - balance_dist || ring_x <= -balance_x + balance_dist);
-  return too_close_to_wall || under_balance;
+    // There is probably a more concise way to write this but it works so whatever.
+
+    bool under_balance = (-ring_y >= -balance_corner_y && ring_y >= -balance_corner_y) && (ring_x >= balance_corner_x || -ring_x >= balance_corner_x);
+
+    bool too_close_to_wall = -ring_y>=min_wall_distance || ring_y>=min_wall_distance || -ring_x >= min_wall_distance || ring_x >= min_wall_distance;
+
+    double east_intersect_val = ((ring_y-cur_y_gps)/(ring_x-cur_x_gps))*(balance_corner_x - cur_x_gps) + cur_y_gps;
+    bool intersects_balance_east = balance_corner_y >= east_intersect_val && balance_corner_y >= -east_intersect_val;
+    double west_intersect_val = ((ring_y-cur_y_gps)/(ring_x-cur_x_gps))*(-balance_corner_x - cur_x_gps) + cur_y_gps;
+    bool intersects_balance_west = balance_corner_y >= east_intersect_val && balance_corner_y >= -east_intersect_val;
+    bool intersects_balance = intersects_balance_east || intersects_balance_west;
+
+    bool opposite_sides = cur_y_gps >= 0 && -ring_y >= 0;
+    bool across_balance = (cur_x_gps >= balance_corner_x && ring_x >= balance_corner_x && opposite_sides) || 
+                          (-cur_x_gps >= balance_corner_x && -ring_x >= balance_corner_x && opposite_sides);
+    
+  return too_close_to_wall || under_balance || intersects_balance || across_balance;
 }
 void Robot::ring_receive(vector<vector<float>> input)
 {
