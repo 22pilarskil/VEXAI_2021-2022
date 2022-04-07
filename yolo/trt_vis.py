@@ -7,7 +7,7 @@ import math
 import torch
 from utils.yolo.plots import Annotator, colors
 from utils.serial import Coms
-from utils.data import return_data, determine_color, determine_depth, degree, sort_distance
+from utils.data import return_data, determine_color, determine_depth, degree, sort_distance, quicksort
 from utils.camera import Camera
 from utils.models import Model
 from sklearn.cluster import DBSCAN
@@ -62,18 +62,22 @@ try:
                 pred[i, 5] = 3
 
             pred[i, 6] = determine_depth(det, depth_image) * depth_frame.get_units()
+        try:
+            pred = torch.stack(quicksort(pred))
+        except:
+            pass
 
-        pred = sort_distance(pred)
-
+        print("-------------")
 
         print("Time elapsed: {}".format(time.time() - start))
 
         color_annotator = Annotator(color_image, line_width=2, pil=not ascii)
         depth_annotator = Annotator(depth_colormap, line_width=2, pil=not ascii)
 
-        det = None
+        det = None  
 
-        if int(pred.shape[0]) > 0:
+
+        if len(pred) > 0:
             det = return_data(pred, find="all", colors=[3])
             if cluster: #apply cluster function
                 if det is not None and len(det_rings) > 0:

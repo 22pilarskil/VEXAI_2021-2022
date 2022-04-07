@@ -1,6 +1,29 @@
 import colorsys
 import numpy as np
 import torch
+from random import randint
+def quicksort(array):
+
+    if len(array) < 2:
+        return array
+
+    low, same, high = [], [], []
+
+
+    pivot = array[randint(0, len(array) - 1)]
+
+    for item in array:
+
+        if item[6] < pivot[6]:
+            low.append(item)
+        elif item[6] == pivot[6]:
+            same.append(item)
+        elif item[6] > pivot[6]:
+            high.append(item)
+
+    return quicksort(low) + same + quicksort(high)
+
+
 def sort_distance(list):
     #sort distance (index 6)
     sorted = False
