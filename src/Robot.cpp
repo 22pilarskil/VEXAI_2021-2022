@@ -112,7 +112,7 @@ void Robot::receive_data(nlohmann::json msg)
     s.erase(0, pos + delimiter.length());
     vector<float> read_curr;
     string delimiter2 = ",";
-    
+
     size_t pos2 = 0;
     string token2;
     while ((pos2 = token.find(delimiter2)) != std::string::npos) {
@@ -122,15 +122,33 @@ void Robot::receive_data(nlohmann::json msg)
     }
     pred.push_back(read_curr);
   }
+
+
   for(vector<float> curr:pred){
     string temp = "";
+
     for(float curr2: curr){
         temp += std::to_string(curr2)+", ";
     }
     lcd::print(5, "%s", temp);
   }
+
+
+
   //ring_receive(ring_dets);
 
+}
+vector<vector<float>> get_pred(vector<vector<float>> pred, int id)
+{
+  vector<vector<float>> tp;
+  for(vector<float> curr:pred)
+  {
+    if(curr[2]==id)
+    {
+      tp.push_back(curr);
+    }
+  }
+  return tp;
 }
 void Robot::ring_receive(vector<vector<double>> input)
 {
@@ -162,7 +180,7 @@ void Robot::ring_receive(vector<vector<double>> input)
 
     double min_wall_distance = 2.1; //in feet
     bool too_close_to_wall = ring_y<=-min_wall_distance*12/meters_to_inches || ring_y>=min_wall_distance*12/meters_to_inches || ring_x <= -min_wall_distance*12/meters_to_inches || ring_x >= min_wall_distance*12/meters_to_inches;
-    
+
     double balance_y = 27; //in inches
     double balance_x = 50.5;
     double balance_dist = 12; //how close we want to allow our bot to get to the balance
@@ -487,7 +505,7 @@ void Robot::gps_fps(void *ptr){
     }
 }
 
-/* new_y, new_x, and new_heading_gps are all in absolute field terms 
+/* new_y, new_x, and new_heading_gps are all in absolute field terms
  * gps values are in meters
  * gps values are based on gps camera position not center of the bot
  * (0,0) in the center of the field in meters
