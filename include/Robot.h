@@ -81,8 +81,8 @@ class Robot{
 		static void organize_by_depth(std::vector<std::vector<double>> x);
 		static void receive_data(nlohmann::json msg);
 
-		static bool invalid_det(vector<float> det, double x, double y, double gps_heading);
-		static vector<vector<float>> pred_id(vector<vector<float>> pred);
+		static bool invalid_det(std::vector<float> det, double cur_x_gps, double cur_y_gps, double gps_heading);
+		static std::vector<std::vector<float>> pred_id(std::vector<std::vector<float>> pred);
 		static void drive(void *ptr);
 		static void check_depth(void *ptr);
 		static void depth_angler(void *ptr);
