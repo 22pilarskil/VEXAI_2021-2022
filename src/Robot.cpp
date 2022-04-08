@@ -173,7 +173,7 @@ bool invalid_det(vector<float> det, double cur_x_gps, double cur_y_gps, double g
     double east_intersect_val = ((ring_y-cur_y_gps)/(ring_x-cur_x_gps))*(balance_corner_x - cur_x_gps) + cur_y_gps;
     bool intersects_balance_east = balance_corner_y >= east_intersect_val && balance_corner_y >= -east_intersect_val;
     double west_intersect_val = ((ring_y-cur_y_gps)/(ring_x-cur_x_gps))*(-balance_corner_x - cur_x_gps) + cur_y_gps;
-    bool intersects_balance_west = balance_corner_y >= east_intersect_val && balance_corner_y >= -east_intersect_val;
+    bool intersects_balance_west = balance_corner_y >= west_intersect_val && balance_corner_y >= -west_intersect_val;
     bool intersects_balance = intersects_balance_east || intersects_balance_west;
 
     bool opposite_sides = cur_y_gps >= 0 && -ring_y >= 0;
