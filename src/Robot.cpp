@@ -229,8 +229,8 @@ void Robot::ring_receive(vector<float> det) {
     turn_in_place = false;
     stop = true;
     heading = last_heading;
-    turn_coefficient = 3;
-    while(abs(heading - imu_val) > 3) delay(5);
+    turn_coefficient = 2;
+    while(abs(heading - imu_val) > 10) delay(5);
 
     conveyor = -127;
 
@@ -245,12 +245,15 @@ void Robot::ring_receive(vector<float> det) {
 
     new_y = y - coefficient * cos(heading / 180 * pi);
     new_x = x + coefficient * sin(heading / 180 * pi);
-    while (abs(new_y - y) > 100 or abs(new_x - x) > 100) delay(5);
+    while (abs(new_y - y) > 100 || abs(new_x - x) > 100) delay(5);
 
     conveyor = 0;
     delay(500);
+
+    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#");
     turn_in_place = true;
     stop = false;
+    turn_coefficient = 1;
 }
 
 void Robot::receive_fps(nlohmann::json msg){
