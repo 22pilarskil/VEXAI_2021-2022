@@ -72,6 +72,9 @@ std::atomic<double> Robot::last_x_gps_slow = 0;
 std::atomic<double> Robot::last_y_gps_slow = 0;
 std::atomic<bool> Robot::is_moving = false;
 
+std::string Robot::mode = "ring";
+bool Robot::stop = false;
+
 double Robot::offset_back = 5.25;
 double Robot::offset_middle = 7.625;
 double Robot::wheel_circumference = 2.75 * pi;
@@ -83,6 +86,7 @@ std::atomic<bool> turn_in_place = true;
 double seconds_per_frame = 0.20;
 int failed_update = 0;
 double last_heading = 0;
+
 
 std::map<std::string, std::unique_ptr<pros::Task>> Robot::tasks;
 
@@ -99,8 +103,6 @@ std::vector<int> find_location(std::string sample, char find){
 
 void Robot::receive_data(nlohmann::json msg)
 {
-  lcd::print(8, "HIHIHIHIHI");
-  //data in form rings(det[depth, angle],...)!red()!yellow()!blue()!
   string s = msg.dump();
   s = s.substr(1, s.size()-2);
   string delimiter = "|";
@@ -123,22 +125,32 @@ void Robot::receive_data(nlohmann::json msg)
     pred.push_back(read_curr);
   }
 
-
-  for(vector<float> curr:pred){
-    string temp = "";
-
-    for(float curr2: curr){
-        temp += std::to_string(curr2)+", ";
+  string temp = "";
+  for(vector<float> det : pred){
+    for(float det0 : det){
+        temp += std::to_string(det0)+", ";
     }
-    lcd::print(5, "%s", temp);
   }
+  lcd::print(5, "%s", temp);
 
-
-
-  //ring_receive(ring_dets);
-
+  if (mode.compare("mogo") == 0){
+    vector<vector<float>> mogos = pred_id(pred, 0);
+    for (vector<float> det : mogos){
+        if (invalid_det(det, cur_x_gps, cur_y_gps, cur_heading_gps)) continue;
+        mogo_receive(det);
+    }
+  }
+  if (mode.compare("ring") == 0 && !stop){
+    vector<vector<float>> rings = pred_id(pred, 3);
+    for (vector<float> det : rings){
+        if (invalid_det(det, cur_x_gps, cur_y_gps, cur_heading_gps)) continue;
+        ring_receive(det);
+    }
+  }
 }
-vector<vector<float>> pred_id(vector<vector<float>> pred, int id)
+
+
+vector<vector<float>> Robot::pred_id(vector<vector<float>> pred, int id)
 {
   vector<vector<float>> tp;
   for(vector<float> curr:pred)
@@ -151,7 +163,7 @@ vector<vector<float>> pred_id(vector<vector<float>> pred, int id)
   return tp;
 }
 
-bool invalid_det(vector<float> det, double cur_x_gps, double cur_y_gps, double gps_heading)
+bool Robot::invalid_det(vector<float> det, double cur_x_gps, double cur_y_gps, double gps_heading)
 {
     double lidar_depth = det[0];
     double angle = det[1];
@@ -180,71 +192,11 @@ bool invalid_det(vector<float> det, double cur_x_gps, double cur_y_gps, double g
     bool across_balance = (cur_x_gps >= balance_corner_x && ring_x >= balance_corner_x && opposite_sides) || 
                           (-cur_x_gps >= balance_corner_x && -ring_x >= balance_corner_x && opposite_sides);
     
-  return too_close_to_wall || under_balance || intersects_balance || across_balance;
+  return false;//too_close_to_wall || under_balance || intersects_balance || across_balance;
 }
-void Robot::ring_receive(vector<vector<float>> input)
+
+void Robot::mogo_receive(vector<float> det)
 {
-  //changed to work with inputs from receive_data
-  turn_in_place = false;
-  heading = last_heading;
-  turn_coefficient = 3;
-  while(abs(heading - imu_val) > 3) delay(5);
-
-  conveyor = -127;
-
-  //find best input
-  bool found = false;
-  int pos = 0;
-  double x = gps.get_status().x;
-  double y = gps.get_status().y;
-  double gps_heading = gps.get_heading();
-
-  double depth;
-  double ang;
-  while(!found && pos<input.size())
-  {
-
-    if(invalid_det(input[pos],x,y,gps_heading))
-    {
-      pos++;
-    }
-    else
-    {
-      found = true;
-      depth = input[pos][0];
-      ang = input[pos][1];
-      break;
-    }
-  }
-
-  if(found)
-  {
-    double coefficient = depth * meters_to_inches * inches_to_encoder + 300;
-    double angle_threshold = 1;
-    double target_heading = imu_val + ang;
-    heading = target_heading;
-    while (abs(imu_val - target_heading) > 3) delay(5);
-
-    new_y = y - coefficient * cos(heading / 180 * pi);
-    new_x = x + coefficient * sin(heading / 180 * pi);
-    while (abs(new_y - y) > 100 or abs(new_x - x) > 100) delay(5);
-
-    conveyor = 0;
-    delay(500);
-
-    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#");
-    turn_in_place = true;
-    lcd::print(10, "RING FOUND");
-  }
-  else
-  {
-    delay(5);
-    lcd::print(10, "No ring found");
-  }
-}
-void Robot::mogo_receive(vector<double> f)
-{
-
   //copy and pasted, changed to work with the attributes given by receive_data
   failed_update = 0;
   turn_in_place = false;
@@ -252,13 +204,13 @@ void Robot::mogo_receive(vector<double> f)
   flicker = 127;
 
   double angle_threshold = 1;
-  turn_coefficient = 2;
+  turn_coefficient = 3;
 
   if (!task_exists("DEPTH")) start_task("DEPTH", Robot::check_depth);
 
 
-  double lidar_depth = max(f[0], 0.2);
-  double angle = f[1];
+  double lidar_depth = std::max((double)det[0], (double)0.2);
+  double angle = det[1];
 
   double coefficient;
 
@@ -273,34 +225,32 @@ void Robot::mogo_receive(vector<double> f)
   turn_coefficient = 1;
 }
 
-void Robot::receive_mogo(nlohmann::json msg) {
-    failed_update = 0;
+void Robot::ring_receive(vector<float> det) {
     turn_in_place = false;
-    chasing_mogo = true;
-    flicker = 127;
+    stop = true;
+    heading = last_heading;
+    turn_coefficient = 3;
+    while(abs(heading - imu_val) > 3) delay(5);
 
+    conveyor = -127;
+
+    double lidar_depth = std::max((double)det[0], (double)0.2);
+    double angle = det[1];
+
+    double coefficient = lidar_depth * meters_to_inches * inches_to_encoder + 300;
     double angle_threshold = 1;
-    turn_coefficient = 2;
+    double target_heading = imu_val + angle;
+    heading = target_heading;
+    while (abs(imu_val - target_heading) > 3) delay(5);
 
-    if (!task_exists("DEPTH")) start_task("DEPTH", Robot::check_depth);
+    new_y = y - coefficient * cos(heading / 180 * pi);
+    new_x = x + coefficient * sin(heading / 180 * pi);
+    while (abs(new_y - y) > 100 or abs(new_x - x) > 100) delay(5);
 
-    string msgS = msg.dump();
-    std::size_t found = msgS.find(",");
-
-    double lidar_depth = max(std::stod(msgS.substr(1, found - 1)), 0.2);
-    double angle = std::stod(msgS.substr(found + 1, msgS.size() - found - 1));
-
-    double coefficient;
-
-    if (abs(angle) > angle_threshold) coefficient = 300 * lidar_depth * (0.20 / seconds_per_frame);
-    else if (abs(angle) < angle_threshold && chasing_mogo == true) coefficient = 600;
-
-    heading = imu_val + angle;
-    new_y = y + coefficient * cos(heading / 180 * pi);
-    new_x = x - coefficient * sin(heading / 180 * pi);
-
-    delay(5);
-    turn_coefficient = 1;
+    conveyor = 0;
+    delay(500);
+    turn_in_place = true;
+    stop = false;
 }
 
 void Robot::receive_fps(nlohmann::json msg){
@@ -405,6 +355,7 @@ void Robot::check_depth(void *ptr){
     delay(250);
     start_task("ANGLER", Robot::depth_angler);
     lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#camera#l515_front#mode#true#@#");
+    mode = "ring";
     turn_in_place = true;
     kill_task("DEPTH");
 }
