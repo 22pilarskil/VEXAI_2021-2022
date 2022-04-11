@@ -230,7 +230,7 @@ void Robot::ring_receive(vector<float> det) {
     stop = true;
     heading = last_heading;
     turn_coefficient = 2;
-    while(abs(heading - imu_val) > 10) delay(5);
+    while(abs(heading - imu_val) > 0.5) delay(5);
 
     conveyor = -127;
 
@@ -241,11 +241,11 @@ void Robot::ring_receive(vector<float> det) {
     double angle_threshold = 1;
     double target_heading = imu_val + angle;
     heading = target_heading;
-    while (abs(imu_val - target_heading) > 3) delay(5);
+    while (abs(imu_val - target_heading) > 0.5) delay(5);
 
     new_y = y - coefficient * cos(heading / 180 * pi);
     new_x = x + coefficient * sin(heading / 180 * pi);
-    while (abs(new_y - y) > 100 || abs(new_x - x) > 100) delay(5);
+    //while (abs(new_y - y) > 100 || abs(new_x - x) > 100) delay(5);
 
     conveyor = 0;
     delay(500);
