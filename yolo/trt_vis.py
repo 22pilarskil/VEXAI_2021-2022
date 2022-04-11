@@ -80,7 +80,7 @@ try:
         if len(pred) > 0:
             det = return_data(pred, find="all", colors=[3])
             if cluster: #apply cluster function
-                if det is not None and len(det_rings) > 0:
+                if det is not None and len(det) > 0:
                     det = det[det[:,5]==3]
                     xys = []
                     for x in det:
@@ -111,16 +111,17 @@ try:
             else: 
                 det = return_data(pred, find="close", colors=[-1,0,1], conf_thres=conf_thres)   
 
-
-            whole_str = ""
-            for i, det in enumerate(pred):
-                turn_angle = degree(det)
-                if(not math.isnan(det[6]) and not math.isnan(turn_angle)):
-                    depth = str(round(float(det[6]), 3))
-                    turn_angle = str(round(float(turn_angle), 3))
-                    class_id = str(int(det[5]))
-                    whole_str += depth + "," + turn_angle + "," + class_id + ",|"
-            print(whole_str)
+        contains_ring = False
+        whole_str = ""
+        for i, det in enumerate(pred):
+            turn_angle = degree(det)
+            if(not math.isnan(det[6]) and not math.isnan(turn_angle)):
+                depth = str(round(float(det[6]), 3))
+                turn_angle = str(round(float(turn_angle), 3))
+                class_id = str(int(det[5])) if int(det[5]) == 3 else str(0)
+                if int(class_id) == 3: contains_ring = True
+                whole_str += depth + "," + turn_angle + "," + class_id + ",|"
+        print(whole_str)
 
 
         if args.display:
@@ -143,8 +144,11 @@ try:
                 if "camera" in switch and not cam.name == switch["camera"]: print(cam.switch_cameras(switch["camera"]))
                 if "mode" in switch: cluster = True if switch["mode"] == "true" else False
                 continue
-            comm.send("fps", time.time() - start)
             comm.send("whole_data", whole_str)
+            comm.send("fps", time.time() - start)
+            if cam.name == "l515_front" and contains_ring: 
+                comm.wait("continue")
+            
         except Exception as e:
             bcolors.print(str(e), "blue")
             comm.open()
