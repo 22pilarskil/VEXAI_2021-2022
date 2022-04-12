@@ -9,20 +9,21 @@ void opcontrol() {
 
 	lcd::initialize();
 	delay(100);
-	serial_initialize();
-	lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#camera#l515_front#mode#false#@#");
-	//Robot::start_task("GPS", Robot::gps_fps);
-	//Robot::start_task("DRIVE", Robot::drive);
-	Robot::start_task("CONTROLLER", Robot::controller_print);
+	Robot::FLT = 127;
+	// serial_initialize();
+	// lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#camera#l515_front#mode#false#@#");
+	// //Robot::start_task("GPS", Robot::gps_fps);
+	// Robot::start_task("DRIVE", Robot::drive);
+	// Robot::start_task("CONTROLLER", Robot::controller_print);
 
-	Robot::IMU.reset();
-	delay(2500);
-	Robot::start_task("FPS", Robot::fps);
-	Robot::start_task("DISPLAY", Robot::display);
-	lib7405x::Serial::Instance()->onReceive("fps", Robot::receive_fps);
-	lib7405x::Serial::Instance()->onReceive("whole_data", Robot::receive_data);
-	Robot::start_task("MOVETO", Robot::move_to);
-	Robot::start_task("IMU", Robot::imu_clamp);
+	// Robot::IMU.reset();
+	// delay(2500);
+	// Robot::start_task("FPS", Robot::fps);
+	// Robot::start_task("DISPLAY", Robot::display);
+	// lib7405x::Serial::Instance()->onReceive("fps", Robot::receive_fps);
+	// //lib7405x::Serial::Instance()->onReceive("whole_data", Robot::receive_data);
+	// //Robot::start_task("MOVETO", Robot::move_to);
+	// Robot::start_task("IMU", Robot::imu_clamp);
 
 }
 

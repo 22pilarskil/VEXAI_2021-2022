@@ -143,9 +143,12 @@ void Robot::receive_data(nlohmann::json msg)
   if (mode.compare("ring") == 0 && !stop){
     vector<vector<float>> rings = pred_id(pred, 3);
     for (vector<float> det : rings){
+        det[0] += 0.2;
         if (invalid_det(det, cur_x_gps, cur_y_gps, cur_heading_gps)) continue;
         ring_receive(det);
+        return;
     }
+    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#");
   }
 }
 
@@ -192,7 +195,7 @@ bool Robot::invalid_det(vector<float> det, double cur_x_gps, double cur_y_gps, d
     bool across_balance = (cur_x_gps >= balance_corner_x && ring_x >= balance_corner_x && opposite_sides) || 
                           (-cur_x_gps >= balance_corner_x && -ring_x >= balance_corner_x && opposite_sides);
     
-  return false;//too_close_to_wall || under_balance || intersects_balance || across_balance;
+    return false;//too_close_to_wall || under_balance || intersects_balance || across_balance;
 }
 
 void Robot::mogo_receive(vector<float> det)
@@ -226,34 +229,37 @@ void Robot::mogo_receive(vector<float> det)
 }
 
 void Robot::ring_receive(vector<float> det) {
-    turn_in_place = false;
-    stop = true;
-    heading = last_heading;
-    turn_coefficient = 2;
-    while(abs(heading - imu_val) > 0.5) delay(5);
-
-    conveyor = -127;
 
     double lidar_depth = std::max((double)det[0], (double)0.2);
     double angle = det[1];
 
-    double coefficient = lidar_depth * meters_to_inches * inches_to_encoder + 300;
+    lcd::print(4, "%f, %f, %f", float(angle), float(imu_val), float(heading));
+    delay(5000);
+
+    turn_in_place = false;
+    stop = true;
+    heading = last_heading + angle;
+    turn_coefficient = 3;
+    while(abs(heading - imu_val) > 1) delay(5);
+
+
+    conveyor = -127;
+
+    double coefficient = lidar_depth * meters_to_inches * inches_to_encoder;
     double angle_threshold = 1;
-    double target_heading = imu_val + angle;
-    heading = target_heading;
-    while (abs(imu_val - target_heading) > 0.5) delay(5);
 
     new_y = y - coefficient * cos(heading / 180 * pi);
     new_x = x + coefficient * sin(heading / 180 * pi);
-    //while (abs(new_y - y) > 100 || abs(new_x - x) > 100) delay(5);
+    while (abs(new_y - y) > 100 || abs(new_x - x) > 100) delay(5);
 
     conveyor = 0;
     delay(500);
 
     lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#");
     turn_in_place = true;
-    stop = false;
     turn_coefficient = 1;
+    stop = false;
+
 }
 
 void Robot::receive_fps(nlohmann::json msg){
@@ -388,7 +394,6 @@ void Robot::depth_angler(void *ptr){
         }
         //lcd::print(5, "%d", int(depth_average));
         if (depth_average < 100 && depth_vals.size() == 100){
-            lcd::print(4, "Here");
             delay(250);
             while (angler_pot.get_value() < 2150){
                 angler = -127;
@@ -561,7 +566,7 @@ void Robot::controller_print(void *ptr){
 
 void Robot::display(void *ptr){
     while (true){
-        lcd::print(1, "X: %d, Y: %d", (int)x, (int)y);
+        lcd::print(1, "X: %d, Y: %d, IMU: %d", (int)x, (int)y, (int)imu_val);
         lcd::print(2, "nX: %d, nY: %d", (int)new_x, (int)new_y);
         lcd::print(3, "%d %d", angler_dist.get(), ring_ultrasonic.get_value());
         delay(5);
