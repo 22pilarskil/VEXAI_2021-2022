@@ -72,7 +72,7 @@ std::atomic<double> Robot::last_x_gps_slow = 0;
 std::atomic<double> Robot::last_y_gps_slow = 0;
 std::atomic<bool> Robot::is_moving = false;
 
-std::string Robot::mode = "ring";
+std::string Robot::mode = "mogo";
 bool Robot::stop = false;
 
 double Robot::offset_back = 5.25;
@@ -234,15 +234,14 @@ void Robot::ring_receive(vector<float> det) {
     double angle = det[1];
 
     lcd::print(4, "%f, %f, %f", float(angle), float(imu_val), float(heading));
-    delay(5000);
 
     turn_in_place = false;
     stop = true;
-    heading = last_heading + angle;
+    double temp = last_heading + angle;
+    heading = (angle > 0) ? last_heading + 60 : last_heading - 60;
+    while(abs(temp - imu_val) > 5) delay(5);
     turn_coefficient = 3;
-    while(abs(heading - imu_val) > 1) delay(5);
-
-
+    heading = temp;
     conveyor = -127;
 
     double coefficient = lidar_depth * meters_to_inches * inches_to_encoder;
@@ -251,8 +250,6 @@ void Robot::ring_receive(vector<float> det) {
     new_y = y - coefficient * cos(heading / 180 * pi);
     new_x = x + coefficient * sin(heading / 180 * pi);
     while (abs(new_y - y) > 100 || abs(new_x - x) > 100) delay(5);
-
-    conveyor = 0;
     delay(500);
 
     lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#");
@@ -363,7 +360,7 @@ void Robot::check_depth(void *ptr){
     angler_piston.set_value(true);
     delay(250);
     start_task("ANGLER", Robot::depth_angler);
-    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#camera#l515_front#mode#true#@#");
+    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#camera#l515_front#");
     mode = "ring";
     turn_in_place = true;
     kill_task("DEPTH");
@@ -392,7 +389,6 @@ void Robot::depth_angler(void *ptr){
         if (abs(angler_dist.get() - depth_threshold) <= cap){
             angler = depth_coefficient * (angler_dist.get() - depth_threshold);
         }
-        //lcd::print(5, "%d", int(depth_average));
         if (depth_average < 100 && depth_vals.size() == 100){
             delay(250);
             while (angler_pot.get_value() < 2150){
@@ -404,6 +400,7 @@ void Robot::depth_angler(void *ptr){
         }
         delay(5);
     }
+    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#stop#true#");
     kill_task("ANGLER");
 }
 
