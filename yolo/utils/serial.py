@@ -29,7 +29,8 @@ class Coms:
     def read(self, signals):
         msg = self.ser.readline().decode('ascii').strip('\n').strip('\r').split("#") 
         for signal in signals:
-            if signal in msg: self.data[signal] = msg[msg.index(signal) + 1]
+            if signal in msg: 
+                self.data[signal] = msg[msg.index(signal) + 1]
         data = self.data
         if not "@" in msg: self.data = {}
         return data

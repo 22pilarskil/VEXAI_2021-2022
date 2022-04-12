@@ -16,7 +16,6 @@ from utils.decorators import bcolors
 parser = argparse.ArgumentParser()
 parser.add_argument("--display", metavar="display", type=bool, default=True)
 parser.add_argument("--camera", metavar="camera", type=str, default="l515_back")
-parser.add_argument("--cluster", metavar="cluster", type=bool, default=False)
 
 
 
@@ -38,7 +37,6 @@ cameras = {
     }
 
 cam = Camera(cameras, args.camera)
-cluster = args.cluster
 
 comm = Coms()
 
@@ -73,63 +71,25 @@ try:
 
         color_annotator = Annotator(color_image, line_width=2, pil=not ascii)
         depth_annotator = Annotator(depth_colormap, line_width=2, pil=not ascii)
+ 
 
-        det = None  
-
-
-        if len(pred) > 0:
-            det = return_data(pred, find="all", colors=[3])
-            if cluster: #apply cluster function
-                if det is not None and len(det_rings) > 0:
-                    det = det[det[:,5]==3]
-                    xys = []
-                    for x in det:
-                        if args.display:
-                            color_annotator.box_label(x[:4], f'{names[int(x[5]) + 1]} {x[4]:.2f}', color=colors(x[5], True))
-                            depth_annotator.box_label(x[:4], f'{names[int(x[5]) + 1]} {x[4]:.2f}', color=colors(x[5], True))
-                        xys.append([(int(x[2]) + int(x[0])) / 2, (int(x[1])+int(x[3]))/2])
-                    add_zeros = True
-                    if cluster and len(xys)>1:
-                        clusters = DBSCAN(eps=80, min_samples=2).fit(xys)
-                        cluster_labels = np.array(clusters.labels_)
-                        mask1 = cluster_labels!=-1
-                        cluster_labels = cluster_labels[mask1]
-                        if len(cluster_labels)>0:
-                            mask2 = cluster_labels==np.bincount(cluster_labels).argmax()
-                            cluster_labels = cluster_labels[mask2]
-                            det = det[mask1]
-                            det = det[mask2]
-                            cluster_pos = np.average(xys, axis=0)
-                            det = np.append(det, cluster_labels.reshape(cluster_labels.shape[0],1), axis=1)
-                            add_zeros = False
-
-
-                    if add_zeros:
-                        det = np.append(det, np.zeros((det.shape[0], 1)), axis=1)
-                    det = torch.tensor(det)
-                    det = return_data(det, find="close", colors = [3])
-            else: 
-                det = return_data(pred, find="close", colors=[-1,0,1], conf_thres=conf_thres)   
-
-
-            whole_str = ""
-            for i, det in enumerate(pred):
-                turn_angle = degree(det)
-                if(not math.isnan(det[6]) and not math.isnan(turn_angle)):
-                    depth = str(round(float(det[6]), 3))
-                    turn_angle = str(round(float(turn_angle), 3))
-                    class_id = str(int(det[5]))
-                    whole_str += depth + "," + turn_angle + "," + class_id + ",|"
-            print(whole_str)
+        contains_ring = False
+        whole_str = ""
+        for i, det in enumerate(pred):
+            turn_angle = degree(det)
+            if(not math.isnan(det[6]) and not math.isnan(turn_angle)):
+                depth = str(round(float(det[6]), 3))
+                turn_angle = str(round(float(turn_angle), 3))
+                class_id = str(int(det[5])) if int(det[5]) == 3 else str(0)
+                if int(class_id) == 3: contains_ring = True
+                whole_str += depth + "," + turn_angle + "," + class_id + ",|"
+        print(whole_str)
 
 
         if args.display:
             for det in pred:
                 color_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(5, True))
                 depth_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(5, True))
-            if det is not None and len(det) > 0:
-                color_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(0, True))
-                depth_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(0, True))
             color_image, depth_colormap = color_annotator.result(), depth_annotator.result()
             images = np.hstack((color_image, depth_colormap))
             cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
@@ -137,14 +97,22 @@ try:
             cv2.waitKey(1)
 
         try:
-            switch = comm.read(["camera", "mode"])
-            if switch:
-                bcolors.print(str(switch), "green")
-                if "camera" in switch and not cam.name == switch["camera"]: print(cam.switch_cameras(switch["camera"]))
-                if "mode" in switch: cluster = True if switch["mode"] == "true" else False
+            msg = comm.read(["camera", "stop"])
+            print(msg)
+            if "camera" in msg:
+                bcolors.print("Switching to " + str(msg["camera"]), "green")
+                if not cam.name == msg["camera"]: print(cam.switch_cameras(msg["camera"]))
                 continue
-            comm.send("fps", time.time() - start)
+            if "stop" in msg:
+                bcolors.print("STOP", "green")
+                comm.wait("continue")
+                quit()
             comm.send("whole_data", whole_str)
+            if (cam.name == "l515_front" and contains_ring): 
+                comm.wait("continue")
+            comm.send("fps", time.time() - start)
+                
+            
         except Exception as e:
             bcolors.print(str(e), "blue")
             comm.open()

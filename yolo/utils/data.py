@@ -117,7 +117,7 @@ def degree(det):
     pixel_degree = 0.109375
     center = 320
     diff = center - (det[2] + det[0]) / 2
-    angle = diff * pixel_degree
+    angle = diff * pixel_degree * 540 / 640
     return angle
 
 def min(pred):
