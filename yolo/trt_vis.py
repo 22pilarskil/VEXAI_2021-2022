@@ -106,10 +106,9 @@ try:
             if "stop" in msg:
                 bcolors.print("STOP", "green")
                 comm.wait("continue")
-                quit()
             comm.send("whole_data", whole_str)
             if (cam.name == "l515_front" and contains_ring): 
-                comm.wait("continue")
+                comm.wait("continue_ring")
             comm.send("fps", time.time() - start)
                 
             
