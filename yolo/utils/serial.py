@@ -37,7 +37,7 @@ class Coms:
 
     def wait(self, signal):
         print("Awaiting {} signal".format(signal))
-        while not self.read([signal, "camera", "mode"]):
+        while not self.read([signal]):
             pass
 
 

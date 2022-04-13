@@ -49,6 +49,7 @@ const double inches_to_encoder = 41.669;
 const double meters_to_inches = 39.3701;
 const double pi = 3.141592653589793238;
 
+
 std::atomic<double> Robot::y = 0;
 std::atomic<double> Robot::x = 0;
 std::atomic<double> Robot::imu_val = 0;
@@ -72,7 +73,7 @@ std::atomic<double> Robot::last_x_gps_slow = 0;
 std::atomic<double> Robot::last_y_gps_slow = 0;
 std::atomic<bool> Robot::is_moving = false;
 
-std::string Robot::mode = "mogo";
+std::string Robot::mode;
 bool Robot::stop = false;
 
 double Robot::offset_back = 5.25;
@@ -148,7 +149,7 @@ void Robot::receive_data(nlohmann::json msg)
         ring_receive(det);
         return;
     }
-    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#");
+    if (!stop) lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#");
   }
 }
 
@@ -233,17 +234,15 @@ void Robot::ring_receive(vector<float> det) {
     double lidar_depth = std::max((double)det[0], (double)0.2);
     double angle = det[1];
 
-    lcd::print(4, "%f, %f, %f", float(angle), float(imu_val), float(heading));
+    lcd::print(4, "%f, %f, %f", float(angle), float(imu_val), float(last_heading));
 
     turn_in_place = false;
-    stop = true;
     double temp = last_heading + angle;
     heading = (angle > 0) ? last_heading + 60 : last_heading - 60;
-    while(abs(temp - imu_val) > 5) delay(5);
+    while(abs(temp - imu_val) > 1) delay(5);
     turn_coefficient = 3;
     heading = temp;
     conveyor = -127;
-
     double coefficient = lidar_depth * meters_to_inches * inches_to_encoder;
     double angle_threshold = 1;
 
@@ -252,10 +251,9 @@ void Robot::ring_receive(vector<float> det) {
     while (abs(new_y - y) > 100 || abs(new_x - x) > 100) delay(5);
     delay(500);
 
-    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#");
+    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue_ring#true#");
     turn_in_place = true;
     turn_coefficient = 1;
-    stop = false;
 
 }
 
@@ -389,7 +387,7 @@ void Robot::depth_angler(void *ptr){
         if (abs(angler_dist.get() - depth_threshold) <= cap){
             angler = depth_coefficient * (angler_dist.get() - depth_threshold);
         }
-        if (depth_average < 100 && depth_vals.size() == 100){
+        if (depth_average < 130 && depth_vals.size() == 100){
             delay(250);
             while (angler_pot.get_value() < 2150){
                 angler = -127;
@@ -401,6 +399,8 @@ void Robot::depth_angler(void *ptr){
         delay(5);
     }
     lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#stop#true#");
+    conveyor = 0;
+    stop = true;
     kill_task("ANGLER");
 }
 
@@ -426,7 +426,7 @@ void Robot::fps(void *ptr) {
     double turn_offset_x = 0;
     double turn_offset_y = 0;
     while (true) {
-        double cur_phi = IMU.get_rotation() / 180 * pi;
+        double cur_phi = imu_val / 180 * pi;
         double dphi = cur_phi - last_phi;
 
         double cur_turn_offset_x = 360 * (offset_back * dphi) / wheel_circumference;
@@ -516,7 +516,7 @@ void Robot::move_to(void *ptr)
 {
     while (true)
     {
-        double phi = (IMU.get_rotation()) * pi / 180;
+        double phi = imu_val * pi / 180;
 
         double imu_error = -(imu_val - heading);
         double y_error = new_y - y;
