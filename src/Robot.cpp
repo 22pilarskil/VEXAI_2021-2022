@@ -444,6 +444,7 @@ void Robot::depth_angler(void *ptr){
         }
         delay(5);
     }
+
     lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#stop#true#@#");
     conveyor = 0;
     stop = true;
@@ -543,13 +544,19 @@ void Robot::move_to_gps(void *ptr) {
         else angle_adjust = 90;
 
         double phi = (cur_heading_gps+angle_adjust) * pi / 180;
-
-        double gps_error = new_heading_gps - cur_heading_gps;
+        double gps_error;
+        double cur_heading_gps2 = cur_heading_gps-360;
+        if(std::abs(new_heading_gps-cur_heading_gps)<std::abs(new_heading_gps-cur_heading_gps2)){
+            gps_error = new_heading_gps - cur_heading_gps;
+        }
+        else{
+            gps_error = new_heading_gps - cur_heading_gps2;
+        }
         double y_error = (new_y_gps - cur_y_gps) * meters_to_inches * inches_to_encoder;
         double x_error = (new_x_gps - cur_x_gps) * meters_to_inches * inches_to_encoder;
 
-        double power = power_PD.get_value(y_error * std::cos(phi) + x_error * std::sin(phi));
-        double strafe = strafe_PD.get_value(x_error * std::cos(phi) - y_error * std::sin(phi));
+        double power = power_PD.get_value(y_error * std::cos(phi) - x_error * std::sin(phi));
+        double strafe = strafe_PD.get_value(x_error * std::cos(phi) + y_error * std::sin(phi));
         double turn = turn_PD.get_value(gps_error);
 
         mecanum(power, strafe, turn, 127);
@@ -634,7 +641,13 @@ void Robot::kill_task(std::string name) {
         tasks.erase(name);
     }
 }
+void Robot::test(void *ptr) {
 
+    new_y_gps = 0;
+    new_x_gps = 0;
+    
+
+}
 
 void Robot::mecanum(int power, int strafe, int turn, int max_power) {
 
