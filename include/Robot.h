@@ -59,6 +59,9 @@ class Robot{
 		static std::atomic<double> cur_heading_gps;
 		static std::atomic<double> last_x_gps;
 		static std::atomic<double> last_y_gps;
+		static std::atomic<double> last_gps_x;
+		static std::atomic<double> last_gps_y;
+		static std::atomic<double> last_gps_heading;
 		static std::atomic<double> cur_x_gps_slow;
 		static std::atomic<double> cur_y_gps_slow;
 		static std::atomic<double> last_x_gps_slow;
@@ -83,8 +86,9 @@ class Robot{
 		static void ring_receive(std::vector<float> det);
 		static void mogo_receive(std::vector<float> det);
 		static void receive_data(nlohmann::json msg);
+		//static void dummy(nlohmann::json msg);
 
-		static bool invalid_det(vector<float> det, double cur_x_gps, double cur_y_gps, double gps_heading);
+		static bool invalid_det(std::vector<float> det, double cur_x_gps, double cur_y_gps, double gps_heading);
 		static vector<vector<float>> pred_id(vector<vector<float>> pred, int id);
 		static void drive(void *ptr);
 		static void check_depth(void *ptr);
