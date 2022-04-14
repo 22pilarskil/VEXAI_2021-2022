@@ -140,19 +140,22 @@ void Robot::receive_data(nlohmann::json msg)
   if (mode.compare("mogo") == 0){
     vector<vector<float>> mogos = pred_id(pred, 0);
     for (vector<float> det : mogos){
-        if (invalid_det(det, cur_x_gps, cur_y_gps, cur_heading_gps)) continue;
         mogo_receive(det);
+        continue;
     }
   }
-  if (mode.compare("ring") == 0 && !stop){
-    vector<vector<float>> rings = pred_id(pred, 3);
+  if (mode.compare("ring") == 0){
+    vector<vector<float>> rings = pred_id(pred, 1);
     for (vector<float> det : rings){
         det[0] += 0.2;
-        if (invalid_det(det, cur_x_gps, cur_y_gps, cur_heading_gps)) continue;
+        if (invalid_det(det, cur_x_gps, cur_y_gps, cur_heading_gps)) {
+            continue;
+        }
         ring_receive(det);
+        lcd::print(4, "ring");
         return;
     }
-    if (!stop) lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#");
+    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue_ring#true#");
   }
 }
 
@@ -169,43 +172,6 @@ vector<vector<float>> Robot::pred_id(vector<vector<float>> pred, int id)
   }
   return tp;
 }
-/**
-void Robot::dummy(nlohmann::json msg)
-{
-  string s = msg.dump();
-  s = s.substr(1, s.size()-2);
-  string delimiter = "|";
-  vector<vector<float>> pred;
-  size_t pos = 0;
-  string token;
-  while ((pos = s.find(delimiter)) != string::npos) {
-    token = s.substr(0, pos);
-    s.erase(0, pos + delimiter.length());
-    vector<float> read_curr;
-    string delimiter2 = ",";
-
-    size_t pos2 = 0;
-    string token2;
-    while ((pos2 = token.find(delimiter2)) != std::string::npos) {
-        token2 = token.substr(0, pos2);
-        token.erase(0, pos2 + delimiter2.length());
-      read_curr.push_back(float(std::stod(token2)));
-    }
-    pred.push_back(read_curr);
-  }
-
-  vector<vector<float>> rings = pred_id(pred, 3);
-  for (vector<float> det : rings){
-      det[0] += 0.2;
-      if (invalid_det(det, last_gps_x, last_gps_y, last_gps_heading)) lcd::print(4, "%s", "INVALID_DET");
-      else{lcd::print(4, "%s", "VALID_DET");}
-  }
-  //lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#");
-  lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue_ring#true#");
-  return;
-
-}
-**/
 bool Robot::invalid_det(std::vector<float> det, double cur_x, double cur_y, double gps_heading)
 {
     gps_heading = gps_heading*pi/180;//to radians
@@ -219,7 +185,6 @@ bool Robot::invalid_det(std::vector<float> det, double cur_x, double cur_y, doub
     double ring_x = cos(final_angle)*lidar_depth+cur_x;
     lcd::print(1, "%f, %f", (float)ring_x, (float)ring_y);
     lcd::print(2, "%f", (float)final_angle);
-    lcd::print(0, "%f, %f", (float)cur_x, (float)cur_y);
 
 
     double temp_dist = 12;//inches away from wall
@@ -313,8 +278,6 @@ void Robot::ring_receive(vector<float> det) {
 
     double lidar_depth = std::max((double)det[0], (double)0.2);
     double angle = det[1];
-
-    lcd::print(4, "%f, %f, %f", float(angle), float(imu_val), float(last_heading));
 
     turn_in_place = false;
     double temp = last_heading + angle;
@@ -481,9 +444,11 @@ void Robot::depth_angler(void *ptr){
         }
         delay(5);
     }
-    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#stop#true#");
+    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#stop#true#@#");
     conveyor = 0;
     stop = true;
+    new_y = (float)y;
+    new_x = (float)x;
     kill_task("ANGLER");
 }
 
