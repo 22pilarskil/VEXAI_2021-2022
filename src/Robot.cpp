@@ -547,6 +547,13 @@ void Robot::move_to_gps(void *ptr) {
         double strafe = strafe_PD.get_value(x_error * std::cos(phi) + y_error * std::sin(phi));
         double turn = turn_PD.get_value(gps_error);
 
+        if(std::abs(power)<=15){
+            if(std::abs(power)<=1){
+                new_heading_gps = (float)cur_heading_gps;
+                power = 0;
+            }
+            power *= power/100;
+        }
         mecanum(power, strafe, turn, 127);
         is_moving = is_moving_gps(power, strafe, 127, 5);
 
