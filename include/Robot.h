@@ -54,15 +54,9 @@ class Robot{
 		static std::atomic<double> gps_imu_val;
 		static std::atomic<double> cur_x_gps;
 		static std::atomic<double> cur_y_gps;
-		static std::atomic<double> cur_pitch_gps;
-		static std::atomic<double> cur_roll_gps;
-		static std::atomic<double> cur_yaw_gps;
 		static std::atomic<double> cur_heading_gps;
 		static std::atomic<double> last_x_gps;
 		static std::atomic<double> last_y_gps;
-		static std::atomic<double> last_gps_x;
-		static std::atomic<double> last_gps_y;
-		static std::atomic<double> last_gps_heading;
 		static std::atomic<double> cur_x_gps_slow;
 		static std::atomic<double> cur_y_gps_slow;
 		static std::atomic<double> last_x_gps_slow;

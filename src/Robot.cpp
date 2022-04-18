@@ -61,15 +61,9 @@ std::atomic<double> Robot::new_y_gps = 0;
 std::atomic<double> Robot::new_heading_gps = 0;
 std::atomic<double> Robot::cur_x_gps = 0;
 std::atomic<double> Robot::cur_y_gps = 0;
-std::atomic<double> Robot::cur_pitch_gps = 0;
-std::atomic<double> Robot::cur_roll_gps = 0;
-std::atomic<double> Robot::cur_yaw_gps = 0;
 std::atomic<double> Robot::cur_heading_gps = 0;
 std::atomic<double> Robot::last_x_gps = 0;
 std::atomic<double> Robot::last_y_gps = 0;
-std::atomic<double> Robot::last_gps_x = 0;
-std::atomic<double> Robot::last_gps_y = 0;
-std::atomic<double> Robot::last_gps_heading = 0;
 
 std::atomic<double> Robot::cur_x_gps_slow = 0;
 std::atomic<double> Robot::cur_y_gps_slow = 0;
@@ -304,9 +298,6 @@ void Robot::receive_fps(nlohmann::json msg){
     double seconds_per_frame = std::stod(msg.dump());
     lcd::print(7, "Seconds per frame: %f", seconds_per_frame);
     last_heading = imu_val;
-    last_gps_x = (double)cur_x_gps;
-    last_gps_y = (double)cur_y_gps;
-    last_gps_heading = (double)cur_heading_gps;
     if (turn_in_place){
             heading = imu_val + 30;
     }
@@ -513,9 +504,6 @@ void Robot::gps_fps(void *ptr){
         pros::c::gps_status_s cur_status = gps.get_status();
         cur_x_gps = cur_status.x;
         cur_y_gps = cur_status.y;
-        cur_pitch_gps = cur_status.pitch;
-        cur_roll_gps = cur_status.roll;
-        cur_yaw_gps = cur_status.yaw;
         gps.get_heading() <= 180 ? cur_heading_gps = 180-gps.get_heading() : cur_heading_gps = 540-gps.get_heading();
         //lcd::print(1, "Y: %f - X: %f", (float)(cur_y_gps), (float)(cur_x_gps));
         //lcd::print(2, "Heading: %f", (float)cur_heading_gps);
