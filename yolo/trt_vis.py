@@ -7,7 +7,7 @@ import math
 import torch
 from utils.yolo.plots import Annotator, colors
 from utils.serial import Coms
-from utils.data import return_data, determine_color, determine_depth, degree, sort_distance, quicksort
+from utils.data import return_data, determine_depth, degree, sort_distance, quicksort
 from utils.camera import Camera
 from utils.models import Model
 from sklearn.cluster import DBSCAN
@@ -21,7 +21,7 @@ parser.add_argument("--camera", metavar="camera", type=str, default="l515_back")
 
 args = parser.parse_args()
 whole_str = ""
-names = ["red-mogo","yellow-mogo", "blue-mogo", "unknown_color", "ring"]
+names = ["mogo", "ring"]
 model = Model("models/weights/best_yolov5n.engine")
 conf_thres = .4
 
@@ -43,8 +43,11 @@ comm = Coms()
 try:
     while True:
         start = time.time()
-
-        data = cam.poll_frames()
+        try:
+            data = cam.poll_frames()
+        except Exception as e:
+            bcolors.print(str(e), "blue")
+            continue
         if data is None:
             continue
         color_image, depth_image, color_image_t, depth_colormap, depth_frame = data
@@ -54,11 +57,6 @@ try:
         pred = torch.column_stack((pred, torch.ones(len(pred))))
 
         for i, det in enumerate(pred):
-            if(det[5] == 0): # COLOR
-                pred[i, 5] = determine_color(det, color_image)
-            else:
-                pred[i, 5] = 3
-
             pred[i, 6] = determine_depth(det, depth_image) * depth_frame.get_units()
         try:
             pred = torch.stack(quicksort(pred))
@@ -80,16 +78,15 @@ try:
             if(not math.isnan(det[6]) and not math.isnan(turn_angle)):
                 depth = str(round(float(det[6]), 3))
                 turn_angle = str(round(float(turn_angle), 3))
-                class_id = str(int(det[5])) if int(det[5]) == 3 else str(0)
-                if int(class_id) == 3: contains_ring = True
+                class_id = str(int(det[5]))
+                if int(class_id) == 1: contains_ring = True
                 whole_str += depth + "," + turn_angle + "," + class_id + ",|"
-        print(whole_str)
 
 
         if args.display:
             for det in pred:
-                color_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(5, True))
-                depth_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(5, True))
+                color_annotator.box_label(det[:4], f'{names[int(det[5])]} {det[4]:.2f}', color=colors(int(det[5]), True))
+                depth_annotator.box_label(det[:4], f'{names[int(det[5])]} {det[4]:.2f}', color=colors(int(det[5]), True))
             color_image, depth_colormap = color_annotator.result(), depth_annotator.result()
             images = np.hstack((color_image, depth_colormap))
             cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
@@ -105,10 +102,10 @@ try:
                 continue
             if "stop" in msg:
                 bcolors.print("STOP", "green")
-                comm.wait("continue")
+                comm.wait(["continue"])
             comm.send("whole_data", whole_str)
             if (cam.name == "l515_front" and contains_ring): 
-                comm.wait("continue_ring")
+                comm.wait(["continue_ring", "stop"])
             comm.send("fps", time.time() - start)
                 
             
