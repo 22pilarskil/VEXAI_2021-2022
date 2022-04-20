@@ -34,7 +34,7 @@ void opcontrol() {
 	// }
 
 	// if (slot == 2){
-	// 	Robot::start_task("DRIVE", Robot::drive);
+	//Robot::start_task("DRIVE", Robot::drive);
 	// }
 
 	//lib7405x::Serial::Instance()->onReceive("fps", Robot::receive_fps);
@@ -44,7 +44,7 @@ void opcontrol() {
 	//Robot::start_task("FPS", Robot::fps);
 	//Robot::start_task("DISPLAY", Robot::display);
 	//Robot::start_task("CONTROLLER", Robot::controller_print);
-	Robot::start_task("TEST", Robot::test);
+	//Robot::start_task("TEST", Robot::test);
 
 
 

@@ -57,10 +57,6 @@ class Robot{
 		static std::atomic<double> cur_heading_gps;
 		static std::atomic<double> last_x_gps;
 		static std::atomic<double> last_y_gps;
-		static std::atomic<double> cur_x_gps_slow;
-		static std::atomic<double> cur_y_gps_slow;
-		static std::atomic<double> last_x_gps_slow;
-		static std::atomic<double> last_y_gps_slow;
 		static std::atomic<double> new_x_gps;
         static std::atomic<double> new_y_gps;
         static std::atomic<double> new_heading_gps;
@@ -95,7 +91,7 @@ class Robot{
         static void test(void *ptr);
 
 		static void move_to(void *ptr);
-		static bool is_moving_gps(int power, int strafe, int max_speed, int this_delay);
+		static void is_moving_gps(int power, int strafe, int max_speed, int this_delay);
 		static void is_moving_print(void *ptr);
 		static void controller_print(void *ptr);
 		static void display(void *ptr);

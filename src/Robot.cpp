@@ -67,10 +67,6 @@ std::atomic<double> Robot::cur_heading_gps = 0;
 std::atomic<double> Robot::last_x_gps = 0;
 std::atomic<double> Robot::last_y_gps = 0;
 
-std::atomic<double> Robot::cur_x_gps_slow = 0;
-std::atomic<double> Robot::cur_y_gps_slow = 0;
-std::atomic<double> Robot::last_x_gps_slow = 0;
-std::atomic<double> Robot::last_y_gps_slow = 0;
 std::atomic<bool> Robot::is_moving = false;
 
 std::string Robot::mode;
@@ -366,7 +362,6 @@ void Robot::drive(void *ptr) {
         else lift = 0;
 
         mecanum(power, strafe, turn);
-        for (int i = 0; i < 4; i++) {if(i==0)lcd::print(3, "MOVING?: %s", is_moving_gps(power,strafe,127,20) ? "yes" : "no");}
         delay(5);
     }
 }
@@ -504,7 +499,6 @@ void Robot::fps(void *ptr) {
 
 //must be run before using any cur or last gps variables
 void Robot::gps_fps(void *ptr){
-    int i = 0;
     while (true){
         last_x_gps = (double)cur_x_gps;
         last_y_gps = (double)cur_y_gps;
@@ -514,13 +508,6 @@ void Robot::gps_fps(void *ptr){
         gps.get_heading() <= 180 ? cur_heading_gps = 180-gps.get_heading() : cur_heading_gps = 540-gps.get_heading();
         //lcd::print(1, "Y: %f - X: %f", (float)(cur_y_gps), (float)(cur_x_gps));
         //lcd::print(2, "Heading: %f", (float)cur_heading_gps);
-        if(i % 10 == 0) {
-            last_x_gps_slow = (double)cur_x_gps_slow;
-            last_y_gps_slow = (double)cur_y_gps_slow;
-            cur_x_gps_slow = (double)cur_x_gps;
-            cur_y_gps_slow = (double)cur_y_gps;
-        }
-        i++;
         delay(20);
     }
 }
@@ -534,13 +521,14 @@ void Robot::gps_fps(void *ptr){
 void Robot::move_to_gps(void *ptr) {
     while (true)
     {
-        double angle_adjust = 0;
-        if (cur_heading_gps+90 >= 360) angle_adjust = -270;
-        else angle_adjust = 90;
 
-        double phi = (cur_heading_gps+angle_adjust) * pi / 180;
+        double phi = cur_heading_gps * pi / 180;
         double gps_error;
         double cur_heading_gps2 = cur_heading_gps-360;
+
+        // Lets bot chose shortest path rather than going clockwise/counterclockwise when turning.
+        lcd::print(2, "first: %f", (float)std::abs(new_heading_gps-cur_heading_gps));
+        lcd::print(3, "second: %f", (float)std::abs(new_heading_gps-cur_heading_gps2));
         if(std::abs(new_heading_gps-cur_heading_gps)<std::abs(new_heading_gps-cur_heading_gps2)){
             gps_error = new_heading_gps - cur_heading_gps;
         }
@@ -553,7 +541,11 @@ void Robot::move_to_gps(void *ptr) {
         double power = power_PD.get_value(y_error * std::cos(phi) - x_error * std::sin(phi));
         double strafe = strafe_PD.get_value(x_error * std::cos(phi) + y_error * std::sin(phi));
         double turn = turn_PD.get_value(gps_error);
-        lcd::print(4, "%f, %f, %f", gps_error, turn, power);
+
+
+        //lcd::print(4, "%f, %f, %f", gps_error, turn, power);
+
+        //Lowers speed of turning when close to ideal heading.
         if(std::abs(power)<=15){
             if(std::abs(power)<=5){
                 new_heading_gps = (float)cur_heading_gps;
@@ -564,7 +556,6 @@ void Robot::move_to_gps(void *ptr) {
             power *= 0.01;
         }
         mecanum(power, strafe, turn, 127);
-        is_moving = is_moving_gps(power, strafe, 127, 5);
 
         delay(5);
     }
@@ -594,20 +585,27 @@ void Robot::move_to(void *ptr)
 
 
 //threshold can and should be adjusted if return value is inacurate
-bool Robot::is_moving_gps(int power, int strafe, int max_power, int this_delay) {
-
-    double raw_speed = abs((double)power) + abs((double)strafe);
-    double theoretical_speed = ((raw_speed > max_power) ? max_power : raw_speed) / 127; //this could maybe be multiplied by some constant, but max speed is pretty close to 1 anyways
-    double actual_speed = sqrt(pow(abs(last_x_gps_slow - cur_x_gps_slow), 2) + pow(abs(last_y_gps_slow - cur_y_gps_slow), 2)) * (double)(1000/200); //distance formula
-    double threshold = 0.3;
-    if (actual_speed > theoretical_speed * threshold) return true;
-    else return false;
-
+void Robot::is_moving_gps(int power, int strafe, int max_power, int this_delay) {
+    while(true)
+    {
+        double last_x_gps_slow = cur_x_gps;
+        double last_y_gps_slow = cur_y_gps;
+        delay(200);
+        double cur_x_gps_slow = cur_x_gps;
+        double cur_y_gps_slow = cur_y_gps;
+        
+        double raw_speed = abs((double)power) + abs((double)strafe);
+        double theoretical_speed = ((raw_speed > max_power) ? max_power : raw_speed) / 127; //this could maybe be multiplied by some constant, but max speed is pretty close to 1 anyways
+        double actual_speed = sqrt(pow(abs(last_x_gps_slow - cur_x_gps_slow), 2) + pow(abs(last_y_gps_slow - cur_y_gps_slow), 2)) * (double)(1000/200); //distance formula
+        double threshold = 0.3;
+        if (actual_speed > theoretical_speed * threshold) is_moving = true;
+        else is_moving = false;
+    }
 }
 
 void Robot::is_moving_print(void *ptr) {
     while(true) {
-        lcd::print(3, "MOVING?: %s", is_moving_gps(0,0,0,0) ? "yes" : "no");
+        lcd::print(3, "MOVING?: %s", is_moving ? "yes" : "no");
     }
 }
 
@@ -645,13 +643,14 @@ void Robot::kill_task(std::string name) {
         tasks.erase(name);
     }
 }
+/*
 void Robot::test(void *ptr) {
 
     new_y_gps = 1;
     new_x_gps = 0;
     
 
-}
+}*/
 
 void Robot::mecanum(int power, int strafe, int turn, int max_power) {
 
