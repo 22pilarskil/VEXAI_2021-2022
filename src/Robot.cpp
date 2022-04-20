@@ -11,6 +11,8 @@
 #include <chrono>
 #include <unordered_map>
 #include <deque>
+#include "Grid.cpp"
+#include "GridMapper.cpp"
 using namespace pros;
 using namespace std;
 
@@ -85,6 +87,8 @@ std::atomic<bool> turn_in_place = true;
 double seconds_per_frame = 0.20;
 int failed_update = 0;
 double last_heading = 0;
+
+GridMapper* gridMapper = new GridMapper();
 
 
 std::map<std::string, std::unique_ptr<pros::Task>> Robot::tasks;
@@ -254,6 +258,9 @@ void Robot::mogo_receive(vector<float> det)
 
   double lidar_depth = std::max((double)det[0], (double)0.2);
   double angle = det[1];
+    
+  gridMapper->map([x, y, angle], {"mogo", [lidar_depth, angle]}; 
+  //aight idk if this is right
 
   double coefficient;
 
