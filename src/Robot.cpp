@@ -546,13 +546,15 @@ void Robot::move_to_gps(void *ptr) {
         double power = power_PD.get_value(y_error * std::cos(phi) - x_error * std::sin(phi));
         double strafe = strafe_PD.get_value(x_error * std::cos(phi) + y_error * std::sin(phi));
         double turn = turn_PD.get_value(gps_error);
-
+        lcd::print(4, "%f, %f, %f", gps_error, turn, power);
         if(std::abs(power)<=15){
-            if(std::abs(power)<=1){
+            if(std::abs(power)<=5){
                 new_heading_gps = (float)cur_heading_gps;
+                turn = 0;
                 power = 0;
             }
-            power *= power/100;
+            turn *= 0.01;
+            power *= 0.01;
         }
         mecanum(power, strafe, turn, 127);
         is_moving = is_moving_gps(power, strafe, 127, 5);
@@ -638,7 +640,7 @@ void Robot::kill_task(std::string name) {
 }
 void Robot::test(void *ptr) {
 
-    new_y_gps = 0;
+    new_y_gps = 1;
     new_x_gps = 0;
     
 
