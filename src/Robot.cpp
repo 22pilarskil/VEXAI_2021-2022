@@ -11,6 +11,8 @@
 #include <chrono>
 #include <unordered_map>
 #include <deque>
+#include "Grid.cpp"
+#include "GridMapper.cpp"
 using namespace pros;
 using namespace std;
 
@@ -61,16 +63,10 @@ std::atomic<double> Robot::new_y_gps = 0;
 std::atomic<double> Robot::new_heading_gps = 0;
 std::atomic<double> Robot::cur_x_gps = 0;
 std::atomic<double> Robot::cur_y_gps = 0;
-std::atomic<double> Robot::cur_pitch_gps = 0;
-std::atomic<double> Robot::cur_roll_gps = 0;
-std::atomic<double> Robot::cur_yaw_gps = 0;
 std::atomic<double> Robot::cur_heading_gps = 0;
 std::atomic<double> Robot::last_x_gps = 0;
 std::atomic<double> Robot::last_y_gps = 0;
-std::atomic<double> Robot::cur_x_gps_slow = 0;
-std::atomic<double> Robot::cur_y_gps_slow = 0;
-std::atomic<double> Robot::last_x_gps_slow = 0;
-std::atomic<double> Robot::last_y_gps_slow = 0;
+
 std::atomic<bool> Robot::is_moving = false;
 
 std::string Robot::mode;
@@ -88,6 +84,8 @@ double seconds_per_frame = 0.20;
 int failed_update = 0;
 double last_heading = 0;
 
+GridMapper* gridMapper = new GridMapper();
+
 
 std::map<std::string, std::unique_ptr<pros::Task>> Robot::tasks;
 
@@ -101,7 +99,6 @@ std::vector<int> find_location(std::string sample, char find){
     }
     return character_locations;
 }
-
 void Robot::receive_data(nlohmann::json msg)
 {
   string s = msg.dump();
@@ -137,19 +134,22 @@ void Robot::receive_data(nlohmann::json msg)
   if (mode.compare("mogo") == 0){
     vector<vector<float>> mogos = pred_id(pred, 0);
     for (vector<float> det : mogos){
-        if (invalid_det(det, cur_x_gps, cur_y_gps, cur_heading_gps)) continue;
         mogo_receive(det);
+        continue;
     }
   }
-  if (mode.compare("ring") == 0 && !stop){
-    vector<vector<float>> rings = pred_id(pred, 3);
+  if (mode.compare("ring") == 0){
+    vector<vector<float>> rings = pred_id(pred, 1);
     for (vector<float> det : rings){
         det[0] += 0.2;
-        if (invalid_det(det, cur_x_gps, cur_y_gps, cur_heading_gps)) continue;
+        if (invalid_det(det, cur_x_gps, cur_y_gps, cur_heading_gps)) {
+            continue;
+        }
         ring_receive(det);
+        lcd::print(4, "ring");
         return;
     }
-    if (!stop) lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#");
+    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue_ring#true#");
   }
 }
 
@@ -166,37 +166,76 @@ vector<vector<float>> Robot::pred_id(vector<vector<float>> pred, int id)
   }
   return tp;
 }
-
-bool Robot::invalid_det(vector<float> det, double cur_x_gps, double cur_y_gps, double gps_heading)
+bool Robot::invalid_det(std::vector<float> det, double cur_x, double cur_y, double gps_heading)
 {
+    gps_heading = gps_heading*pi/180;//to radians
     double lidar_depth = det[0];
     double angle = det[1];
+    double final_angle = gps_heading - angle*pi/180;
+    final_angle < 0 ? final_angle = 360 + final_angle : final_angle = final_angle;//angle that connects ring and bot
 
-    double ring_y = sin(gps_heading)*lidar_depth+cur_y_gps;
-    double ring_x = cos(gps_heading)*lidar_depth+cur_x_gps;
-    double min_wall_distance = 60 / meters_to_inches; //72 - 60 = 12 inches from wall is min
+    double ring_y = sin(final_angle)*lidar_depth+cur_y;
 
-    double balance_threshold = 6 / meters_to_inches; //how close we want to allow our bot to get to the balance
-    double balance_corner_x = (50.5 - balance_threshold) / meters_to_inches;
+    double ring_x = cos(final_angle)*lidar_depth+cur_x;
+    lcd::print(1, "%f, %f", (float)ring_x, (float)ring_y);
+    lcd::print(2, "%f", (float)final_angle);
+
+
+    double temp_dist = 12;//inches away from wall
+    double min_wall_distance = (70.5-temp_dist) / meters_to_inches;
+
+    double balance_threshold = 4; //how close we want to allow our bot to get to the balance in inches
     double balance_corner_y = (27 + balance_threshold) / meters_to_inches;
+    double balance_corner_x = ((70.5-23) - balance_threshold) / meters_to_inches;
 
     // There is probably a more concise way to write this but it works so whatever.
 
-    bool under_balance = (-ring_y >= -balance_corner_y && ring_y >= -balance_corner_y) && (ring_x >= balance_corner_x || -ring_x >= balance_corner_x);
+    bool under_balance = (abs(ring_y) <= balance_corner_y) && (abs(ring_x) >= balance_corner_x);
+    lcd::print(5, "%f, %f", balance_corner_x, balance_corner_y);
 
-    bool too_close_to_wall = -ring_y>=min_wall_distance || ring_y>=min_wall_distance || -ring_x >= min_wall_distance || ring_x >= min_wall_distance;
+    bool too_close_to_wall = abs(ring_y)>=min_wall_distance || abs(ring_x) >= min_wall_distance;
 
-    double east_intersect_val = ((ring_y-cur_y_gps)/(ring_x-cur_x_gps))*(balance_corner_x - cur_x_gps) + cur_y_gps;
-    bool intersects_balance_east = balance_corner_y >= east_intersect_val && balance_corner_y >= -east_intersect_val;
-    double west_intersect_val = ((ring_y-cur_y_gps)/(ring_x-cur_x_gps))*(-balance_corner_x - cur_x_gps) + cur_y_gps;
-    bool intersects_balance_west = balance_corner_y >= west_intersect_val && balance_corner_y >= -west_intersect_val;
-    bool intersects_balance = intersects_balance_east || intersects_balance_west;
+    if(!under_balance && !too_close_to_wall)
+    {
+      //define the line that connects the points in mx+b
 
-    bool opposite_sides = cur_y_gps >= 0 && -ring_y >= 0;
-    bool across_balance = (cur_x_gps >= balance_corner_x && ring_x >= balance_corner_x && opposite_sides) || 
-                          (-cur_x_gps >= balance_corner_x && -ring_x >= balance_corner_x && opposite_sides);
-    
-    return false;//too_close_to_wall || under_balance || intersects_balance || across_balance;
+      lcd::print(3, "%s", "LINE PROGRAM");
+
+      bool east_intersects = false;
+      bool west_intersects = false;
+      bool north_intersects = false;
+      bool south_intersects = false;
+      double m = (ring_y-cur_y)/(ring_x-cur_x);
+      double b = cur_y - m*cur_x;
+
+      bool east_possible = (cur_x < balance_corner_x && ring_x > balance_corner_x) || (cur_x > balance_corner_x && ring_x<balance_corner_x);
+      if(east_possible)
+      {
+        double east_intersect_val = m*balance_corner_x+b;//would be a y coord val
+        east_intersects = east_intersect_val<= balance_corner_y && east_intersect_val >= -balance_corner_y;
+      }
+      bool west_possible = (cur_x < -balance_corner_x && ring_x > -balance_corner_x) || (cur_x > -balance_corner_x && ring_x < -balance_corner_x);
+      if(west_possible)
+      {
+        double west_intersect_val = m*(-balance_corner_x)+b;
+        west_intersects = west_intersect_val <= balance_corner_y && west_intersect_val >= -balance_corner_y;
+      }
+      bool north_possible = (cur_y < balance_corner_y && ring_y > balance_corner_y) || (cur_y > balance_corner_y && ring_y<balance_corner_y);
+      if(north_possible)
+      {
+        double north_intersect_val = (balance_corner_y - b)/m;
+        north_intersects = north_intersect_val >= balance_corner_x || north_intersect_val <= -balance_corner_x;
+      }
+      bool south_possible = (cur_y > -balance_corner_y && ring_y < -balance_corner_y)||(cur_y<-balance_corner_y && ring_y>-balance_corner_y);
+      if(south_possible)
+      {
+        double south_intersect_val = (-balance_corner_y-b)/m;
+        south_intersects = south_intersect_val >= balance_corner_x || south_intersect_val <= -balance_corner_x;
+      }
+      return north_intersects || south_intersects || east_intersects || west_intersects;
+
+    }
+    else{lcd::print(3, "%s", "NOT LINE PROGRAM"); return true;}
 }
 
 void Robot::mogo_receive(vector<float> det)
@@ -215,6 +254,9 @@ void Robot::mogo_receive(vector<float> det)
 
   double lidar_depth = std::max((double)det[0], (double)0.2);
   double angle = det[1];
+    
+  gridMapper->map([x, y, angle], {"mogo", [lidar_depth, angle]}; 
+  //aight idk if this is right
 
   double coefficient;
 
@@ -233,8 +275,6 @@ void Robot::ring_receive(vector<float> det) {
 
     double lidar_depth = std::max((double)det[0], (double)0.2);
     double angle = det[1];
-
-    lcd::print(4, "%f, %f, %f", float(angle), float(imu_val), float(last_heading));
 
     turn_in_place = false;
     double temp = last_heading + angle;
@@ -322,7 +362,6 @@ void Robot::drive(void *ptr) {
         else lift = 0;
 
         mecanum(power, strafe, turn);
-        for (int i = 0; i < 4; i++) {if(i==0)lcd::print(3, "MOVING?: %s", is_moving_gps(power,strafe,127,20) ? "yes" : "no");}
         delay(5);
     }
 }
@@ -398,9 +437,12 @@ void Robot::depth_angler(void *ptr){
         }
         delay(5);
     }
-    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#stop#true#");
+
+    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#stop#true#@#");
     conveyor = 0;
     stop = true;
+    new_y = (float)y;
+    new_x = (float)x;
     kill_task("ANGLER");
 }
 
@@ -457,26 +499,15 @@ void Robot::fps(void *ptr) {
 
 //must be run before using any cur or last gps variables
 void Robot::gps_fps(void *ptr){
-    int i = 0;
     while (true){
         last_x_gps = (double)cur_x_gps;
         last_y_gps = (double)cur_y_gps;
         pros::c::gps_status_s cur_status = gps.get_status();
         cur_x_gps = cur_status.x;
         cur_y_gps = cur_status.y;
-        cur_pitch_gps = cur_status.pitch;
-        cur_roll_gps = cur_status.roll;
-        cur_yaw_gps = cur_status.yaw;
-        cur_heading_gps = gps.get_heading();
+        gps.get_heading() <= 180 ? cur_heading_gps = 180-gps.get_heading() : cur_heading_gps = 540-gps.get_heading();
         //lcd::print(1, "Y: %f - X: %f", (float)(cur_y_gps), (float)(cur_x_gps));
         //lcd::print(2, "Heading: %f", (float)cur_heading_gps);
-        if(i % 10 == 0) {
-            last_x_gps_slow = (double)cur_x_gps_slow;
-            last_y_gps_slow = (double)cur_y_gps_slow;
-            cur_x_gps_slow = (double)cur_x_gps;
-            cur_y_gps_slow = (double)cur_y_gps;
-        }
-        i++;
         delay(20);
     }
 }
@@ -490,22 +521,41 @@ void Robot::gps_fps(void *ptr){
 void Robot::move_to_gps(void *ptr) {
     while (true)
     {
-        double angle_adjust = 0;
-        if (cur_heading_gps+90 >= 360) angle_adjust = -270;
-        else angle_adjust = 90;
 
-        double phi = (cur_heading_gps+angle_adjust) * pi / 180;
+        double phi = cur_heading_gps * pi / 180;
+        double gps_error;
+        double cur_heading_gps2 = cur_heading_gps-360;
 
-        double gps_error = new_heading_gps - cur_heading_gps;
+        // Lets bot chose shortest path rather than going clockwise/counterclockwise when turning.
+        lcd::print(2, "first: %f", (float)std::abs(new_heading_gps-cur_heading_gps));
+        lcd::print(3, "second: %f", (float)std::abs(new_heading_gps-cur_heading_gps2));
+        if(std::abs(new_heading_gps-cur_heading_gps)<std::abs(new_heading_gps-cur_heading_gps2)){
+            gps_error = new_heading_gps - cur_heading_gps;
+        }
+        else{
+            gps_error = new_heading_gps - cur_heading_gps2;
+        }
         double y_error = (new_y_gps - cur_y_gps) * meters_to_inches * inches_to_encoder;
         double x_error = (new_x_gps - cur_x_gps) * meters_to_inches * inches_to_encoder;
 
-        double power = power_PD.get_value(y_error * std::cos(phi) + x_error * std::sin(phi));
-        double strafe = strafe_PD.get_value(x_error * std::cos(phi) - y_error * std::sin(phi));
+        double power = power_PD.get_value(y_error * std::cos(phi) - x_error * std::sin(phi));
+        double strafe = strafe_PD.get_value(x_error * std::cos(phi) + y_error * std::sin(phi));
         double turn = turn_PD.get_value(gps_error);
 
+
+        //lcd::print(4, "%f, %f, %f", gps_error, turn, power);
+
+        //Lowers speed of turning when close to ideal heading.
+        if(std::abs(power)<=15){
+            if(std::abs(power)<=5){
+                new_heading_gps = (float)cur_heading_gps;
+                turn = 0;
+                power = 0;
+            }
+            turn *= 0.01;
+            power *= 0.01;
+        }
         mecanum(power, strafe, turn, 127);
-        is_moving = is_moving_gps(power, strafe, 127, 5);
 
         delay(5);
     }
@@ -535,20 +585,27 @@ void Robot::move_to(void *ptr)
 
 
 //threshold can and should be adjusted if return value is inacurate
-bool Robot::is_moving_gps(int power, int strafe, int max_power, int this_delay) {
-
-    double raw_speed = abs((double)power) + abs((double)strafe);
-    double theoretical_speed = ((raw_speed > max_power) ? max_power : raw_speed) / 127; //this could maybe be multiplied by some constant, but max speed is pretty close to 1 anyways
-    double actual_speed = sqrt(pow(abs(last_x_gps_slow - cur_x_gps_slow), 2) + pow(abs(last_y_gps_slow - cur_y_gps_slow), 2)) * (double)(1000/200); //distance formula
-    double threshold = 0.3;
-    if (actual_speed > theoretical_speed * threshold) return true;
-    else return false;
-
+void Robot::is_moving_gps(int power, int strafe, int max_power, int this_delay) {
+    while(true)
+    {
+        double last_x_gps_slow = cur_x_gps;
+        double last_y_gps_slow = cur_y_gps;
+        delay(200);
+        double cur_x_gps_slow = cur_x_gps;
+        double cur_y_gps_slow = cur_y_gps;
+        
+        double raw_speed = abs((double)power) + abs((double)strafe);
+        double theoretical_speed = ((raw_speed > max_power) ? max_power : raw_speed) / 127; //this could maybe be multiplied by some constant, but max speed is pretty close to 1 anyways
+        double actual_speed = sqrt(pow(abs(last_x_gps_slow - cur_x_gps_slow), 2) + pow(abs(last_y_gps_slow - cur_y_gps_slow), 2)) * (double)(1000/200); //distance formula
+        double threshold = 0.3;
+        if (actual_speed > theoretical_speed * threshold) is_moving = true;
+        else is_moving = false;
+    }
 }
 
 void Robot::is_moving_print(void *ptr) {
     while(true) {
-        lcd::print(3, "MOVING?: %s", is_moving_gps(0,0,0,0) ? "yes" : "no");
+        lcd::print(3, "MOVING?: %s", is_moving ? "yes" : "no");
     }
 }
 
@@ -586,7 +643,14 @@ void Robot::kill_task(std::string name) {
         tasks.erase(name);
     }
 }
+/*
+void Robot::test(void *ptr) {
 
+    new_y_gps = 1;
+    new_x_gps = 0;
+    
+
+}*/
 
 void Robot::mecanum(int power, int strafe, int turn, int max_power) {
 
