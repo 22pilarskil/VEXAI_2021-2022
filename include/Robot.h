@@ -78,9 +78,6 @@ class Robot{
 		static void receive_data(nlohmann::json msg);
 		static void dummy(nlohmann::json msg);
 
-		static bool invalid_det(std::vector<float> det, double cur_x_gps, double cur_y_gps, double gps_heading);
-		static vector<vector<float>> pred_id(vector<vector<float>> pred, int id);
-		static vector<vector<float>> get_pred(nlohmann::json msg);
 		static void drive(void *ptr);
 		static void check_depth(void *ptr);
 		static void depth_angler(void *ptr);
@@ -88,7 +85,6 @@ class Robot{
 		static void fps(void *ptr);
         static void gps_fps(void *ptr);
         static void move_to_gps(void *ptr);
-        static void test(void *ptr);
 
 		static void move_to(void *ptr);
 		static void is_moving_gps(int power, int strafe, int max_speed, int this_delay);

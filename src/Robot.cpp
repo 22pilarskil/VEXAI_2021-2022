@@ -1,6 +1,7 @@
 
 #include "main.h"
 #include "Robot.h"
+#include "system/Data.h"
 #include "system/json.hpp"
 #include "system/Serial.h"
 #include "PD.h"
@@ -91,34 +92,23 @@ GridMapper* gridMapper = new GridMapper();
 std::map<std::string, std::unique_ptr<pros::Task>> Robot::tasks;
 
 
-std::vector<int> find_location(std::string sample, char find){
-    std::vector<int> character_locations;
-    for(int i = 0; i < sample.size(); i++){
-        if (sample[i] == find){
-            character_locations.push_back(i);
-        }
-    }
-    return character_locations;
-}
-
-
 void Robot::receive_data(nlohmann::json msg)
 {
     if (stop) return;
     started = true;
-    vector<vector<float>> pred = get_pred(msg);
+    vector<vector<float>> pred = Data::get_pred(msg);
     if (mode.compare("mogo") == 0){
-        vector<vector<float>> mogos = pred_id(pred, 0);
+        vector<vector<float>> mogos = Data::pred_id(pred, 0);
         for (vector<float> det : mogos){
             mogo_receive(det);
             continue;
         }
     }
     if (mode.compare("ring") == 0){
-        vector<vector<float>> rings = pred_id(pred, 1);
+        vector<vector<float>> rings = Data::pred_id(pred, 1);
         for (vector<float> det : rings){
             det[0] += 0.2;
-            if (invalid_det(det, cur_x_gps, cur_y_gps, cur_heading_gps)) {
+            if (Data::invalid_det(det, cur_x_gps, cur_y_gps, cur_heading_gps)) {
                 continue;
             }
             ring_receive(det);
@@ -131,13 +121,13 @@ void Robot::receive_data(nlohmann::json msg)
 
 
 void Robot::dummy(nlohmann::json msg){
-    vector<vector<float>> pred = get_pred(msg);
+    vector<vector<float>> pred = Data::get_pred(msg);
     int valid = 0;
     int invalid = 0;
-    vector<vector<float>> rings = pred_id(pred, 1);
+    vector<vector<float>> rings = Data::pred_id(pred, 1);
     for (vector<float> det : rings){
         det[0] += 0.2;
-        if (invalid_det(det, last_x_gps, last_y_gps, last_phi_gps)) {
+        if (Data::invalid_det(det, last_x_gps, last_y_gps, last_phi_gps)) {
             invalid += 1;
         }
         else {
@@ -149,112 +139,7 @@ void Robot::dummy(nlohmann::json msg){
 
 }
 
-vector<vector<float>> Robot::pred_id(vector<vector<float>> pred, int id)
-{
-    vector<vector<float>> tp;
-    for(vector<float> curr:pred){
-        if(curr[2]==id){
-            tp.push_back(curr);
-        }
-    }
-    return tp;
-}
 
-vector<vector<float>> Robot::get_pred(nlohmann::json msg){
-    string s = msg.dump();
-    s = s.substr(1, s.size()-2);
-    string delimiter = "|";
-    vector<vector<float>> pred;
-    size_t pos = 0;
-    string token;
-    while ((pos = s.find(delimiter)) != string::npos) {
-        token = s.substr(0, pos);
-        s.erase(0, pos + delimiter.length());
-        vector<float> read_curr;
-        string delimiter2 = ",";
-
-        size_t pos2 = 0;
-        string token2;
-        while ((pos2 = token.find(delimiter2)) != std::string::npos) {
-            token2 = token.substr(0, pos2);
-            token.erase(0, pos2 + delimiter2.length());
-            read_curr.push_back(float(std::stod(token2)));
-        }
-        pred.push_back(read_curr);
-    }
-    return pred;
-}
-
-bool Robot::invalid_det(std::vector<float> det, double cur_x, double cur_y, double gps_heading)
-{
-    gps_heading = gps_heading*pi/180;//to radians
-    double lidar_depth = det[0];
-    double angle = det[1];
-    double final_angle = gps_heading - angle*pi/180;
-    final_angle < 0 ? final_angle = 360 + final_angle : final_angle = final_angle;//angle that connects ring and bot
-
-    double ring_y = sin(final_angle)*lidar_depth+cur_y;
-
-    double ring_x = cos(final_angle)*lidar_depth+cur_x;
-    lcd::print(4, "%f, %f", (float)ring_x, (float)ring_y);
-    lcd::print(5, "%f %f", (float)lidar_depth, (float)angle);
-
-
-    double temp_dist = 12;//inches away from wall
-    double min_wall_distance = (70.5-temp_dist) / meters_to_inches;
-
-    double balance_threshold = 4; //how close we want to allow our bot to get to the balance in inches
-    double balance_corner_y = (27 + balance_threshold) / meters_to_inches;
-    double balance_corner_x = ((70.5-23) - balance_threshold) / meters_to_inches;
-
-    // There is probably a more concise way to write this but it works so whatever.
-
-    bool under_balance = (abs(ring_y) <= balance_corner_y) && (abs(ring_x) >= balance_corner_x);
-
-    bool too_close_to_wall = abs(ring_y)>=min_wall_distance || abs(ring_x) >= min_wall_distance;
-
-    if(!under_balance && !too_close_to_wall)
-    {
-      //define the line that connects the points in mx+b
-
-      lcd::print(3, "%s", "LINE PROGRAM");
-
-      bool east_intersects = false;
-      bool west_intersects = false;
-      bool north_intersects = false;
-      bool south_intersects = false;
-      double m = (ring_y-cur_y)/(ring_x-cur_x);
-      double b = cur_y - m*cur_x;
-
-      bool east_possible = (cur_x < balance_corner_x && ring_x > balance_corner_x) || (cur_x > balance_corner_x && ring_x<balance_corner_x);
-      if(east_possible)
-      {
-        double east_intersect_val = m*balance_corner_x+b;//would be a y coord val
-        east_intersects = east_intersect_val<= balance_corner_y && east_intersect_val >= -balance_corner_y;
-      }
-      bool west_possible = (cur_x < -balance_corner_x && ring_x > -balance_corner_x) || (cur_x > -balance_corner_x && ring_x < -balance_corner_x);
-      if(west_possible)
-      {
-        double west_intersect_val = m*(-balance_corner_x)+b;
-        west_intersects = west_intersect_val <= balance_corner_y && west_intersect_val >= -balance_corner_y;
-      }
-      bool north_possible = (cur_y < balance_corner_y && ring_y > balance_corner_y) || (cur_y > balance_corner_y && ring_y<balance_corner_y);
-      if(north_possible)
-      {
-        double north_intersect_val = (balance_corner_y - b)/m;
-        north_intersects = north_intersect_val >= balance_corner_x || north_intersect_val <= -balance_corner_x;
-      }
-      bool south_possible = (cur_y > -balance_corner_y && ring_y < -balance_corner_y)||(cur_y<-balance_corner_y && ring_y>-balance_corner_y);
-      if(south_possible)
-      {
-        double south_intersect_val = (-balance_corner_y-b)/m;
-        south_intersects = south_intersect_val >= balance_corner_x || south_intersect_val <= -balance_corner_x;
-      }
-      return north_intersects || south_intersects || east_intersects || west_intersects;
-
-    }
-    else{lcd::print(3, "%s", "NOT LINE PROGRAM"); return true;}
-}
 
 void Robot::mogo_receive(vector<float> det)
 {
@@ -524,15 +409,13 @@ void Robot::fps(void *ptr) {
 //must be run before using any cur or last gps variables
 void Robot::gps_fps(void *ptr){
     while (true){
-        last_x_gps = (double)cur_x_gps;
-        last_y_gps = (double)cur_y_gps;
         pros::c::gps_status_s cur_status = gps.get_status();
         cur_x_gps = cur_status.x;
         cur_y_gps = cur_status.y;
         gps.get_heading() <= 180 ? cur_heading_gps = 180-gps.get_heading() : cur_heading_gps = 540-gps.get_heading();
         lcd::print(1, "Y: %f - X: %f", (float)(cur_y_gps), (float)(cur_x_gps));
         lcd::print(2, "Heading: %f", (float)cur_heading_gps);
-        delay(20);
+        delay(5);
     }
 }
 
@@ -693,8 +576,3 @@ void Robot::mecanum(int power, int strafe, int turn, int max_power) {
     BRB = powers[3] * scalar;
 }
 
-void Robot::test(void *ptr) {
-    new_y_gps = 1;
-    new_x_gps = 0;
-    
-}
