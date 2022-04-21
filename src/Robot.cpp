@@ -94,9 +94,22 @@ std::map<std::string, std::unique_ptr<pros::Task>> Robot::tasks;
 
 void Robot::receive_data(nlohmann::json msg)
 {
+    double position_temp[] = {gps.get_status().x*meters_to_inches + 72, gps.get_status().y*meters_to_inches + 72, pi/4};
+    std::map<std::string, std::vector<double*>> objects;
+    string names[] = {"ring", "mogo"};
     if (stop) return;
     started = true;
     vector<vector<float>> pred = Data::get_pred(msg);
+    
+    for (vector<float> det : objects) {
+        double location[] = {det[0] * meters_to_inches, det[1]*-1/180*pi};
+        objects[names[det[2]]].push_back(location);
+    }
+    
+    double position_temp[] = {gps.get_status().x*meters_to_inches + 72, gps.get_status().y*meters_to_inches + 72, pi/4};
+    gridMapper->map(position_temp, objects); 
+    
+    
     if (mode.compare("mogo") == 0){
         vector<vector<float>> mogos = Data::pred_id(pred, 0);
         for (vector<float> det : mogos){
@@ -157,9 +170,6 @@ void Robot::mogo_receive(vector<float> det)
 
   double lidar_depth = std::max((double)det[0], (double)0.2);
   double angle = det[1];
-    
-  //gridMapper->map([x, y, angle], {"mogo", [lidar_depth, angle]}); 
-  //aight idk if this is right
 
   double coefficient;
 
