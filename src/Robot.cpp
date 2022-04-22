@@ -42,7 +42,7 @@ ADIAnalogIn Robot::lift_pot(3);
 ADIDigitalOut Robot::angler_piston(2);
 ADIDigitalOut Robot::lift_piston(1);
 ADIUltrasonic Robot::ring_ultrasonic(5, 6);
-Gps Robot::gps(4);
+Gps Robot::gps(5);
 Imu Robot::IMU(12);
 Distance Robot::angler_dist(21);
 Distance Robot::mogo_dist(15);
@@ -68,7 +68,7 @@ std::atomic<double> Robot::last_x_gps = 0;
 std::atomic<double> Robot::last_y_gps = 0;
 std::atomic<double> Robot::last_phi_gps = 0;
 
-std::atomic<bool> Robot::is_moving = false;
+std::atomic<int> Robot::stagnant = 0;
 
 std::string Robot::mode;
 bool Robot::stop = false;
@@ -85,6 +85,10 @@ double seconds_per_frame = 0.20;
 int failed_update = 0;
 double last_heading = 0;
 bool started = false;
+std::atomic<bool> resetting = false;
+std::string move_to_mode = "fps";
+std::atomic<int> move_to_count = 0;
+std::atomic<int> move_to_gps_count = 0;
 
 GridMapper* gridMapper = new GridMapper();
 
@@ -101,18 +105,21 @@ void Robot::receive_data(nlohmann::json msg)
     started = true;
     vector<vector<float>> pred = Data::get_pred(msg);
     
-    for (vector<float> det : objects) {
-        double location[] = {det[0] * meters_to_inches, det[1]*-1/180*pi};
-        objects[names[det[2]]].push_back(location);
-    }
+    // for (vector<double> det : objects) {
+    //     double location[] = {det[0] * meters_to_inches, det[1]*-1/180*pi};
+    //     objects[names[det[2]]].push_back(location);
+    // }
     
-    double position_temp[] = {gps.get_status().x*meters_to_inches + 72, gps.get_status().y*meters_to_inches + 72, pi/4};
-    gridMapper->map(position_temp, objects); 
+    // double position_temp[] = {gps.get_status().x*meters_to_inches + 72, gps.get_status().y*meters_to_inches + 72, pi/4};
+    // gridMapper->map(position_temp, objects); 
     
     
     if (mode.compare("mogo") == 0){
         vector<vector<float>> mogos = Data::pred_id(pred, 0);
         for (vector<float> det : mogos){
+            if (Data::invalid_det(det, cur_x_gps, cur_y_gps, cur_heading_gps)) {
+                continue;
+            }
             mogo_receive(det);
             continue;
         }
@@ -125,7 +132,6 @@ void Robot::receive_data(nlohmann::json msg)
                 continue;
             }
             ring_receive(det);
-            lcd::print(4, "ring");
             return;
         }
         lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue_ring#true#");
@@ -160,6 +166,7 @@ void Robot::mogo_receive(vector<float> det)
   failed_update = 0;
   turn_in_place = false;
   chasing_mogo = true;
+  resetting = true;
   flicker = 127;
 
   double angle_threshold = 1;
@@ -186,6 +193,8 @@ void Robot::mogo_receive(vector<float> det)
 
 void Robot::ring_receive(vector<float> det) {
 
+    resetting = true;
+
     double lidar_depth = std::max((double)det[0], (double)0.2);
     double angle = det[1];
 
@@ -207,6 +216,7 @@ void Robot::ring_receive(vector<float> det) {
     lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue_ring#true#");
     turn_in_place = true;
     turn_coefficient = 1;
+    resetting = false;
 
 }
 
@@ -222,6 +232,30 @@ void Robot::receive_fps(nlohmann::json msg){
     last_x_gps = (double)cur_x_gps;
     last_y_gps = (double)cur_y_gps;
     last_phi_gps = (double)cur_heading_gps;
+}
+
+
+void Robot::reset(void *ptr) {
+    stagnant = 0;
+    while (true) {
+        if (stagnant > 10 && resetting){            
+            stagnant = 0;
+            conveyor = 0;
+            move_to_mode = "gps";
+            new_y_gps = cur_y_gps / 2;
+            new_x_gps = cur_x_gps / 2;
+            while (stagnant < 2){
+                lcd::print(5, "resetting");
+                delay(5);
+            }
+            lcd::print(5, "reset");
+            lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue_ring#true#");
+
+            move_to_mode = "fps";
+            resetting = false;
+        }
+        delay(5);
+    }
 }
 
 
@@ -306,8 +340,7 @@ void Robot::check_depth(void *ptr){
 
     delay(350);
 
-    new_x = (float)x;
-    new_y = (float)y;
+    stay();
 
     flicker = 0;
     chasing_mogo = false;
@@ -317,6 +350,7 @@ void Robot::check_depth(void *ptr){
     lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#camera#l515_front#");
     mode = "ring";
     turn_in_place = true;
+    resetting = false;
     kill_task("DEPTH");
 }
 
@@ -344,25 +378,35 @@ void Robot::depth_angler(void *ptr){
             angler = depth_coefficient * (angler_dist.get() - depth_threshold);
         }
         if (depth_average < 130 && depth_vals.size() == 100){
-            kill_task("MOVETO");
             lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#stop#true#@#");
+            resetting = false;
             conveyor = 0;
             stop = true;
-            new_y = (float)y;
-            new_x = (float)x;
-            heading = (float)imu_val;
-            delay(250);
-            while (angler_pot.get_value() < 2150){
-                angler = -127;
-            }
+
+            move_to_mode = "gps";
+            new_y_gps = 0;
+            new_x_gps = 0;
+            new_heading_gps = 45;
+            
+            stagnant = 0;
+            while (stagnant < 5) delay(5);
+
+
+            new_y_gps = -1.2;
+            new_x_gps = 1.2;
+
+            stagnant = 0;
+            while (stagnant < 5) delay(5);
+            stay();
+
+            while (angler_pot.get_value() < 2300) angler = -127;
+
             angler = 0;
             angler_piston.set_value(false);
             break;
         }
         delay(5);
     }
-
-    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#stop#true#@#");
     kill_task("ANGLER");
 }
 
@@ -424,7 +468,7 @@ void Robot::gps_fps(void *ptr){
         pros::c::gps_status_s cur_status = gps.get_status();
         cur_x_gps = cur_status.x;
         cur_y_gps = cur_status.y;
-        gps.get_heading() <= 180 ? cur_heading_gps = 180-gps.get_heading() : cur_heading_gps = 540-gps.get_heading();
+        cur_heading_gps = gps.get_heading();
         lcd::print(1, "Y: %f - X: %f", (float)(cur_y_gps), (float)(cur_x_gps));
         lcd::print(2, "Heading: %f", (float)cur_heading_gps);
         delay(5);
@@ -440,40 +484,28 @@ void Robot::gps_fps(void *ptr){
 void Robot::move_to_gps(void *ptr) {
     while (true)
     {
-
+        if (!(move_to_mode.compare("gps") == 0)) {
+            delay(5);
+            continue;
+        }
+        move_to_gps_count = (int)move_to_gps_count + 1;
         double phi = cur_heading_gps * pi / 180;
         double gps_error;
-        double cur_heading_gps2 = cur_heading_gps-360;
+        double cur_heading_gps2 = cur_heading_gps - 360;
 
-        // Lets bot chose shortest path rather than going clockwise/counterclockwise when turning.
-        lcd::print(2, "first: %f", (float)std::abs(new_heading_gps-cur_heading_gps));
-        lcd::print(3, "second: %f", (float)std::abs(new_heading_gps-cur_heading_gps2));
-        if(std::abs(new_heading_gps-cur_heading_gps)<std::abs(new_heading_gps-cur_heading_gps2)){
+        if(std::abs(new_heading_gps-cur_heading_gps) < std::abs(new_heading_gps-cur_heading_gps2)){
             gps_error = new_heading_gps - cur_heading_gps;
         }
         else{
             gps_error = new_heading_gps - cur_heading_gps2;
         }
-        double y_error = (new_y_gps - cur_y_gps) * meters_to_inches * inches_to_encoder;
-        double x_error = (new_x_gps - cur_x_gps) * meters_to_inches * inches_to_encoder;
+        double y_error = -(new_y_gps - cur_y_gps) * meters_to_inches * inches_to_encoder;
+        double x_error = -(new_x_gps - cur_x_gps) * meters_to_inches * inches_to_encoder;
 
-        double power = power_PD.get_value(y_error * std::cos(phi) - x_error * std::sin(phi));
-        double strafe = strafe_PD.get_value(x_error * std::cos(phi) + y_error * std::sin(phi));
+        double power = power_PD.get_value(y_error * std::sin(phi) - x_error * std::cos(phi));
+        double strafe = strafe_PD.get_value(x_error * std::sin(phi) + y_error * std::cos(phi));
         double turn = turn_PD.get_value(gps_error);
 
-
-        //lcd::print(4, "%f, %f, %f", gps_error, turn, power);
-
-        //Lowers speed of turning when close to ideal heading.
-        if(std::abs(power)<=15){
-            if(std::abs(power)<=5){
-                new_heading_gps = (float)cur_heading_gps;
-                turn = 0;
-                power = 0;
-            }
-            turn *= 0.01;
-            power *= 0.01;
-        }
         mecanum(power, strafe, turn, 127);
 
         delay(5);
@@ -485,6 +517,11 @@ void Robot::move_to(void *ptr)
 {
     while (true)
     {
+        if (!(move_to_mode.compare("fps") == 0)) {
+            delay(5);
+            continue;
+        }
+        move_to_count = (int)move_to_count + 1;
         double phi = imu_val * pi / 180;
 
         double imu_error = -(imu_val - heading);
@@ -506,7 +543,7 @@ void Robot::move_to(void *ptr)
 //threshold can and should be adjusted if return value is inacurate
 void Robot::is_moving_gps(void *ptr) {
     double xy_threshold = 2;
-    double turn_threshold = 1;
+    double turn_threshold = 0.5;
     while(true)
     {
         double last_x_slow = (float)x;
@@ -519,20 +556,17 @@ void Robot::is_moving_gps(void *ptr) {
 
         double xy_diff = abs(last_x_slow - cur_x_slow) + abs(last_y_slow - cur_y_slow);
         double turn_diff = cur_heading_slow - last_heading_slow;
-        lcd::print(5, "%f %f", (float)xy_diff, (float)turn_diff);
-        lcd::print(6, "%f %f %f %f", last_x_slow, last_y_slow, cur_x_slow, cur_y_slow);
 
-        if (xy_diff > xy_threshold || turn_diff > turn_threshold) is_moving = true;
-        else is_moving = false;
+        if (xy_diff < xy_threshold && turn_diff < turn_threshold) stagnant = (int)stagnant + 1;
+        else stagnant = 0;
     }
 }
 
 
 void Robot::display(void *ptr){
     while (true){
-        // lcd::print(1, "X: %d, Y: %d, IMU: %d", (int)x, (int)y, (int)imu_val);
-        // lcd::print(2, "nX: %d, nY: %d", (int)new_x, (int)new_y);
-        lcd::print(3, "MOVING?: %s", is_moving ? "yes" : "no");
+        lcd::print(6, "MOVETO %d MOVETOGPS %d", (int)move_to_count, (int)move_to_gps_count);
+        lcd::print(3, "STAGNANT: %d", (int)stagnant);
         delay(5);
     }
 }
@@ -556,8 +590,6 @@ void Robot::kill_task(std::string name) {
 
 void Robot::mecanum(int power, int strafe, int turn, int max_power) {
 
-    if (stop) return;
-
     int powers[] {
         power + strafe + turn,
         power - strafe - turn,
@@ -579,5 +611,15 @@ void Robot::mecanum(int power, int strafe, int turn, int max_power) {
     FRB = powers[1] * scalar;
     BLB = powers[2] * scalar;
     BRB = powers[3] * scalar;
+}
+
+void Robot::stay(){
+    new_y = (float)y;
+    new_x = (float)x;
+    heading = (float)imu_val;
+
+    new_x_gps = (float)cur_x_gps;
+    new_y_gps = (float)cur_y_gps;
+    new_heading_gps = gps.get_heading();
 }
 

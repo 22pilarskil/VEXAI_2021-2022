@@ -8,6 +8,8 @@ using namespace pros;
 void opcontrol() {
 
 
+
+
 	std::string mode = "full";
 	int slot = 1;
 	lcd::initialize();
@@ -29,28 +31,25 @@ void opcontrol() {
 
 		lib7405x::Serial::Instance()->onReceive("whole_data", Robot::receive_data);
 		Robot::start_task("MOVETO", Robot::move_to);
+		Robot::start_task("MOVETOGPS", Robot::move_to_gps);
 
 	}
 
 	if (slot == 2){
-		Robot::start_task("DRIVE", Robot::drive);
-	}
-
-	if (slot == 3){
 		lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#camera#l515_front#@#");
 		Robot::start_task("DRIVE", Robot::drive);
 		lib7405x::Serial::Instance()->onReceive("whole_data", Robot::dummy);
 	}
 
+	if (slot == 3){
+		Robot::start_task("RESET", Robot::reset);
+	}
+
 	lib7405x::Serial::Instance()->onReceive("fps", Robot::receive_fps);
 	Robot::start_task("GPS", Robot::gps_fps);
-	// Robot::start_task("MOVETOGPS", Robot::move_to_gps);
-
 	Robot::start_task("FPS", Robot::fps);
 	Robot::start_task("DISPLAY", Robot::display);
 	Robot::start_task("MOVING", Robot::is_moving_gps);
-	Robot::new_y_gps = 1;
-    Robot::new_x_gps = 0;
 
 
 

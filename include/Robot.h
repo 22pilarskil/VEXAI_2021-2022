@@ -61,7 +61,7 @@ class Robot{
 		static std::atomic<double> new_x_gps;
         static std::atomic<double> new_y_gps;
         static std::atomic<double> new_heading_gps;
-        static std::atomic<bool> is_moving;
+        static std::atomic<int> stagnant;
 
         static std::string mode;
         static bool stop;
@@ -85,6 +85,7 @@ class Robot{
 		static void fps(void *ptr);
         static void gps_fps(void *ptr);
         static void move_to_gps(void *ptr);
+        static void reset(void *ptr);
 
 		static void move_to(void *ptr);
 		static void is_moving_gps(void *ptr);
@@ -93,6 +94,7 @@ class Robot{
 		static void start_task(std::string name, void (*func)(void *));
 		static bool task_exists(std::string name);
 		static void kill_task(std::string name);
+		static void stay();
 
 		static void mecanum(int power, int strafe, int turn, int max_power=127);
 };
