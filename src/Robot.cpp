@@ -97,65 +97,106 @@ std::vector<int> find_location(std::string sample, char find){
     return character_locations;
 }
 
-
-void Robot::receive_mogo(nlohmann::json msg) {
-    failed_update = 0;
-    turn_in_place = false;
-    chasing_mogo = true;
-    flicker = 127;
-
-    double angle_threshold = 1;
-    turn_coefficient = 2;
-
-    if (!task_exists("DEPTH")) start_task("DEPTH", Robot::check_depth);
-
-    string msgS = msg.dump(); 
-    std::size_t found = msgS.find(",");
-
-    double lidar_depth = max(std::stod(msgS.substr(1, found - 1)), 0.2);
-    double angle = std::stod(msgS.substr(found + 1, msgS.size() - found - 1));
-
-    double coefficient;
-
-    if (abs(angle) > angle_threshold) coefficient = 300 * lidar_depth * (0.20 / seconds_per_frame);
-    else if (abs(angle) < angle_threshold && chasing_mogo == true) coefficient = 600;
-
-    heading = imu_val + angle;
-    new_y = y + coefficient * cos(heading / 180 * pi);
-    new_x = x - coefficient * sin(heading / 180 * pi);
-
-    delay(5);
-    turn_coefficient = 1;
+void Robot::receive_data(nlohmann::json msg)
+{
+    double position_temp[] = {gps.get_status().x*meters_to_inches + 72, gps.get_status().y*meters_to_inches + 72, pi/4};
+    std::map<std::string, std::vector<double*>> objects;
+    string names[] = {"ring", "mogo"};
+    if (stop) return;
+    started = true;
+    vector<vector<float>> pred = Data::get_pred(msg);
+    
+    // for (vector<double> det : objects) {
+    //     double location[] = {det[0] * meters_to_inches, det[1]*-1/180*pi};
+    //     objects[names[det[2]]].push_back(location);
+    // }
+    
+    // double position_temp[] = {gps.get_status().x*meters_to_inches + 72, gps.get_status().y*meters_to_inches + 72, pi/4};
+    // gridMapper->map(position_temp, objects); 
+    
+    
+    if (mode.compare("mogo") == 0){
+        vector<vector<float>> mogos = Data::pred_id(pred, 0);
+        for (vector<float> det : mogos){
+            if (Data::invalid_det(det, cur_x_gps, cur_y_gps, cur_heading_gps)) {
+                continue;
+            }
+            mogo_receive(det);
+            continue;
+        }
+    }
+    if (mode.compare("ring") == 0){
+        vector<vector<float>> rings = Data::pred_id(pred, 1);
+        for (vector<float> det : rings){
+            det[0] += 0.2;
+            if (Data::invalid_det(det, cur_x_gps, cur_y_gps, cur_heading_gps)) {
+                continue;
+            }
+            ring_receive(det);
+            return;
+        }
+        lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue_ring#true#");
+    }
 }
 
 
-void Robot::receive_ring(nlohmann::json msg) {
+
+void Robot::receive_mogo(vector<float> det) {
+    //copy and pasted, changed to work with the attributes given by receive_data
+      failed_update = 0;
+      turn_in_place = false;
+      chasing_mogo = true;
+      resetting = true;
+      flicker = 127;
+
+      double angle_threshold = 1;
+      turn_coefficient = 3;
+
+      if (!task_exists("DEPTH")) start_task("DEPTH", Robot::check_depth);
+
+
+      double lidar_depth = std::max((double)det[0], (double)0.2);
+      double angle = det[1];
+
+      double coefficient;
+
+      if (abs(angle) > angle_threshold) coefficient = 300 * lidar_depth * (0.20 / seconds_per_frame);
+      else if (abs(angle) < angle_threshold && chasing_mogo == true) coefficient = 600;
+
+      heading = imu_val + angle;
+      new_y = y + coefficient * cos(heading / 180 * pi);
+      new_x = x - coefficient * sin(heading / 180 * pi);
+
+      delay(5);
+      turn_coefficient = 1;
+}
+
+
+void Robot::receive_ring(vector<float> det) {
+    resetting = true;
+
+    double lidar_depth = std::max((double)det[0], (double)0.2);
+    double angle = det[1];
+
     turn_in_place = false;
-    heading = last_heading;
+    double temp = last_heading + angle;
+    heading = (angle > 0) ? last_heading + 60 : last_heading - 60;
+    while(abs(temp - imu_val) > 1) delay(5);
     turn_coefficient = 3;
-    while(abs(heading - imu_val) > 3) delay(5);
-
+    heading = temp;
     conveyor = -127;
-    string msgS = msg.dump();
-    std::size_t found = msgS.find(",");
-
-    double lidar_depth = std::stod(msgS.substr(1, found - 1));
-    double angle = std::stod(msgS.substr(found + 1, msgS.size() - found - 1));
-    double coefficient = lidar_depth * meters_to_inches * inches_to_encoder + 300;
+    double coefficient = lidar_depth * meters_to_inches * inches_to_encoder;
     double angle_threshold = 1;
-    double target_heading = imu_val + angle;
-    heading = target_heading;
-    while (abs(imu_val - target_heading) > 3) delay(5);
 
     new_y = y - coefficient * cos(heading / 180 * pi);
     new_x = x + coefficient * sin(heading / 180 * pi);
-    while (abs(new_y - y) > 100 or abs(new_x - x) > 100) delay(5);
-
-    conveyor = 0;
+    while (abs(new_y - y) > 100 || abs(new_x - x) > 100) delay(5);
     delay(500);
 
-    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#");
+    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue_ring#true#");
     turn_in_place = true;
+    turn_coefficient = 1;
+    resetting = false;
 }
 
 void Robot::receive_fps(nlohmann::json msg){
