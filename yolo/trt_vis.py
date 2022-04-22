@@ -21,18 +21,18 @@ parser.add_argument("--camera", metavar="camera", type=str, default="l515_back")
 
 args = parser.parse_args()
 whole_str = ""
-names = ["red-mogo","yellow-mogo", "blue-mogo", "unknown_color", "ring"]
+names = ["mogo", "ring"]
 model = Model("models/weights/best_yolov5n.engine")
 conf_thres = .4
 
 cameras = {
     'l515_front': {
-        'id': 'f1180887',
-        'flip': True,
+        'id': 'f1181409',
+        'flip': False,
         },
     'l515_back': {
-        'id': 'f1181848',
-        'flip': True,
+        'id': 'f1181409',
+        'flip': False,
         },
     }
 
@@ -54,11 +54,6 @@ try:
         pred = torch.column_stack((pred, torch.ones(len(pred))))
 
         for i, det in enumerate(pred):
-            if(det[5] == 0): # COLOR
-                pred[i, 5] = determine_color(det, color_image)
-            else:
-                pred[i, 5] = 3
-
             pred[i, 6] = determine_depth(det, depth_image) * depth_frame.get_units()
         try:
             pred = torch.stack(quicksort(pred))
@@ -80,16 +75,15 @@ try:
             if(not math.isnan(det[6]) and not math.isnan(turn_angle)):
                 depth = str(round(float(det[6]), 3))
                 turn_angle = str(round(float(turn_angle), 3))
-                class_id = str(int(det[5])) if int(det[5]) == 3 else str(0)
-                if int(class_id) == 3: contains_ring = True
+                class_id = str(int(det[5]))
+                if int(class_id) == 1: contains_ring = True
                 whole_str += depth + "," + turn_angle + "," + class_id + ",|"
-        print(whole_str)
 
 
         if args.display:
             for det in pred:
-                color_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(5, True))
-                depth_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(5, True))
+                color_annotator.box_label(det[:4], f'{names[int(det[5])]} {det[4]:.2f}', color=colors(int(det[5]), True))
+                depth_annotator.box_label(det[:4], f'{names[int(det[5])]} {det[4]:.2f}', color=colors(int(det[5]), True))
             color_image, depth_colormap = color_annotator.result(), depth_annotator.result()
             images = np.hstack((color_image, depth_colormap))
             cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)

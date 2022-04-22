@@ -13,7 +13,7 @@ cameras = {
         }
     }
 
-camera = 'l515_front'
+camera = 'l515_back'
 cam = Camera(cameras, camera)
 
 current_time = time.time()
