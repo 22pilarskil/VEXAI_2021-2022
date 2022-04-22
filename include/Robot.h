@@ -87,9 +87,7 @@ class Robot{
         static void move_to_gps(void *ptr);
 
 		static void move_to(void *ptr);
-		static void is_moving_gps(int power, int strafe, int max_speed, int this_delay);
-		static void is_moving_print(void *ptr);
-		static void controller_print(void *ptr);
+		static void is_moving_gps(void *ptr);
 		static void display(void *ptr);
 
 		static void start_task(std::string name, void (*func)(void *));

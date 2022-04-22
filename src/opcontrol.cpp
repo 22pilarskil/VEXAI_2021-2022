@@ -48,7 +48,7 @@ void opcontrol() {
 
 	Robot::start_task("FPS", Robot::fps);
 	Robot::start_task("DISPLAY", Robot::display);
-	Robot::start_task("CONTROLLER", Robot::controller_print);
+	Robot::start_task("MOVING", Robot::is_moving_gps);
 	Robot::new_y_gps = 1;
     Robot::new_x_gps = 0;
 

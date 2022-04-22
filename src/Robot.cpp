@@ -308,7 +308,6 @@ void Robot::check_depth(void *ptr){
     mode = "ring";
     turn_in_place = true;
     kill_task("DEPTH");
-    kill_task("MOVETO");
 }
 
 
@@ -335,6 +334,13 @@ void Robot::depth_angler(void *ptr){
             angler = depth_coefficient * (angler_dist.get() - depth_threshold);
         }
         if (depth_average < 130 && depth_vals.size() == 100){
+            kill_task("MOVETO");
+            lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#stop#true#@#");
+            conveyor = 0;
+            stop = true;
+            new_y = (float)y;
+            new_x = (float)x;
+            heading = (float)imu_val;
             delay(250);
             while (angler_pot.get_value() < 2150){
                 angler = -127;
@@ -347,11 +353,6 @@ void Robot::depth_angler(void *ptr){
     }
 
     lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#stop#true#@#");
-    conveyor = 0;
-    stop = true;
-    new_y = (float)y;
-    new_x = (float)x;
-    heading = (float)imu_val;
     kill_task("ANGLER");
 }
 
@@ -363,7 +364,6 @@ void Robot::imu_clamp(void *ptr){
         if (abs(imu_val - rotation) < 10) offset = 0;
         else if (rotation > imu_val) offset = -360;
         else if (rotation < imu_val) offset = 360;
-
         imu_val = rotation + offset;
         delay(5);
     }
@@ -371,11 +371,13 @@ void Robot::imu_clamp(void *ptr){
 
 
 void Robot::fps(void *ptr) {
+
     double last_x = 0;
     double last_y = 0;
     double last_phi = 0;
     double turn_offset_x = 0;
     double turn_offset_y = 0;
+
     while (true) {
         double cur_phi = imu_val / 180 * pi;
         double dphi = cur_phi - last_phi;
@@ -492,35 +494,26 @@ void Robot::move_to(void *ptr)
 
 
 //threshold can and should be adjusted if return value is inacurate
-void Robot::is_moving_gps(int power, int strafe, int max_power, int this_delay) {
+void Robot::is_moving_gps(void *ptr) {
+    double xy_threshold = 2;
+    double turn_threshold = 1;
     while(true)
     {
-        double last_x_gps_slow = cur_x_gps;
-        double last_y_gps_slow = cur_y_gps;
+        double last_x_slow = (float)x;
+        double last_y_slow = (float)y;
+        double last_heading_slow = gps.get_heading();
         delay(200);
-        double cur_x_gps_slow = cur_x_gps;
-        double cur_y_gps_slow = cur_y_gps;
-        
-        double raw_speed = abs((double)power) + abs((double)strafe);
-        double theoretical_speed = ((raw_speed > max_power) ? max_power : raw_speed) / 127; //this could maybe be multiplied by some constant, but max speed is pretty close to 1 anyways
-        double actual_speed = sqrt(pow(abs(last_x_gps_slow - cur_x_gps_slow), 2) + pow(abs(last_y_gps_slow - cur_y_gps_slow), 2)) * (double)(1000/200); //distance formula
-        double threshold = 0.3;
-        if (actual_speed > theoretical_speed * threshold) is_moving = true;
+        double cur_x_slow = (float)x;
+        double cur_y_slow = (float)y;
+        double cur_heading_slow = gps.get_heading();
+
+        double xy_diff = abs(last_x_slow - cur_x_slow) + abs(last_y_slow - cur_y_slow);
+        double turn_diff = cur_heading_slow - last_heading_slow;
+        lcd::print(5, "%f %f", (float)xy_diff, (float)turn_diff);
+        lcd::print(6, "%f %f %f %f", last_x_slow, last_y_slow, cur_x_slow, cur_y_slow);
+
+        if (xy_diff > xy_threshold || turn_diff > turn_threshold) is_moving = true;
         else is_moving = false;
-    }
-}
-
-void Robot::is_moving_print(void *ptr) {
-    while(true) {
-        lcd::print(3, "MOVING?: %s", is_moving ? "yes" : "no");
-    }
-}
-
-
-void Robot::controller_print(void *ptr){
-    while (true){
-        master.print(1, 0, "lift pot %d", lift_pot.get_value());
-        delay(100);
     }
 }
 
@@ -529,7 +522,7 @@ void Robot::display(void *ptr){
     while (true){
         // lcd::print(1, "X: %d, Y: %d, IMU: %d", (int)x, (int)y, (int)imu_val);
         // lcd::print(2, "nX: %d, nY: %d", (int)new_x, (int)new_y);
-        lcd::print(3, "%d %d", angler_dist.get(), ring_ultrasonic.get_value());
+        lcd::print(3, "MOVING?: %s", is_moving ? "yes" : "no");
         delay(5);
     }
 }
@@ -552,6 +545,8 @@ void Robot::kill_task(std::string name) {
 }
 
 void Robot::mecanum(int power, int strafe, int turn, int max_power) {
+
+    if (stop) return;
 
     int powers[] {
         power + strafe + turn,
