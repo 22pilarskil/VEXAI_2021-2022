@@ -3,7 +3,9 @@
 #include "Robot.h"
 #include "system/json.hpp"
 #include "system/Serial.h"
+#include "system/Data.h"
 #include "PD.h"
+#include "GridMapper.cpp"
 #include <map>
 #include <cmath>
 #include <atomic>
@@ -72,6 +74,9 @@ std::atomic<double> Robot::last_x_gps_slow = 0;
 std::atomic<double> Robot::last_y_gps_slow = 0;
 std::atomic<bool> Robot::is_moving = false;
 
+std::string Robot::mode;
+
+
 double Robot::offset_back = 5.25;
 double Robot::offset_middle = 7.625;
 double Robot::wheel_circumference = 2.75 * pi;
@@ -85,6 +90,8 @@ int failed_update = 0;
 double last_heading = 0;
 
 std::map<std::string, std::unique_ptr<pros::Task>> Robot::tasks;
+
+GridMapper* gridMapper = new GridMapper();
 
 
 std::vector<int> find_location(std::string sample, char find){
@@ -106,12 +113,11 @@ void Robot::receive_data(nlohmann::json msg)
     //     started = true;
     std:vector<std::vector<float>> pred = Data::get_pred(msg);
     
-    for (std::vector<double> det : objects) {
-        double location[] = {det[0] * meters_to_inches, det[1]*-1/180*pi};
-       objects[names[det[2]]].push_back(location);
+    for (std::vector<float> det : pred) {
+        double location[] = {(double)det[0] * meters_to_inches, (double)det[1]*-1/180*pi};
+        objects[names[(int)det[2]]].push_back(location);
     }
     
-    double position_temp[] = {gps.get_status().x*meters_to_inches + 72, gps.get_status().y*meters_to_inches + 72, pi/4};
     gridMapper->map(position_temp, objects); 
 
     for (int i = 2; i <= 6; i++) { // TEST CODE
@@ -131,18 +137,18 @@ void Robot::receive_data(nlohmann::json msg)
             if (Data::invalid_det(det, cur_x_gps, cur_y_gps, cur_heading_gps)) {
                 continue;
             }
-            mogo_receive(det);
+            receive_mogo(det);
             continue;
         }
     }
     if (mode.compare("ring") == 0){
-        vector<vector<float>> rings = Data::pred_id(pred, 1);
-        for (vector<float> det : rings){
+        std::vector<std::vector<float>> rings = Data::pred_id(pred, 1);
+        for (std::vector<float> det : rings){
             det[0] += 0.2;
             if (Data::invalid_det(det, cur_x_gps, cur_y_gps, cur_heading_gps)) {
                 continue;
             }
-            ring_receive(det);
+            receive_ring(det);
             return;
         }
         lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue_ring#true#");
@@ -151,12 +157,12 @@ void Robot::receive_data(nlohmann::json msg)
 
 
 
-void Robot::receive_mogo(vector<float> det) {
+void Robot::receive_mogo(std::vector<float> det) {
     //copy and pasted, changed to work with the attributes given by receive_data
       failed_update = 0;
       turn_in_place = false;
       chasing_mogo = true;
-      resetting = true;
+      // resetting = true;
       flicker = 127;
 
       double angle_threshold = 1;
@@ -182,8 +188,8 @@ void Robot::receive_mogo(vector<float> det) {
 }
 
 
-void Robot::receive_ring(vector<float> det) {
-    resetting = true;
+void Robot::receive_ring(std::vector<float> det) {
+    //resetting = true;
 
     double lidar_depth = std::max((double)det[0], (double)0.2);
     double angle = det[1];
@@ -206,7 +212,7 @@ void Robot::receive_ring(vector<float> det) {
     lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue_ring#true#");
     turn_in_place = true;
     turn_coefficient = 1;
-    resetting = false;
+    // resetting = false;
 }
 
 void Robot::receive_fps(nlohmann::json msg){

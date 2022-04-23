@@ -65,13 +65,15 @@ class Robot{
         static std::atomic<double> new_heading_gps;
         static std::atomic<bool> is_moving;
 
+        static std::string mode;
+
 		static double offset_back;
 		static double offset_middle;
 		static double wheel_circumference;
 		static std::map<std::string, std::unique_ptr<pros::Task>> tasks;
-		static void Robot::receive_data(nlohmann::json msg);
-		static void receive_mogo(vector<float> det);
-		static void receive_ring(vector<float> det);
+		static void receive_data(nlohmann::json msg);
+		static void receive_mogo(std::vector<float> det);
+		static void receive_ring(std::vector<float> det);
 		static void receive_fps(nlohmann::json msg);
 		static void drive(void *ptr);
 		static void check_depth(void *ptr);
