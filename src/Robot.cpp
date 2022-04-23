@@ -22,6 +22,8 @@ PD Robot::power_PD(.4, 0, 0);
 PD Robot::strafe_PD(.4, 0, 0);
 PD Robot::turn_PD(1.0, 0, 0);
 
+pros::Link radio_transmitter(2,"LINK1", pros::E_LINK_TRANSMITTER);
+pros::Link radio_receiver(3, "LINK2", pros::E_LINK_RECIEVER);
 Motor Robot::BRB(1, true);
 Motor Robot::BRT(3);
 Motor Robot::BLT(10, true);
@@ -96,8 +98,61 @@ GridMapper* gridMapper = new GridMapper();
 
 
 std::map<std::string, std::unique_ptr<pros::Task>> Robot::tasks;
+void radio_send(void* x)
+{
+  while(!radio_receiver.connected() || !radio_transmitter.connected())//wait for connection to be established
+  {
+    delay(5);
+  }
+  int* signal_1;
+  *signal_1 = 0;
+  int* signal_2;
+  *signal_2 = 0;
+  while(*signal_1 == 0)
+  {
+    radio_transmitter.transmit((void*)(sizeof(&x)*sizeof(x)), sizeof(1));//send over the message's size in bytes(always an int)
+    radio_receiver.receive((void*)signal_1, sizeof(1));//receive the first checkpoint signal
+  }
+  while(*signal_2==0)
+  {
+    radio_transmitter.transmit((void*)x, sizeof(&x)*sizeof(x));//send the real message
+    radio_receiver.receive((void*)signal_2, sizeof(1));//receive the second checkpoint signal to confirm the other received message
+  }
+}
+
+void* radio_receive()
+{
+  while(!radio_receiver.connected() || !radio_transmitter.connected())//wait for connection to be established
+  {
+    delay(5);
+  }
+
+  void* received;
+  void* compare = received;
+  int size_of_received = -1;
+  int* temp = &size_of_received;
 
 
+  int signal = 5;
+  int* signal_1 = &signal;
+  int signal_ = 8;
+  int* signal_2 = &signal_;
+  while(size_of_received == -1)
+  {
+    radio_receiver.receive((void*)temp, sizeof(1));//attempt to receive size of data, wait for it to be num
+  }
+  radio_transmitter.transmit((void*) signal_1, sizeof(1));//send first checkpoint
+  int counter = 0;
+  while(counter<10)
+  {
+    radio_receiver.receive((void*)received, size_of_received);//attempt to receive the data, give it 10 attempts
+    counter++;
+    delay(3);
+  }
+
+  radio_transmitter.transmit((void*)signal_2, sizeof(1));//send second checkpoint
+  return received;
+}
 void Robot::receive_data(nlohmann::json msg)
 {
     double position_temp[] = {gps.get_status().x*meters_to_inches + 72, gps.get_status().y*meters_to_inches + 72, pi/4};
@@ -108,16 +163,16 @@ void Robot::receive_data(nlohmann::json msg)
     stagnant = 0;
     resetting = true;
     vector<vector<float>> pred = Data::get_pred(msg);
-    
+
     // for (vector<double> det : objects) {
     //     double location[] = {det[0] * meters_to_inches, det[1]*-1/180*pi};
     //     objects[names[det[2]]].push_back(location);
     // }
-    
+
     // double position_temp[] = {gps.get_status().x*meters_to_inches + 72, gps.get_status().y*meters_to_inches + 72, pi/4};
-    // gridMapper->map(position_temp, objects); 
-    
-    
+    // gridMapper->map(position_temp, objects);
+
+
     if (mode.compare("mogo") == 0){
         vector<vector<float>> mogos = Data::pred_id(pred, 0);
         for (vector<float> det : mogos){
@@ -228,7 +283,7 @@ void Robot::receive_fps(nlohmann::json msg){
     double seconds_per_frame = std::stod(msg.dump());
     lcd::print(7, "Seconds per frame: %f", seconds_per_frame);
     last_heading = imu_val;
-    if (turn_in_place){ 
+    if (turn_in_place){
             heading = imu_val + 30;
     }
     if (chasing_mogo) failed_update += 1;
@@ -241,7 +296,7 @@ void Robot::receive_fps(nlohmann::json msg){
 void Robot::reset(void *ptr) {
     stagnant = 0;
     while (true) {
-        if (stagnant > 10 && resetting){            
+        if (stagnant > 10 && resetting){
             stagnant = 0;
             conveyor = 0;
             move_to_mode = 1;
@@ -390,7 +445,7 @@ void Robot::depth_angler(void *ptr){
             new_y_gps = 0;
             new_x_gps = 0;
             new_heading_gps = 135;
-            
+
             stagnant = 0;
             while (stagnant < 5) {
                 delay(5);
@@ -630,4 +685,3 @@ void Robot::stay(){
     new_y_gps = (float)cur_y_gps;
     new_heading_gps = gps.get_heading();
 }
-

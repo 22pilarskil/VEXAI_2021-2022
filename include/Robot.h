@@ -77,6 +77,8 @@ class Robot{
 		static void mogo_receive(std::vector<float> det);
 		static void receive_data(nlohmann::json msg);
 		static void dummy(nlohmann::json msg);
+		static void radio_send(void* msg);
+		static void* radio_receive();
 
 		static void drive(void *ptr);
 		static void check_depth(void *ptr);
