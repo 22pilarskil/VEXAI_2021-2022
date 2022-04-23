@@ -7,6 +7,7 @@
 #include "PD.h"
 #include <map>
 #include <cmath>
+#include <string>
 #include <atomic>
 #include <vector>
 #include <chrono>
@@ -86,9 +87,10 @@ int failed_update = 0;
 double last_heading = 0;
 bool started = false;
 std::atomic<bool> resetting = false;
-std::string move_to_mode = "fps";
+std::atomic<int> move_to_mode = 0; //0 = fps, 1 = gps
 std::atomic<int> move_to_count = 0;
 std::atomic<int> move_to_gps_count = 0;
+int mogo_count = 0;
 
 GridMapper* gridMapper = new GridMapper();
 
@@ -103,6 +105,8 @@ void Robot::receive_data(nlohmann::json msg)
     string names[] = {"ring", "mogo"};
     if (stop) return;
     started = true;
+    stagnant = 0;
+    resetting = true;
     vector<vector<float>> pred = Data::get_pred(msg);
     
     // for (vector<double> det : objects) {
@@ -120,9 +124,11 @@ void Robot::receive_data(nlohmann::json msg)
             if (Data::invalid_det(det, cur_x_gps, cur_y_gps, cur_heading_gps)) {
                 continue;
             }
-            mogo_receive(det);
-            continue;
+            mogo_count += 1;
+            if (mogo_count > 1 || chasing_mogo) mogo_receive(det);
+            return;
         }
+        mogo_count = 0;
     }
     if (mode.compare("ring") == 0){
         vector<vector<float>> rings = Data::pred_id(pred, 1);
@@ -132,9 +138,9 @@ void Robot::receive_data(nlohmann::json msg)
                 continue;
             }
             ring_receive(det);
-            return;
+            break;
         }
-        lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue_ring#true#");
+        lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue_ring#true#@#");
     }
 }
 
@@ -164,9 +170,9 @@ void Robot::mogo_receive(vector<float> det)
 {
   //copy and pasted, changed to work with the attributes given by receive_data
   failed_update = 0;
+  move_to_mode = 0;
   turn_in_place = false;
   chasing_mogo = true;
-  resetting = true;
   flicker = 127;
 
   double angle_threshold = 1;
@@ -193,11 +199,10 @@ void Robot::mogo_receive(vector<float> det)
 
 void Robot::ring_receive(vector<float> det) {
 
-    resetting = true;
 
     double lidar_depth = std::max((double)det[0], (double)0.2);
     double angle = det[1];
-
+    move_to_mode = 0;
     turn_in_place = false;
     double temp = last_heading + angle;
     heading = (angle > 0) ? last_heading + 60 : last_heading - 60;
@@ -213,10 +218,8 @@ void Robot::ring_receive(vector<float> det) {
     while (abs(new_y - y) > 100 || abs(new_x - x) > 100) delay(5);
     delay(500);
 
-    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue_ring#true#");
     turn_in_place = true;
     turn_coefficient = 1;
-    resetting = false;
 
 }
 
@@ -225,7 +228,7 @@ void Robot::receive_fps(nlohmann::json msg){
     double seconds_per_frame = std::stod(msg.dump());
     lcd::print(7, "Seconds per frame: %f", seconds_per_frame);
     last_heading = imu_val;
-    if (turn_in_place){
+    if (turn_in_place){ 
             heading = imu_val + 30;
     }
     if (chasing_mogo) failed_update += 1;
@@ -241,18 +244,18 @@ void Robot::reset(void *ptr) {
         if (stagnant > 10 && resetting){            
             stagnant = 0;
             conveyor = 0;
-            move_to_mode = "gps";
+            move_to_mode = 1;
             new_y_gps = cur_y_gps / 2;
             new_x_gps = cur_x_gps / 2;
-            while (stagnant < 2){
+            while (stagnant < 5){
                 lcd::print(5, "resetting");
                 delay(5);
             }
             lcd::print(5, "reset");
-            lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue_ring#true#");
-
-            move_to_mode = "fps";
-            resetting = false;
+            stay();
+            lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue_ring#true#@#");
+            move_to_mode = 0;
+            stagnant = 0;
         }
         delay(5);
     }
@@ -347,7 +350,7 @@ void Robot::check_depth(void *ptr){
     angler_piston.set_value(true);
     delay(250);
     start_task("ANGLER", Robot::depth_angler);
-    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#camera#l515_front#");
+    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#camera#l515_front#@#");
     mode = "ring";
     turn_in_place = true;
     resetting = false;
@@ -378,28 +381,33 @@ void Robot::depth_angler(void *ptr){
             angler = depth_coefficient * (angler_dist.get() - depth_threshold);
         }
         if (depth_average < 130 && depth_vals.size() == 100){
-            lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#stop#true#@#");
+
             resetting = false;
             conveyor = 0;
             stop = true;
 
-            move_to_mode = "gps";
+            move_to_mode = 1;
             new_y_gps = 0;
             new_x_gps = 0;
-            new_heading_gps = 45;
+            new_heading_gps = 135;
             
             stagnant = 0;
-            while (stagnant < 5) delay(5);
-
+            while (stagnant < 5) {
+                delay(5);
+                angler = depth_coefficient * (angler_dist.get() - depth_threshold);
+            }
 
             new_y_gps = -1.2;
-            new_x_gps = 1.2;
+            new_x_gps = -1.2;
 
             stagnant = 0;
-            while (stagnant < 5) delay(5);
+            while (stagnant < 5) {
+                delay(5);
+                angler = depth_coefficient * (angler_dist.get() - depth_threshold);
+            }
             stay();
 
-            while (angler_pot.get_value() < 2300) angler = -127;
+            while (angler_pot.get_value() < 2300) angler = -(2300 - angler_pot.get_value());
 
             angler = 0;
             angler_piston.set_value(false);
@@ -484,7 +492,7 @@ void Robot::gps_fps(void *ptr){
 void Robot::move_to_gps(void *ptr) {
     while (true)
     {
-        if (!(move_to_mode.compare("gps") == 0)) {
+        if (move_to_mode != 1) {
             delay(5);
             continue;
         }
@@ -517,7 +525,7 @@ void Robot::move_to(void *ptr)
 {
     while (true)
     {
-        if (!(move_to_mode.compare("fps") == 0)) {
+        if (move_to_mode != 0) {
             delay(5);
             continue;
         }
@@ -542,7 +550,7 @@ void Robot::move_to(void *ptr)
 
 //threshold can and should be adjusted if return value is inacurate
 void Robot::is_moving_gps(void *ptr) {
-    double xy_threshold = 2;
+    double xy_threshold = 20;
     double turn_threshold = 0.5;
     while(true)
     {

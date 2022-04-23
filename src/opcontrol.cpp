@@ -10,7 +10,7 @@ void opcontrol() {
 
 
 
-	std::string mode = "full";
+	std::string mode = "mogo";
 	int slot = 1;
 	lcd::initialize();
 	serial_initialize();
@@ -24,14 +24,16 @@ void opcontrol() {
 			Robot::mode = "ring";
 			lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#camera#l515_front#@#");
 		}
-		if (mode.compare("full") == 0){
+		if (mode.compare("mogo") == 0){
 			Robot::mode = "mogo";
 			lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#camera#l515_back#@#");
 		}
 
 		lib7405x::Serial::Instance()->onReceive("whole_data", Robot::receive_data);
 		Robot::start_task("MOVETO", Robot::move_to);
+		Robot::stay();
 		Robot::start_task("MOVETOGPS", Robot::move_to_gps);
+		//Robot::start_task("RESET", Robot::reset);
 
 	}
 
