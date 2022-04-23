@@ -102,22 +102,32 @@ void Robot::receive_data(nlohmann::json msg)
     double position_temp[] = {gps.get_status().x*meters_to_inches + 72, gps.get_status().y*meters_to_inches + 72, pi/4};
     std::map<std::string, std::vector<double*>> objects;
     string names[] = {"ring", "mogo"};
-    if (stop) return;
-    started = true;
-    vector<vector<float>> pred = Data::get_pred(msg);
+    // if (stop) return;
+    //     started = true;
+    std:vector<std::vector<float>> pred = Data::get_pred(msg);
     
-    // for (vector<double> det : objects) {
-    //     double location[] = {det[0] * meters_to_inches, det[1]*-1/180*pi};
-    //     objects[names[det[2]]].push_back(location);
-    // }
+    for (std::vector<double> det : objects) {
+        double location[] = {det[0] * meters_to_inches, det[1]*-1/180*pi};
+       objects[names[det[2]]].push_back(location);
+    }
     
-    // double position_temp[] = {gps.get_status().x*meters_to_inches + 72, gps.get_status().y*meters_to_inches + 72, pi/4};
-    // gridMapper->map(position_temp, objects); 
+    double position_temp[] = {gps.get_status().x*meters_to_inches + 72, gps.get_status().y*meters_to_inches + 72, pi/4};
+    gridMapper->map(position_temp, objects); 
+
+    for (int i = 2; i <= 6; i++) { // TEST CODE
+       std::string print_string = "";
+       for (int j = 0; j < 6; j++) {
+          print_string += ("%i:%i  ", (i + 6 * j), gridMapper->getBox((i + 6 * j))["mogo"]);
+          print_string += (std::to_string((i-1) * 6 + j + 1) + "," + 
+            std::to_string(gridMapper->getBox((i-1) * 6 + j + 1)["mogo"]) + " ");
+       }
+       lcd::print(i, print_string.c_str());
+    } 
     
     
     if (mode.compare("mogo") == 0){
-        vector<vector<float>> mogos = Data::pred_id(pred, 0);
-        for (vector<float> det : mogos){
+        std::vector<std::vector<float>> mogos = Data::pred_id(pred, 0);
+        for (std::vector<float> det : mogos){
             if (Data::invalid_det(det, cur_x_gps, cur_y_gps, cur_heading_gps)) {
                 continue;
             }
