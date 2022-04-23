@@ -31,9 +31,10 @@ void opcontrol() {
 
 		lib7405x::Serial::Instance()->onReceive("whole_data", Robot::receive_data);
 		Robot::start_task("MOVETO", Robot::move_to);
-		Robot::stay();
-		Robot::start_task("MOVETOGPS", Robot::move_to_gps);
-		//Robot::start_task("RESET", Robot::reset);
+		Robot::stay(); //stops the bot moving
+		Robot::start_task("GPS", Robot::gps_fps);
+		//Robot::start_task("MOVETOGPS", Robot::move_to_gps);
+		Robot::start_task("RESET", Robot::reset);
 
 	}
 

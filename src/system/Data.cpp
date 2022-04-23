@@ -63,7 +63,7 @@ bool Data::invalid_det(std::vector<float> det, double cur_x, double cur_y, doubl
     double temp_dist = 12;//inches away from wall
     double min_wall_distance = (70.5-temp_dist) / meters_to_inches;
 
-    double balance_threshold = 4; //how close we want to allow our bot to get to the balance in inches
+    double balance_threshold = 9; //how close we want to allow our bot to get to the balance in inches
     double balance_corner_y = (27 + balance_threshold) / meters_to_inches;
     double balance_corner_x = ((70.5-23) - balance_threshold) / meters_to_inches;
 
@@ -77,7 +77,7 @@ bool Data::invalid_det(std::vector<float> det, double cur_x, double cur_y, doubl
     {
       //define the line that connects the points in mx+b
 
-      lcd::print(3, "%s", "LINE PROGRAM");
+      //lcd::print(3, "%s", "LINE PROGRAM");
 
       bool east_intersects = false;
       bool west_intersects = false;
@@ -113,5 +113,6 @@ bool Data::invalid_det(std::vector<float> det, double cur_x, double cur_y, doubl
       return north_intersects || south_intersects || east_intersects || west_intersects;
 
     }
-    else{lcd::print(3, "%s", "NOT LINE PROGRAM"); return true;}
+    else{//lcd::print(3, "%s", "NOT LINE PROGRAM"); 
+    return true;}
 }

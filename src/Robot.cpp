@@ -120,8 +120,11 @@ void Robot::receive_data(nlohmann::json msg)
     
     if (mode.compare("mogo") == 0){
         vector<vector<float>> mogos = Data::pred_id(pred, 0);
+        int invalids = 0; //num mogos ignored
         for (vector<float> det : mogos){
-            if (Data::invalid_det(det, cur_x_gps, cur_y_gps, cur_heading_gps)) {
+            lcd::print(3, "Invalid mogos: %i", invalids);
+            if (Data::invalid_det(det, cur_x_gps, cur_y_gps, 360-cur_heading_gps)) {
+                invalids++;
                 continue;
             }
             mogo_count += 1;
@@ -132,9 +135,13 @@ void Robot::receive_data(nlohmann::json msg)
     }
     if (mode.compare("ring") == 0){
         vector<vector<float>> rings = Data::pred_id(pred, 1);
+        int invalids = 0;
         for (vector<float> det : rings){
+            //lcd::print(3, "Invalid rings: %i", invalids);
             det[0] += 0.2;
-            if (Data::invalid_det(det, cur_x_gps, cur_y_gps, cur_heading_gps)) {
+            if(Data::invalid_det(det, cur_x_gps, cur_y_gps, fmod(540-cur_heading_gps, 360))) {//opposite camera so have to do different stuff to make it unit circle
+                lcd::print(3, "this heading: %f", (float)fmod(540-cur_heading_gps, 360));
+                invalids++;
                 continue;
             }
             ring_receive(det);
@@ -341,7 +348,7 @@ void Robot::check_depth(void *ptr){
         }
     } while (!(abs(depth_average - mogo_dist.get()) < 1 && (mogo_dist.get() > 0 && mogo_dist.get() < 30)));
 
-    delay(350);
+    delay(100);
 
     stay();
 
@@ -574,7 +581,7 @@ void Robot::is_moving_gps(void *ptr) {
 void Robot::display(void *ptr){
     while (true){
         lcd::print(6, "MOVETO %d MOVETOGPS %d", (int)move_to_count, (int)move_to_gps_count);
-        lcd::print(3, "STAGNANT: %d", (int)stagnant);
+        //lcd::print(3, "STAGNANT: %d", (int)stagnant);
         delay(5);
     }
 }
