@@ -142,11 +142,13 @@ void Robot::receive_data(nlohmann::json msg)
         for (vector<float> det : rings){
             //lcd::print(3, "Invalid rings: %i", invalids);
             det[0] += 0.2;
+
             if(Data::invalid_det(det, last_x_gps, last_y_gps, fmod(540-last_phi_gps, 360))) {//opposite camera so have to do different stuff to make it unit circle
                 lcd::print(3, "this heading: %f", (float)fmod(540-cur_heading_gps, 360));
                 invalids++;
                 continue;
             }
+
             ring_receive(det);
             break;
         }
@@ -170,7 +172,7 @@ void Robot::dummy(nlohmann::json msg){
         }
 
     }
-    lcd::print(6, "VALID %d INVALID %d", valid, invalid);
+    //lcd::print(6, "VALID %d INVALID %d", valid, invalid);
     lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue_ring#true#@#");
 
 }
@@ -209,14 +211,14 @@ void Robot::mogo_receive(vector<float> det)
 
 void Robot::ring_receive(vector<float> det) {
 
-
+    resetting = true;
     double lidar_depth = std::max((double)det[0], (double)0.2);
     double angle = det[1];
     move_to_mode = 0;
     turn_in_place = false;
     double temp = last_heading + angle;
     heading = (angle > 0) ? last_heading + 60 : last_heading - 60;
-    while(abs(temp - imu_val) > 1) delay(5);
+    while(abs(temp - imu_val) > 1 && stagnant < 10) delay(5);
     turn_coefficient = 3;
     heading = temp;
     conveyor = -127;
@@ -225,11 +227,12 @@ void Robot::ring_receive(vector<float> det) {
 
     new_y = y - coefficient * cos(heading / 180 * pi);
     new_x = x + coefficient * sin(heading / 180 * pi);
-    while (abs(new_y - y) > 100 || abs(new_x - x) > 100) delay(5);
+    while ((abs(new_y - y) > 100 || abs(new_x - x) > 100) && stagnant < 10) delay(5);
     delay(500);
 
     turn_in_place = true;
     turn_coefficient = 1;
+    resetting = false;
 
 }
 
@@ -255,12 +258,15 @@ void Robot::reset(void *ptr) {
     stagnant = 0;
     while (true) {
         if (stagnant > 10 && resetting){
+            delay(50);
             stagnant = 0;
             conveyor = 0;
             move_to_mode = 1;
+            stay();
             new_y_gps = cur_y_gps / 2;
             new_x_gps = cur_x_gps / 2;
-            while (stagnant < 5){
+            while (!(abs(new_x_gps - cur_x_gps) < .1 && abs(new_y_gps - cur_y_gps) < .1)){
+                lcd::print(4, "%s",std::to_string(resetting));
                 lcd::print(5, "resetting");
                 delay(5);
             }
@@ -276,7 +282,10 @@ void Robot::reset(void *ptr) {
             turn_in_place = true;
             move_to_mode = 0;
             stagnant = 0;
+            resetting = false;
         }
+        lcd::print(5, "not resetting");
+
         delay(5);
     }
 }
@@ -430,9 +439,10 @@ void Robot::depth_angler(void *ptr){
                 angler = depth_coefficient * (angler_dist.get() - depth_threshold);
             }
             stay();
+            move_to_mode = 0;
 
             //release mogo
-            while (angler_pot.get_value() < 2300) angler = -(2300 - angler_pot.get_value());
+            while (angler_pot.get_value() < 2150) angler = -(2150 - angler_pot.get_value());
 
             angler = 0;
             angler_piston.set_value(false);
@@ -598,8 +608,8 @@ void Robot::is_moving_gps(void *ptr) {
 
 void Robot::display(void *ptr){
     while (true){
-        //lcd::print(6, "MOVETO %d MOVETOGPS %d", (int)move_to_count, (int)move_to_gps_count);
-        //lcd::print(3, "STAGNANT: %d", (int)stagnant);
+        lcd::print(6, "MOVETO %d MOVETOGPS %d", (int)move_to_count, (int)move_to_gps_count);
+        lcd::print(3, "STAGNANT: %d", (int)stagnant);
         delay(5);
     }
 }

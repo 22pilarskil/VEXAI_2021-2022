@@ -57,6 +57,7 @@ bool Data::invalid_det(std::vector<float> det, double cur_x, double cur_y, doubl
     double ring_y = sin(final_angle)*lidar_depth+cur_y;
 
     double ring_x = cos(final_angle)*lidar_depth+cur_x;
+    lcd::print(2, "%f", gps_heading);
     lcd::print(4, "%f, %f", (float)ring_x, (float)ring_y);
     lcd::print(5, "%f %f %f", (float)lidar_depth, (float) angle, (float)final_angle*180/pi);
 
