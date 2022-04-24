@@ -47,17 +47,18 @@ vector<vector<float>> Data::get_pred(nlohmann::json msg){
 
 bool Data::invalid_det(std::vector<float> det, double cur_x, double cur_y, double gps_heading)
 {
-    gps_heading = gps_heading*pi/180;//to radians
+    gps_heading = (gps_heading)*(pi/180);//to radians
     double lidar_depth = det[0];
     double angle = det[1];
-    double final_angle = gps_heading - angle*pi/180;
-    final_angle < 0 ? final_angle = 360 + final_angle : final_angle = final_angle;//angle that connects ring and bot
+    double final_angle = gps_heading - (angle*pi/180);
+    final_angle < 0 ? final_angle = 2*pi + final_angle : final_angle = final_angle;//angle that connects ring and bot
+    final_angle > 2*pi ? final_angle = final_angle - 2*pi : final_angle = final_angle;
 
     double ring_y = sin(final_angle)*lidar_depth+cur_y;
 
     double ring_x = cos(final_angle)*lidar_depth+cur_x;
     lcd::print(4, "%f, %f", (float)ring_x, (float)ring_y);
-    lcd::print(5, "%f %f", (float)lidar_depth, (float)angle);
+    lcd::print(5, "%f %f %f", (float)lidar_depth, (float) angle, (float)final_angle*180/pi);
 
 
     double temp_dist = 12;//inches away from wall
@@ -113,6 +114,6 @@ bool Data::invalid_det(std::vector<float> det, double cur_x, double cur_y, doubl
       return north_intersects || south_intersects || east_intersects || west_intersects;
 
     }
-    else{//lcd::print(3, "%s", "NOT LINE PROGRAM"); 
+    else{//lcd::print(3, "%s", "NOT LINE PROGRAM");
     return true;}
 }

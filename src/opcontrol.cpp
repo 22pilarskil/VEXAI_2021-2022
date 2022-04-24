@@ -6,6 +6,17 @@ using namespace pros;
 /* Creates all tasks required for our Robot's driver control period */
 
 void opcontrol() {
+	lcd::initialize();
+	serial_initialize();
+	delay(100);
+	Robot::start_task("GPS", Robot::gps_fps);
+	Robot::start_task("FPS", Robot::fps);
+	Robot::start_task("DISPLAY", Robot::display);
+	Robot::start_task("MOVING", Robot::is_moving_gps);
+	lib7405x::Serial::Instance()->onReceive("whole_data", Robot::dummy);
+	lib7405x::Serial::Instance()->onReceive("fps", Robot::receive_fps);
+
+	/**
 
 
 
@@ -52,7 +63,8 @@ void opcontrol() {
 	Robot::start_task("GPS", Robot::gps_fps);
 	Robot::start_task("FPS", Robot::fps);
 	Robot::start_task("DISPLAY", Robot::display);
-	Robot::start_task("MOVING", Robot::is_moving);
+	Robot::start_task("MOVING", Robot::is_moving_gps);
+	**/
 
 
 

@@ -110,22 +110,22 @@ void Robot::receive_data(nlohmann::json msg)
     started = true;
     stagnant = 0;
     vector<vector<float>> pred = Data::get_pred(msg);
-    
+
     // for (vector<double> det : objects) {
     //     double location[] = {det[0] * meters_to_inches, det[1]*-1/180*pi};
     //     objects[names[det[2]]].push_back(location);
     // }
-    
+
     // double position_temp[] = {gps.get_status().x*meters_to_inches + 72, gps.get_status().y*meters_to_inches + 72, pi/4};
-    // gridMapper->map(position_temp, objects); 
-    
-    
+    // gridMapper->map(position_temp, objects);
+
+
     if (mode.compare("mogo") == 0){
         vector<vector<float>> mogos = Data::pred_id(pred, 0);
         int invalids = 0; //num mogos ignored
         for (vector<float> det : mogos){
             lcd::print(3, "Invalid mogos: %i", invalids);
-            if (Data::invalid_det(det, cur_x_gps, cur_y_gps, 360-cur_heading_gps)) {
+            if (Data::invalid_det(det, last_x_gps, last_y_gps, 360-last_phi_gps)) {
                 invalids++;
                 continue;
             }
@@ -142,7 +142,7 @@ void Robot::receive_data(nlohmann::json msg)
         for (vector<float> det : rings){
             //lcd::print(3, "Invalid rings: %i", invalids);
             det[0] += 0.2;
-            if(Data::invalid_det(det, cur_x_gps, cur_y_gps, fmod(540-cur_heading_gps, 360))) {//opposite camera so have to do different stuff to make it unit circle
+            if(Data::invalid_det(det, last_x_gps, last_y_gps, fmod(540-last_phi_gps, 360))) {//opposite camera so have to do different stuff to make it unit circle
                 lcd::print(3, "this heading: %f", (float)fmod(540-cur_heading_gps, 360));
                 invalids++;
                 continue;
@@ -162,12 +162,13 @@ void Robot::dummy(nlohmann::json msg){
     vector<vector<float>> rings = Data::pred_id(pred, 1);
     for (vector<float> det : rings){
         det[0] += 0.2;
-        if (Data::invalid_det(det, last_x_gps, last_y_gps, last_phi_gps)) {
+        if (Data::invalid_det(det, last_x_gps, last_y_gps, 360-last_phi_gps)) {
             invalid += 1;
         }
         else {
             valid += 1;
         }
+
     }
     lcd::print(6, "VALID %d INVALID %d", valid, invalid);
     lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue_ring#true#@#");
@@ -233,14 +234,13 @@ void Robot::ring_receive(vector<float> det) {
 }
 
 void Robot::receive_fps(nlohmann::json msg){
-    if (!started) return;
     double seconds_per_frame = std::stod(msg.dump());
     lcd::print(7, "Seconds per frame: %f", seconds_per_frame);
     last_heading = imu_val;
-    if (turn_in_place){ 
+    if (turn_in_place){
             heading = imu_val + 30;
     }
-    if (chasing_mogo) failed_update += 1;
+    if (chasing_mogo) {failed_update += 1;}
     last_x_gps = (double)cur_x_gps;
     last_y_gps = (double)cur_y_gps;
     last_phi_gps = (double)cur_heading_gps;
@@ -248,13 +248,13 @@ void Robot::receive_fps(nlohmann::json msg){
 
 /* Uses the stagnant variable from Robot::is_moving to tell whether the robot hit an obstacle (i.e. ran into a balance)
 If the robot has run into an obstacle, move the robot closer to the center of the field by halving both coordinates so as
-to bring the bot closer to (0, 0). resetting variable is used to keep track of whether or not we actually want to be using 
-this thread. For example, if we are depositing a mogo in a corner or some other action where the bot will not be moving 
+to bring the bot closer to (0, 0). resetting variable is used to keep track of whether or not we actually want to be using
+this thread. For example, if we are depositing a mogo in a corner or some other action where the bot will not be moving
 temporarily, we would set resetting to false so that the if statement is never called */
 void Robot::reset(void *ptr) {
     stagnant = 0;
     while (true) {
-        if (stagnant > 10 && resetting){            
+        if (stagnant > 10 && resetting){
             stagnant = 0;
             conveyor = 0;
             move_to_mode = 1;
@@ -267,9 +267,9 @@ void Robot::reset(void *ptr) {
             lcd::print(5, "reset");
             stay();
 
-            /*After a reset, send a continue_ring signal so that if the robot was going after rings, it starts looking again. If 
-            it was going after mogos, nothing happens. Set chasing_mogo to false to tell the robot it needs to look for a new target, 
-            turn_in_place to true so the robot starts turning once more, and move_to_mode back to 0 so that our fps move_to can take 
+            /*After a reset, send a continue_ring signal so that if the robot was going after rings, it starts looking again. If
+            it was going after mogos, nothing happens. Set chasing_mogo to false to tell the robot it needs to look for a new target,
+            turn_in_place to true so the robot starts turning once more, and move_to_mode back to 0 so that our fps move_to can take
             care of our turning in place. Reset stagnant back to 0 so we don't call reset accidentally again. */
             lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue_ring#true#@#");
             chasing_mogo = false;
@@ -411,7 +411,7 @@ void Robot::depth_angler(void *ptr){
             new_y_gps = 0;
             new_x_gps = 0;
             new_heading_gps = 135;
-            
+
             //make sure bot has stopped moving (aka reached its target)
             stagnant = 0;
             while (stagnant < 5) {
@@ -502,8 +502,8 @@ void Robot::gps_fps(void *ptr){
         cur_x_gps = cur_status.x;
         cur_y_gps = cur_status.y;
         cur_heading_gps = gps.get_heading();
-        lcd::print(1, "Y: %f - X: %f", (float)(cur_y_gps), (float)(cur_x_gps));
-        lcd::print(2, "Heading: %f", (float)cur_heading_gps);
+        lcd::print(1, "X: %f - Y: %f", (float)(last_x_gps), (float)(last_y_gps));
+        //lcd::print(2, "Heading: %f", (float)(360-cur_heading_gps));
         delay(5);
     }
 }
@@ -574,7 +574,7 @@ void Robot::move_to(void *ptr)
 
 
 //threshold can and should be adjusted if return value is inacurate
-void Robot::is_moving(void *ptr) {
+void Robot::is_moving_gps(void *ptr) {
     double xy_threshold = 20;
     double turn_threshold = 0.5;
     while(true)
@@ -598,7 +598,7 @@ void Robot::is_moving(void *ptr) {
 
 void Robot::display(void *ptr){
     while (true){
-        lcd::print(6, "MOVETO %d MOVETOGPS %d", (int)move_to_count, (int)move_to_gps_count);
+        //lcd::print(6, "MOVETO %d MOVETOGPS %d", (int)move_to_count, (int)move_to_gps_count);
         //lcd::print(3, "STAGNANT: %d", (int)stagnant);
         delay(5);
     }
@@ -655,4 +655,3 @@ void Robot::stay(){
     new_y_gps = (float)cur_y_gps;
     new_heading_gps = gps.get_heading();
 }
-
