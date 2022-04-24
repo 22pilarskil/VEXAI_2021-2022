@@ -87,7 +87,10 @@ int failed_update = 0;
 double last_heading = 0;
 bool started = false;
 std::atomic<bool> resetting = false;
+
+//Both move_to threads will be running at the same time, move_to_mode tells the brain which thread we will actually be using
 std::atomic<int> move_to_mode = 0; //0 = fps, 1 = gps
+
 std::atomic<int> move_to_count = 0;
 std::atomic<int> move_to_gps_count = 0;
 int mogo_count = 0;
@@ -106,7 +109,6 @@ void Robot::receive_data(nlohmann::json msg)
     if (stop) return;
     started = true;
     stagnant = 0;
-    resetting = true;
     vector<vector<float>> pred = Data::get_pred(msg);
     
     // for (vector<double> det : objects) {
@@ -127,6 +129,7 @@ void Robot::receive_data(nlohmann::json msg)
                 invalids++;
                 continue;
             }
+            //This is mainly because our model is bad and occaisionally we have isolated mogo detections on empty areas, this forces the bot to detect a mogo at least twice in a row before going after it
             mogo_count += 1;
             if (mogo_count > 1 || chasing_mogo) mogo_receive(det);
             return;
@@ -175,7 +178,6 @@ void Robot::dummy(nlohmann::json msg){
 
 void Robot::mogo_receive(vector<float> det)
 {
-  //copy and pasted, changed to work with the attributes given by receive_data
   failed_update = 0;
   move_to_mode = 0;
   turn_in_place = false;
@@ -244,7 +246,11 @@ void Robot::receive_fps(nlohmann::json msg){
     last_phi_gps = (double)cur_heading_gps;
 }
 
-
+/* Uses the stagnant variable from Robot::is_moving to tell whether the robot hit an obstacle (i.e. ran into a balance)
+If the robot has run into an obstacle, move the robot closer to the center of the field by halving both coordinates so as
+to bring the bot closer to (0, 0). resetting variable is used to keep track of whether or not we actually want to be using 
+this thread. For example, if we are depositing a mogo in a corner or some other action where the bot will not be moving 
+temporarily, we would set resetting to false so that the if statement is never called */
 void Robot::reset(void *ptr) {
     stagnant = 0;
     while (true) {
@@ -260,7 +266,14 @@ void Robot::reset(void *ptr) {
             }
             lcd::print(5, "reset");
             stay();
+
+            /*After a reset, send a continue_ring signal so that if the robot was going after rings, it starts looking again. If 
+            it was going after mogos, nothing happens. Set chasing_mogo to false to tell the robot it needs to look for a new target, 
+            turn_in_place to true so the robot starts turning once more, and move_to_mode back to 0 so that our fps move_to can take 
+            care of our turning in place. Reset stagnant back to 0 so we don't call reset accidentally again. */
             lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue_ring#true#@#");
+            chasing_mogo = false;
+            turn_in_place = true;
             move_to_mode = 0;
             stagnant = 0;
         }
@@ -360,7 +373,6 @@ void Robot::check_depth(void *ptr){
     lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#camera#l515_front#@#");
     mode = "ring";
     turn_in_place = true;
-    resetting = false;
     kill_task("DEPTH");
 }
 
@@ -387,26 +399,31 @@ void Robot::depth_angler(void *ptr){
         if (abs(angler_dist.get() - depth_threshold) <= cap){
             angler = depth_coefficient * (angler_dist.get() - depth_threshold);
         }
+
+        //When a mogo has been filled
         if (depth_average < 130 && depth_vals.size() == 100){
 
-            resetting = false;
             conveyor = 0;
             stop = true;
 
+            //switch to move_to_gps, move to the center of the field
             move_to_mode = 1;
             new_y_gps = 0;
             new_x_gps = 0;
             new_heading_gps = 135;
             
+            //make sure bot has stopped moving (aka reached its target)
             stagnant = 0;
             while (stagnant < 5) {
                 delay(5);
                 angler = depth_coefficient * (angler_dist.get() - depth_threshold);
             }
 
+            //move to corner of the field to deposit mogo
             new_y_gps = -1.2;
             new_x_gps = -1.2;
 
+            //make sure bot has stopped moving (aka reached its target)
             stagnant = 0;
             while (stagnant < 5) {
                 delay(5);
@@ -414,6 +431,7 @@ void Robot::depth_angler(void *ptr){
             }
             stay();
 
+            //release mogo
             while (angler_pot.get_value() < 2300) angler = -(2300 - angler_pot.get_value());
 
             angler = 0;
@@ -556,7 +574,7 @@ void Robot::move_to(void *ptr)
 
 
 //threshold can and should be adjusted if return value is inacurate
-void Robot::is_moving_gps(void *ptr) {
+void Robot::is_moving(void *ptr) {
     double xy_threshold = 20;
     double turn_threshold = 0.5;
     while(true)
