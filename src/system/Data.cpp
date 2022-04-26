@@ -58,14 +58,14 @@ bool Data::invalid_det(std::vector<float> det, double cur_x, double cur_y, doubl
 
     double ring_x = cos(final_angle)*lidar_depth+cur_x;
     lcd::print(2, "%f", gps_heading);
-    lcd::print(4, "%f, %f", (float)ring_x, (float)ring_y);
-    lcd::print(5, "%f %f %f", (float)lidar_depth, (float) angle, (float)final_angle*180/pi);
+    //lcd::print(4, "%f, %f", (float)ring_x, (float)ring_y);
+    //lcd::print(5, "%f %f %f", (float)lidar_depth, (float) angle, (float)final_angle*180/pi);
 
 
-    double temp_dist = 12;//inches away from wall
+    double temp_dist = 18;//inches away from wall
     double min_wall_distance = (70.5-temp_dist) / meters_to_inches;
 
-    double balance_threshold = 9; //how close we want to allow our bot to get to the balance in inches
+    double balance_threshold = 12; //how close we want to allow our bot to get to the balance in inches
     double balance_corner_y = (27 + balance_threshold) / meters_to_inches;
     double balance_corner_x = ((70.5-23) - balance_threshold) / meters_to_inches;
 

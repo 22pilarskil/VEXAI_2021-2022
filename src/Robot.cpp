@@ -69,15 +69,18 @@ std::atomic<double> Robot::last_x_gps = 0;
 std::atomic<double> Robot::last_y_gps = 0;
 std::atomic<double> Robot::last_phi_gps = 0;
 
+
 std::atomic<int> Robot::stagnant = 0;
 
-std::string Robot::mode;
+std::string Robot::mode = "mogo";
 bool Robot::stop = false;
 
 double Robot::offset_back = 5.25;
 double Robot::offset_middle = 7.625;
 double Robot::wheel_circumference = 2.75 * pi;
 
+double Robot::turn_degree = 0;
+double Robot::last_imu_angle = 0;
 
 std::atomic<bool> chasing_mogo = false;
 std::atomic<double> turn_coefficient = 1;
@@ -107,9 +110,11 @@ void Robot::receive_data(nlohmann::json msg)
     std::map<std::string, std::vector<double*>> objects;
     string names[] = {"ring", "mogo"};
     if (stop) return;
+
     started = true;
     stagnant = 0;
     vector<vector<float>> pred = Data::get_pred(msg);
+    if(pred.empty())return;
 
     // for (vector<double> det : objects) {
     //     double location[] = {det[0] * meters_to_inches, det[1]*-1/180*pi};
@@ -221,7 +226,7 @@ void Robot::ring_receive(vector<float> det) {
     while(abs(temp - imu_val) > 1 && stagnant < 10) delay(5);
     turn_coefficient = 3;
     heading = temp;
-    conveyor = -127;
+    conveyor = -80;
     double coefficient = lidar_depth * meters_to_inches * inches_to_encoder;
     double angle_threshold = 1;
 
@@ -241,12 +246,55 @@ void Robot::receive_fps(nlohmann::json msg){
     lcd::print(7, "Seconds per frame: %f", seconds_per_frame);
     last_heading = imu_val;
     if (turn_in_place){
-            heading = imu_val + 30;
+        heading = imu_val + 30;
+
     }
     if (chasing_mogo) {failed_update += 1;}
     last_x_gps = (double)cur_x_gps;
     last_y_gps = (double)cur_y_gps;
     last_phi_gps = (double)cur_heading_gps;
+}
+void Robot::reposition(void *ptr)
+{
+  while(true)
+  {
+    if(!turn_in_place)
+    {
+      last_imu_angle = imu_val;
+      turn_degree =0;
+      delay(5);
+    }
+    else if(turn_in_place)
+    {
+      turn_degree += abs(imu_val - last_imu_angle);
+      last_imu_angle = imu_val;
+      lcd::print(4, "%s", std::to_string(turn_degree));
+      if(turn_degree > 360)
+      {
+
+        turn_in_place = false;
+        move_to_mode = 1;
+        new_y_gps = cur_x_gps/2;
+        new_x_gps = cur_x_gps/2;
+        while (!(abs(new_x_gps - cur_x_gps) < 0.1 && abs(new_y_gps - cur_y_gps) < 0.1)){
+            //lcd::print(4, "%s",std::to_string(resetting));
+            lcd::print(5, "repositioning");
+            delay(5);
+        }
+        lcd::print(5, "repositioned");
+        stay();
+        turn_in_place = true;
+        conveyor = 80;
+        move_to_mode = 0;
+        stagnant = 0;
+        turn_degree = 0;
+        last_imu_angle = imu_val;
+        continue;
+      }
+      delay(5);
+    }
+  }
+
 }
 
 /* Uses the stagnant variable from Robot::is_moving to tell whether the robot hit an obstacle (i.e. ran into a balance)
@@ -266,11 +314,11 @@ void Robot::reset(void *ptr) {
             new_y_gps = cur_y_gps / 2;
             new_x_gps = cur_x_gps / 2;
             while (!(abs(new_x_gps - cur_x_gps) < .1 && abs(new_y_gps - cur_y_gps) < .1)){
-                lcd::print(4, "%s",std::to_string(resetting));
-                lcd::print(5, "resetting");
+                //lcd::print(4, "%s",std::to_string(resetting));
+                //lcd::print(5, "resetting");
                 delay(5);
             }
-            lcd::print(5, "reset");
+            //lcd::print(5, "reset");
             stay();
 
             /*After a reset, send a continue_ring signal so that if the robot was going after rings, it starts looking again. If
@@ -284,7 +332,7 @@ void Robot::reset(void *ptr) {
             stagnant = 0;
             resetting = false;
         }
-        lcd::print(5, "not resetting");
+        //lcd::print(5, "not resetting");
 
         delay(5);
     }
@@ -335,8 +383,8 @@ void Robot::drive(void *ptr) {
         if (lift_piston_open) lift_piston.set_value(true);
         else if (lift_piston_close) lift_piston.set_value(false);
 
-        if (conveyor_forward) conveyor = 127;
-        else if (conveyor_backward) conveyor = -127;
+        if (conveyor_forward) conveyor = 80;
+        else if (conveyor_backward) conveyor = -80;
         else conveyor = 0;
 
 
@@ -429,8 +477,8 @@ void Robot::depth_angler(void *ptr){
             }
 
             //move to corner of the field to deposit mogo
-            new_y_gps = -1.2;
-            new_x_gps = -1.2;
+            new_y_gps = -1.1;
+            new_x_gps = -1.1;
 
             //make sure bot has stopped moving (aka reached its target)
             stagnant = 0;
@@ -446,6 +494,7 @@ void Robot::depth_angler(void *ptr){
 
             angler = 0;
             angler_piston.set_value(false);
+            turn_in_place = false;
             break;
         }
         delay(5);
@@ -482,11 +531,11 @@ void Robot::fps(void *ptr) {
         double cur_turn_offset_x = 360 * (offset_back * dphi) / wheel_circumference;
         double cur_turn_offset_y = 360 * (offset_middle * dphi) / wheel_circumference;
 
-        turn_offset_x = (float)turn_offset_x + cur_turn_offset_x;
-        turn_offset_y = (float)turn_offset_y + cur_turn_offset_y;
+
+        //lcd::print(4, "BE %d LE %d RE %d", BE.get_value(), LE.get_value(), RE.get_value());
 
         double cur_y = (RE.get_value() - LE.get_value()) / 2;
-        double cur_x = BE.get_value() + turn_offset_x;
+        double cur_x = BE.get_value();
 
         double dy = cur_y - last_y;
         double dx = cur_x - last_x;

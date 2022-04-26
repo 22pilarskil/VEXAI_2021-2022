@@ -4,6 +4,7 @@
 using namespace pros;
 /* Creates all tasks required for our Robot's driver control period */
 void opcontrol() {
+
 	std::string mode = "mogo";
 	int slot = 1;
 	lcd::initialize();
@@ -28,6 +29,7 @@ void opcontrol() {
 		Robot::start_task("RESET", Robot::reset);
 	}
 	if (slot == 2){
+		Robot::start_task("FPS", Robot::fps);
 		lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#camera#l515_front#@#");
 		Robot::start_task("DRIVE", Robot::drive);
 		lib7405x::Serial::Instance()->onReceive("whole_data", Robot::dummy);
@@ -40,6 +42,8 @@ void opcontrol() {
 	Robot::start_task("FPS", Robot::fps);
 	Robot::start_task("DISPLAY", Robot::display);
 	Robot::start_task("MOVING", Robot::is_moving_gps);
+	Robot::start_task("reposition", Robot::reposition);
+
 
 
 
