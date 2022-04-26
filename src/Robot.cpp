@@ -37,7 +37,7 @@ Motor Robot::lift(8);
 
 ADIEncoder Robot::LE({{16, 5, 6}});
 ADIEncoder Robot::RE({{16, 1, 2}});
-ADIEncoder Robot::BE({{16, 3, 4}});
+ADIEncoder Robot::BE(7, 8);
 ADIAnalogIn Robot::angler_pot({{16, 8}});
 ADIAnalogIn Robot::lift_pot(3);
 ADIDigitalOut Robot::angler_piston(2);
@@ -268,7 +268,6 @@ void Robot::reposition(void *ptr)
     {
       turn_degree += abs(imu_val - last_imu_angle);
       last_imu_angle = imu_val;
-      lcd::print(4, "%s", std::to_string(turn_degree));
       if(turn_degree > 360)
       {
 
@@ -277,11 +276,8 @@ void Robot::reposition(void *ptr)
         new_y_gps = cur_x_gps/2;
         new_x_gps = cur_x_gps/2;
         while (!(abs(new_x_gps - cur_x_gps) < 0.1 && abs(new_y_gps - cur_y_gps) < 0.1)){
-            //lcd::print(4, "%s",std::to_string(resetting));
-            lcd::print(5, "repositioning");
             delay(5);
         }
-        lcd::print(5, "repositioned");
         stay();
         turn_in_place = true;
         conveyor = 80;
@@ -314,11 +310,8 @@ void Robot::reset(void *ptr) {
             new_y_gps = cur_y_gps / 2;
             new_x_gps = cur_x_gps / 2;
             while (!(abs(new_x_gps - cur_x_gps) < .1 && abs(new_y_gps - cur_y_gps) < .1)){
-                //lcd::print(4, "%s",std::to_string(resetting));
-                //lcd::print(5, "resetting");
                 delay(5);
             }
-            //lcd::print(5, "reset");
             stay();
 
             /*After a reset, send a continue_ring signal so that if the robot was going after rings, it starts looking again. If
@@ -332,7 +325,6 @@ void Robot::reset(void *ptr) {
             stagnant = 0;
             resetting = false;
         }
-        //lcd::print(5, "not resetting");
 
         delay(5);
     }
@@ -426,8 +418,8 @@ void Robot::check_depth(void *ptr){
     chasing_mogo = false;
     angler_piston.set_value(true);
     delay(250);
-    start_task("ANGLER", Robot::depth_angler);
     lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#camera#l515_front#@#");
+    start_task("ANGLER", Robot::depth_angler);
     mode = "ring";
     turn_in_place = true;
     kill_task("DEPTH");
@@ -531,11 +523,14 @@ void Robot::fps(void *ptr) {
         double cur_turn_offset_x = 360 * (offset_back * dphi) / wheel_circumference;
         double cur_turn_offset_y = 360 * (offset_middle * dphi) / wheel_circumference;
 
+        turn_offset_x = (float)turn_offset_x + cur_turn_offset_x;
 
-        //lcd::print(4, "BE %d LE %d RE %d", BE.get_value(), LE.get_value(), RE.get_value());
+
+        lcd::print(4, "Y %d X %d IMU %d", (int)y, (int)x, (int)IMU.get_rotation());
+        lcd::print(5, "RE %d LE %d BE %d", (int)RE.get_value(), (int)LE.get_value(), (int)BE.get_value());
 
         double cur_y = (RE.get_value() - LE.get_value()) / 2;
-        double cur_x = BE.get_value();
+        double cur_x = BE.get_value() + turn_offset_x;
 
         double dy = cur_y - last_y;
         double dx = cur_x - last_x;

@@ -9,7 +9,7 @@ void opcontrol() {
 	int slot = 1;
 	lcd::initialize();
 	serial_initialize();
-	delay(100);
+	Robot::IMU.reset();
 	if (slot == 1){
 		delay(2500);
 		Robot::start_task("IMU", Robot::imu_clamp);
@@ -22,6 +22,7 @@ void opcontrol() {
 			lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#camera#l515_back#@#");
 		}
 		lib7405x::Serial::Instance()->onReceive("whole_data", Robot::receive_data);
+		lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue_ring#true#@#");
 		Robot::start_task("MOVETO", Robot::move_to);
 		Robot::stay(); //stops the bot moving
 		Robot::start_task("GPS", Robot::gps_fps);
@@ -29,6 +30,8 @@ void opcontrol() {
 		Robot::start_task("RESET", Robot::reset);
 	}
 	if (slot == 2){
+		delay(2500);
+		Robot::start_task("IMU", Robot::imu_clamp);
 		Robot::start_task("FPS", Robot::fps);
 		lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#camera#l515_front#@#");
 		Robot::start_task("DRIVE", Robot::drive);
