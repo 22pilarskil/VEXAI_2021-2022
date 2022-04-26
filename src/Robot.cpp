@@ -234,7 +234,26 @@ void Robot::ring_receive(vector<float> det) {
     new_x = x + coefficient * sin(heading / 180 * pi);
     while ((abs(new_y - y) > 100 || abs(new_x - x) > 100) && stagnant < 10) delay(5);
     delay(500);
+    //checks if bot is too close to the wall and balance on the sides and goes back to the middle
+    if(cur_x_gps >0.65){
+        new_x_gps = 0;
+        delay(3000);
+    }
+    else if(cur_x_gps<-0.65){
+        new_x_gps = 0;
+        delay(3000);
+    }
 
+    //checks if bot is too close to the walls on the forward and back side and goes back to the middle before spinning
+    
+    if(cur_y_gps>1.15){
+        new_y_gps = 0;
+        delay(3000);
+    }
+    else if(cur_y_gps<-1.15){
+        new_y_gps = 0;
+        delay(3000);
+    }
     turn_in_place = true;
     turn_coefficient = 1;
     resetting = false;
@@ -417,6 +436,7 @@ void Robot::check_depth(void *ptr){
     flicker = 0;
     chasing_mogo = false;
     angler_piston.set_value(true);
+
     delay(250);
     lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#camera#l515_front#@#");
     start_task("ANGLER", Robot::depth_angler);
@@ -556,7 +576,7 @@ void Robot::gps_fps(void *ptr){
         cur_x_gps = cur_status.x;
         cur_y_gps = cur_status.y;
         cur_heading_gps = gps.get_heading();
-        lcd::print(1, "X: %f - Y: %f", (float)(last_x_gps), (float)(last_y_gps));
+        lcd::print(1, "X: %f - Y: %f", (float)(cur_x_gps), (float)(cur_y_gps));
         //lcd::print(2, "Heading: %f", (float)(360-cur_heading_gps));
         delay(5);
     }
