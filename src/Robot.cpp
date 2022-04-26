@@ -97,6 +97,7 @@ std::atomic<int> move_to_mode = 0; //0 = fps, 1 = gps
 std::atomic<int> move_to_count = 0;
 std::atomic<int> move_to_gps_count = 0;
 int mogo_count = 0;
+int corner = 0;
 
 GridMapper* gridMapper = new GridMapper();
 
@@ -164,20 +165,31 @@ void Robot::receive_data(nlohmann::json msg)
 
 void Robot::dummy(nlohmann::json msg){
     vector<vector<float>> pred = Data::get_pred(msg);
-    int valid = 0;
-    int invalid = 0;
+    int valid_rings = 0;
+    int invalid_rings = 0;
+    int valid_mogos = 0;
+    int invalid_mogos = 0;
     vector<vector<float>> rings = Data::pred_id(pred, 1);
     for (vector<float> det : rings){
         det[0] += 0.2;
-        if (Data::invalid_det(det, last_x_gps, last_y_gps, 360-last_phi_gps)) {
-            invalid += 1;
+        if (Data::invalid_det(det, last_x_gps, last_y_gps, fmod(540-last_phi_gps, 360))) {
+            invalid_rings += 1;
         }
         else {
-            valid += 1;
+            valid_rings += 1;
         }
-
     }
-    //lcd::print(6, "VALID %d INVALID %d", valid, invalid);
+    vector<vector<float>> mogos = Data::pred_id(pred, 0);
+    for (vector<float> det : mogos){
+        det[0] += 0.4;
+        if (Data::invalid_det(det, last_x_gps, last_y_gps, 360-last_phi_gps)) {
+            invalid_mogos += 1;
+        }
+        else {
+            valid_mogos += 1;
+        }
+    }
+    lcd::print(6, "VR %d IR %d VM %d IM %d", valid_rings, invalid_rings, valid_mogos, invalid_mogos);
     lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue_ring#true#@#");
 
 }
@@ -262,7 +274,7 @@ void Robot::ring_receive(vector<float> det) {
 
 void Robot::receive_fps(nlohmann::json msg){
     double seconds_per_frame = std::stod(msg.dump());
-    lcd::print(7, "Seconds per frame: %f", seconds_per_frame);
+    //, "Seconds per frame: %f", seconds_per_frame);
     last_heading = imu_val;
     if (turn_in_place){
         heading = imu_val + 30;
@@ -472,29 +484,41 @@ void Robot::depth_angler(void *ptr){
         //When a mogo has been filled
         if (depth_average < 130 && depth_vals.size() == 100){
 
-            conveyor = 0;
             stop = true;
-
             //switch to move_to_gps, move to the center of the field
             move_to_mode = 1;
             new_y_gps = 0;
             new_x_gps = 0;
-            new_heading_gps = 135;
+            if(corner == 0){
+                new_heading_gps = 135;
+            }
+            else if(corner == 1){
+                new_heading_gps = 315;
+            }
 
             //make sure bot has stopped moving (aka reached its target)
             stagnant = 0;
-            while (stagnant < 5) {
+            while (!(abs(new_x_gps - cur_x_gps) < .1 && abs(new_y_gps - cur_y_gps) < .1 && abs(new_heading_gps - gps.get_heading()) < 3)){
                 delay(5);
                 angler = depth_coefficient * (angler_dist.get() - depth_threshold);
             }
 
             //move to corner of the field to deposit mogo
-            new_y_gps = -1.1;
-            new_x_gps = -1.1;
+            if(corner == 0){
+                new_y_gps = -1.3;
+                new_x_gps = -1.2;
+                corner = 1;
+            }
+            else if(corner == 1){
+                new_y_gps = 1.3;
+                new_x_gps = 1.2;
+                corner = 0;
+            }
+            
 
             //make sure bot has stopped moving (aka reached its target)
             stagnant = 0;
-            while (stagnant < 5) {
+            while (!(abs(new_x_gps - cur_x_gps) < .1 && abs(new_y_gps - cur_y_gps) < .1 && abs(new_heading_gps - gps.get_heading()) < 3)){
                 delay(5);
                 angler = depth_coefficient * (angler_dist.get() - depth_threshold);
             }
@@ -506,7 +530,19 @@ void Robot::depth_angler(void *ptr){
 
             angler = 0;
             angler_piston.set_value(false);
-            turn_in_place = false;
+            move_to_mode = 1;
+            lcd::print(7, "going to 0,0");
+            new_y_gps = 0;
+            new_x_gps = 0;
+            mode = "mogo";
+            lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#camera#l515_back#@#");
+            while (!(abs(new_x_gps - cur_x_gps) < .1 && abs(new_y_gps - cur_y_gps) < .1 && abs(new_heading_gps - gps.get_heading()) < 3)){
+                delay(5);
+            }
+            stay();
+            stop = false;
+            move_to_mode = 0;
+            turn_in_place = true;
             break;
         }
         delay(5);
@@ -672,7 +708,7 @@ void Robot::is_moving_gps(void *ptr) {
 
 void Robot::display(void *ptr){
     while (true){
-        lcd::print(6, "MOVETO %d MOVETOGPS %d", (int)move_to_count, (int)move_to_gps_count);
+        //lcd::print(6, "MOVETO %d MOVETOGPS %d", (int)move_to_count, (int)move_to_gps_count);
         lcd::print(3, "STAGNANT: %d", (int)stagnant);
         delay(5);
     }

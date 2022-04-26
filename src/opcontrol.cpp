@@ -6,7 +6,7 @@ using namespace pros;
 void opcontrol() {
 
 	std::string mode = "mogo";
-	int slot = 1;
+	int slot = 2;
 	lcd::initialize();
 	serial_initialize();
 	Robot::IMU.reset();
