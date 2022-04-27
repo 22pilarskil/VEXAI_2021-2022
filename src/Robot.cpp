@@ -131,10 +131,12 @@ void Robot::receive_data(nlohmann::json msg)
         int invalids = 0; //num mogos ignored
         for (vector<float> det : mogos){
             lcd::print(3, "Invalid mogos: %i", invalids);
+            det[0] += 0.4;
             if (Data::invalid_det(det, last_x_gps, last_y_gps, 360-last_phi_gps)) {
                 invalids++;
                 continue;
             }
+            det[0] -= 0.4;
             //This is mainly because our model is bad and occaisionally we have isolated mogo detections on empty areas, this forces the bot to detect a mogo at least twice in a row before going after it
             mogo_count += 1;
             if (mogo_count > 1 || chasing_mogo) mogo_receive(det);
