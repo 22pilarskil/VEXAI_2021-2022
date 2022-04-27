@@ -40,6 +40,7 @@ void opcontrol() {
 		Robot::start_task("RESET", Robot::reset);
 	}
 	lib7405x::Serial::Instance()->onReceive("fps", Robot::receive_fps);
+	Robot::start_task("Temperature Check", Robot::motor_temperature);
 	Robot::start_task("GPS", Robot::gps_fps);
 	Robot::start_task("FPS", Robot::fps);
 	Robot::start_task("DISPLAY", Robot::display);

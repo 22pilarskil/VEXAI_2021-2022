@@ -88,6 +88,7 @@ std::atomic<bool> turn_in_place = true;
 double seconds_per_frame = 0.20;
 int failed_update = 0;
 double last_heading = 0;
+bool started = false;
 std::atomic<bool> resetting = false;
 
 //Both move_to threads will be running at the same time, move_to_mode tells the brain which thread we will actually be using
@@ -106,20 +107,36 @@ std::map<std::string, std::unique_ptr<pros::Task>> Robot::tasks;
 
 void Robot::receive_data(nlohmann::json msg)
 {
+    double position_temp[] = {gps.get_status().x*meters_to_inches + 72, gps.get_status().y*meters_to_inches + 72, pi/4};
+    std::map<std::string, std::vector<double*>> objects;
+    string names[] = {"ring", "mogo"};
+    if (stop) return;
 
-    vector<vector<float>> pred = Data::get_pred(msg);
-    if (stop || pred.empty()) return;
-
+    started = true;
     stagnant = 0;
+    vector<vector<float>> pred = Data::get_pred(msg);
+    if(pred.empty())return;
+
+    // for (vector<double> det : objects) {
+    //     double location[] = {det[0] * meters_to_inches, det[1]*-1/180*pi};
+    //     objects[names[det[2]]].push_back(location);
+    // }
+
+    // double position_temp[] = {gps.get_status().x*meters_to_inches + 72, gps.get_status().y*meters_to_inches + 72, pi/4};
+    // gridMapper->map(position_temp, objects);
+
 
     if (mode.compare("mogo") == 0){
         vector<vector<float>> mogos = Data::pred_id(pred, 0);
+        int invalids = 0; //num mogos ignored
         for (vector<float> det : mogos){
-            det[0] += 0.6;
+            lcd::print(2, "Invalid mogos: %i", invalids);
+            det[0] += 0.4;
             if (Data::invalid_det(det, last_x_gps, last_y_gps, 360-last_phi_gps)) {
+                invalids++;
                 continue;
             }
-            det[0] -= 0.6;
+            det[0] -= 0.4;
             //This is mainly because our model is bad and occaisionally we have isolated mogo detections on empty areas, this forces the bot to detect a mogo at least twice in a row before going after it
             mogo_count += 1;
             if (mogo_count > 1 || chasing_mogo) mogo_receive(det);
@@ -129,12 +146,17 @@ void Robot::receive_data(nlohmann::json msg)
     }
     if (mode.compare("ring") == 0){
         vector<vector<float>> rings = Data::pred_id(pred, 1);
+        int invalids = 0;
         for (vector<float> det : rings){
+            lcd::print(2, "Invalid rings: %i", invalids);
             det[0] += 0.2;
 
             if(Data::invalid_det(det, last_x_gps, last_y_gps, fmod(540-last_phi_gps, 360))) {//opposite camera so have to do different stuff to make it unit circle
+                //lcd::print(3, "this heading: %f", (float)fmod(540-cur_heading_gps, 360));
+                invalids++;
                 continue;
             }
+
             ring_receive(det);
             break;
         }
@@ -142,7 +164,29 @@ void Robot::receive_data(nlohmann::json msg)
     }
 }
 
+void Robot::motor_temperature(void *ptr)
+{
+    while(true)
+    {
+        int throttle_thres = 55;//in percent, temperature of motors are in celsius
+        //I DONT KNOW WHERE YOU WANT THIS
+        if(((Robot::BRB.get_temperature() - 20) / 50.0 * 100) > throttle_thres ||
+         ((Robot::BRT.get_temperature() - 20) / 50.0 * 100) > throttle_thres ||
+         ((Robot::BLT.get_temperature() - 20) / 50.0 * 100) > throttle_thres ||
+         ((Robot::FLT.get_temperature() - 20) / 50.0 * 100) > throttle_thres ||
+         ((Robot::FLB.get_temperature() - 20) / 50.0 * 100) > throttle_thres ||
+         ((Robot::FRB.get_temperature() - 20) / 50.0 * 100) > throttle_thres ||
+         ((Robot::FRT.get_temperature() - 20) / 50.0 * 100) > throttle_thres ||
+         ((Robot::flicker.get_temperature() - 20) / 50.0 * 100) > throttle_thres ||
+         ((Robot::conveyor.get_temperature() - 20) / 50.0 * 100) > throttle_thres)
+        {
+            lcd::print(7,"MOTOR OVERHEAT");
+        }//celsius
+        else{lcd::print(7,"Not currently overheating");}
+        delay(5);
+    }
 
+}
 void Robot::dummy(nlohmann::json msg){
     vector<vector<float>> pred = Data::get_pred(msg);
     int valid_rings = 0;
@@ -169,7 +213,7 @@ void Robot::dummy(nlohmann::json msg){
             valid_mogos += 1;
         }
     }
-    lcd::print(6, "VR %d IR %d VM %d IM %d", valid_rings, invalid_rings, valid_mogos, invalid_mogos);
+    //lcd::print(6, "VR %d IR %d VM %d IM %d", valid_rings, invalid_rings, valid_mogos, invalid_mogos);
     lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue_ring#true#@#");
 
 }
@@ -226,20 +270,26 @@ void Robot::ring_receive(vector<float> det) {
     new_x = x + coefficient * sin(heading / 180 * pi);
     while ((abs(new_y - y) > 100 || abs(new_x - x) > 100) && stagnant < 10) delay(5);
     delay(500);
-
-    move_to_mode = 1;
     //checks if bot is too close to the wall and balance on the sides and goes back to the middle
-    if (cur_x_gps < -0.65 || cur_x_gps > 0.65) new_x_gps = cur_x_gps / 2;
-    if (cur_y_gps < -1.15 || cur_y_gps > 1.15) new_y_gps = cur_y_gps / 2;
-
-    //checks if bot is too close to the walls on the forward and back side and goes back to the middle before spinning
-    
-    while (!(abs(new_x_gps - cur_x_gps) < 0.1 && abs(new_y_gps - cur_y_gps) < 0.1)){
-        delay(5);
+    if(cur_x_gps >0.65){
+        new_x_gps = 0;
+        delay(3000);
+    }
+    else if(cur_x_gps<-0.65){
+        new_x_gps = 0;
+        delay(3000);
     }
 
-    move_to_mode = 0;
+    //checks if bot is too close to the walls on the forward and back side and goes back to the middle before spinning
 
+    if(cur_y_gps>1.15){
+        new_y_gps = 0;
+        delay(3000);
+    }
+    else if(cur_y_gps<-1.15){
+        new_y_gps = 0;
+        delay(3000);
+    }
     turn_in_place = true;
     turn_coefficient = 1;
     resetting = false;
@@ -248,7 +298,7 @@ void Robot::ring_receive(vector<float> det) {
 
 void Robot::receive_fps(nlohmann::json msg){
     double seconds_per_frame = std::stod(msg.dump());
-    lcd::print(7, "Seconds per frame: %f", seconds_per_frame);
+    //, "Seconds per frame: %f", seconds_per_frame);
     last_heading = imu_val;
     if (turn_in_place){
         heading = imu_val + 30;
@@ -259,7 +309,6 @@ void Robot::receive_fps(nlohmann::json msg){
     last_y_gps = (double)cur_y_gps;
     last_phi_gps = (double)cur_heading_gps;
 }
-
 void Robot::reposition(void *ptr)
 {
   while(true)
@@ -267,7 +316,7 @@ void Robot::reposition(void *ptr)
     if(!turn_in_place)
     {
       last_imu_angle = imu_val;
-      turn_degree = 0;
+      turn_degree =0;
       delay(5);
     }
     else if(turn_in_place)
@@ -279,8 +328,8 @@ void Robot::reposition(void *ptr)
 
         turn_in_place = false;
         move_to_mode = 1;
-        new_y_gps = cur_x_gps / 2;
-        new_x_gps = cur_x_gps / 2;
+        new_y_gps = cur_x_gps/2;
+        new_x_gps = cur_x_gps/2;
         while (!(abs(new_x_gps - cur_x_gps) < 0.1 && abs(new_y_gps - cur_y_gps) < 0.1)){
             delay(5);
         }
@@ -329,6 +378,7 @@ void Robot::reset(void *ptr) {
             turn_in_place = true;
             move_to_mode = 0;
             stagnant = 0;
+            resetting = false;
         }
 
         delay(5);
@@ -443,7 +493,6 @@ void Robot::depth_angler(void *ptr){
     while (abs(angler_dist.get() - depth_threshold) > cap){
         angler = 127;
     }
-    int angler_pot_finish = angler_pot.get_value();
     while (true){
 
         if ((int)depth_vals.size() == 100) depth_vals.pop_front();
@@ -452,10 +501,7 @@ void Robot::depth_angler(void *ptr){
         for (int i = 0; i < depth_vals.size(); i++) sum += depth_vals[i];
         double depth_average = sum / 100;
 
-        if (abs(angler_pot.get_value() - angler_pot_finish) > 100){
-            angler = angler_pot.get_value() - angler_pot_finish;
-        }
-        else {
+        if (abs(angler_dist.get() - depth_threshold) <= cap){
             angler = depth_coefficient * (angler_dist.get() - depth_threshold);
         }
 
@@ -478,7 +524,7 @@ void Robot::depth_angler(void *ptr){
             stagnant = 0;
             while (!(abs(new_x_gps - cur_x_gps) < .1 && abs(new_y_gps - cur_y_gps) < .1 && abs(new_heading_gps - gps.get_heading()) < 3)){
                 delay(5);
-                angler = angler_pot.get_value() - angler_pot_finish;
+                angler = depth_coefficient * (angler_dist.get() - depth_threshold);
             }
 
             //move to corner of the field to deposit mogo
@@ -492,13 +538,13 @@ void Robot::depth_angler(void *ptr){
                 new_x_gps = 1.2;
                 corner = 0;
             }
-            
+
 
             //make sure bot has stopped moving (aka reached its target)
             stagnant = 0;
             while (!(abs(new_x_gps - cur_x_gps) < .1 && abs(new_y_gps - cur_y_gps) < .1 && abs(new_heading_gps - gps.get_heading()) < 3)){
                 delay(5);
-                angler = angler_pot.get_value() - angler_pot_finish;
+                angler = depth_coefficient * (angler_dist.get() - depth_threshold);
             }
             stay();
             move_to_mode = 0;
@@ -509,7 +555,7 @@ void Robot::depth_angler(void *ptr){
             angler = 0;
             angler_piston.set_value(false);
             move_to_mode = 1;
-            lcd::print(7, "going to 0,0");
+            lcd::print(6, "Mogo Filled. Ready to place down.");
             new_y_gps = 0;
             new_x_gps = 0;
             mode = "mogo";
@@ -560,8 +606,8 @@ void Robot::fps(void *ptr) {
         turn_offset_x = (float)turn_offset_x + cur_turn_offset_x;
 
 
-        lcd::print(4, "Y %d X %d IMU %d", (int)y, (int)x, (int)IMU.get_rotation());
-        lcd::print(5, "RE %d LE %d BE %d", (int)RE.get_value(), (int)LE.get_value(), (int)BE.get_value());
+        lcd::print(4, "X_IMU %d Y_IMU %d HEADING_IMU %d", (int)y, (int)x, (int)IMU.get_rotation());
+        lcd::print(5, "Right Encoder %d Left Encoder %d Back Encoder %d", (int)RE.get_value(), (int)LE.get_value(), (int)BE.get_value());
 
         double cur_y = (RE.get_value() - LE.get_value()) / 2;
         double cur_x = BE.get_value() + turn_offset_x;
@@ -590,7 +636,7 @@ void Robot::gps_fps(void *ptr){
         cur_x_gps = cur_status.x;
         cur_y_gps = cur_status.y;
         cur_heading_gps = gps.get_heading();
-        lcd::print(1, "X: %f - Y: %f", (float)(cur_x_gps), (float)(cur_y_gps));
+        lcd::print(1, "GPS_X: %f - GPS_Y: %f - GPS_HEADING: %f", (float)(cur_x_gps), (float)(cur_y_gps), (float)(cur_heading_gps));
         //lcd::print(2, "Heading: %f", (float)(360-cur_heading_gps));
         delay(5);
     }
@@ -687,7 +733,7 @@ void Robot::is_moving_gps(void *ptr) {
 void Robot::display(void *ptr){
     while (true){
         //lcd::print(6, "MOVETO %d MOVETOGPS %d", (int)move_to_count, (int)move_to_gps_count);
-        lcd::print(3, "STAGNANT: %d", (int)stagnant);
+        lcd::print(3, "STAGNANT FOR: %d", (int)stagnant);
         delay(5);
     }
 }

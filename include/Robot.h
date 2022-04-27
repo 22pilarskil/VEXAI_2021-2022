@@ -86,10 +86,12 @@ class Robot{
         static void gps_fps(void *ptr);
         static void move_to_gps(void *ptr);
         static void reset(void *ptr);
+				static void motor_temperature(void *ptr);
 
 		static void reposition(void *ptr);
 		static double turn_degree;
 		static double last_imu_angle;
+
 
 		static void move_to(void *ptr);
 		static void is_moving_gps(void *ptr);
