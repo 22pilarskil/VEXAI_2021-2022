@@ -62,6 +62,7 @@ class Robot{
         static std::atomic<double> new_y_gps;
         static std::atomic<double> new_heading_gps;
         static std::atomic<int> stagnant;
+        static std::atomic<double> drive_temp;
 
         static std::string mode;
         static bool stop;

@@ -46,7 +46,7 @@ ADIUltrasonic Robot::ring_ultrasonic(5, 6);
 Gps Robot::gps(5);
 Imu Robot::IMU(12);
 Distance Robot::angler_dist(21);
-Distance Robot::mogo_dist(15);
+Distance Robot::mogo_dist(7);
 
 const double inches_to_encoder = 41.669;
 const double meters_to_inches = 39.3701;
@@ -68,6 +68,7 @@ std::atomic<double> Robot::cur_heading_gps = 0;
 std::atomic<double> Robot::last_x_gps = 0;
 std::atomic<double> Robot::last_y_gps = 0;
 std::atomic<double> Robot::last_phi_gps = 0;
+std::atomic<double> Robot::drive_temp = 0;
 
 
 std::atomic<int> Robot::stagnant = 0;
@@ -128,12 +129,9 @@ void Robot::receive_data(nlohmann::json msg)
 
     if (mode.compare("mogo") == 0){
         vector<vector<float>> mogos = Data::pred_id(pred, 0);
-        int invalids = 0; //num mogos ignored
         for (vector<float> det : mogos){
-            lcd::print(2, "Invalid mogos: %i", invalids);
             det[0] += 0.4;
             if (Data::invalid_det(det, last_x_gps, last_y_gps, 360-last_phi_gps)) {
-                invalids++;
                 continue;
             }
             det[0] -= 0.4;
@@ -146,17 +144,12 @@ void Robot::receive_data(nlohmann::json msg)
     }
     if (mode.compare("ring") == 0){
         vector<vector<float>> rings = Data::pred_id(pred, 1);
-        int invalids = 0;
         for (vector<float> det : rings){
-            lcd::print(2, "Invalid rings: %i", invalids);
             det[0] += 0.2;
 
             if(Data::invalid_det(det, last_x_gps, last_y_gps, fmod(540-last_phi_gps, 360))) {//opposite camera so have to do different stuff to make it unit circle
-                //lcd::print(3, "this heading: %f", (float)fmod(540-cur_heading_gps, 360));
-                invalids++;
                 continue;
             }
-
             ring_receive(det);
             break;
         }
@@ -168,25 +161,20 @@ void Robot::motor_temperature(void *ptr)
 {
     while(true)
     {
-        int throttle_thres = 55;//in percent, temperature of motors are in celsius
-        //I DONT KNOW WHERE YOU WANT THIS
-        if(((Robot::BRB.get_temperature() - 20) / 50.0 * 100) > throttle_thres ||
-         ((Robot::BRT.get_temperature() - 20) / 50.0 * 100) > throttle_thres ||
-         ((Robot::BLT.get_temperature() - 20) / 50.0 * 100) > throttle_thres ||
-         ((Robot::FLT.get_temperature() - 20) / 50.0 * 100) > throttle_thres ||
-         ((Robot::FLB.get_temperature() - 20) / 50.0 * 100) > throttle_thres ||
-         ((Robot::FRB.get_temperature() - 20) / 50.0 * 100) > throttle_thres ||
-         ((Robot::FRT.get_temperature() - 20) / 50.0 * 100) > throttle_thres ||
-         ((Robot::flicker.get_temperature() - 20) / 50.0 * 100) > throttle_thres ||
-         ((Robot::conveyor.get_temperature() - 20) / 50.0 * 100) > throttle_thres)
-        {
-            lcd::print(7,"MOTOR OVERHEAT");
-        }//celsius
-        else{lcd::print(7,"Not currently overheating");}
+        drive_temp = 0;
+        drive_temp = drive_temp + Robot::BRB.get_temperature();
+        drive_temp = drive_temp + Robot::BRT.get_temperature();
+        drive_temp = drive_temp + Robot::BLB.get_temperature();
+        drive_temp = drive_temp + Robot::BLT.get_temperature();
+        drive_temp = drive_temp + Robot::FRB.get_temperature();
+        drive_temp = drive_temp + Robot::FRT.get_temperature();
+        drive_temp = drive_temp + Robot::FLB.get_temperature();
+        drive_temp = drive_temp + Robot::FLT.get_temperature();
+        drive_temp = drive_temp / 8;
         delay(5);
     }
-
 }
+
 void Robot::dummy(nlohmann::json msg){
     vector<vector<float>> pred = Data::get_pred(msg);
     int valid_rings = 0;
@@ -213,7 +201,7 @@ void Robot::dummy(nlohmann::json msg){
             valid_mogos += 1;
         }
     }
-    //lcd::print(6, "VR %d IR %d VM %d IM %d", valid_rings, invalid_rings, valid_mogos, invalid_mogos);
+    lcd::print(6, "VR %d IR %d VM %d IM %d", valid_rings, invalid_rings, valid_mogos, invalid_mogos);
     lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue_ring#true#@#");
 
 }
@@ -555,7 +543,6 @@ void Robot::depth_angler(void *ptr){
             angler = 0;
             angler_piston.set_value(false);
             move_to_mode = 1;
-            lcd::print(6, "Mogo Filled. Ready to place down.");
             new_y_gps = 0;
             new_x_gps = 0;
             mode = "mogo";
@@ -605,10 +592,6 @@ void Robot::fps(void *ptr) {
 
         turn_offset_x = (float)turn_offset_x + cur_turn_offset_x;
 
-
-        lcd::print(4, "X_IMU %d Y_IMU %d HEADING_IMU %d", (int)y, (int)x, (int)IMU.get_rotation());
-        lcd::print(5, "Right Encoder %d Left Encoder %d Back Encoder %d", (int)RE.get_value(), (int)LE.get_value(), (int)BE.get_value());
-
         double cur_y = (RE.get_value() - LE.get_value()) / 2;
         double cur_x = BE.get_value() + turn_offset_x;
 
@@ -636,8 +619,6 @@ void Robot::gps_fps(void *ptr){
         cur_x_gps = cur_status.x;
         cur_y_gps = cur_status.y;
         cur_heading_gps = gps.get_heading();
-        lcd::print(1, "GPS_X: %f - GPS_Y: %f - GPS_HEADING: %f", (float)(cur_x_gps), (float)(cur_y_gps), (float)(cur_heading_gps));
-        //lcd::print(2, "Heading: %f", (float)(360-cur_heading_gps));
         delay(5);
     }
 }
@@ -732,8 +713,11 @@ void Robot::is_moving_gps(void *ptr) {
 
 void Robot::display(void *ptr){
     while (true){
-        //lcd::print(6, "MOVETO %d MOVETOGPS %d", (int)move_to_count, (int)move_to_gps_count);
+
+        lcd::print(1, "FPS: X %d Y %d IMU %d", (int)y, (int)x, (int)IMU.get_rotation());
+        lcd::print(2, "GPS: X %.2f Y: %.2f HEADING: %.2f", (float)(cur_x_gps), (float)(cur_y_gps), (float)(cur_heading_gps));
         lcd::print(3, "STAGNANT FOR: %d", (int)stagnant);
+        lcd::print(4, "TEMP: %f", (float)drive_temp);
         delay(5);
     }
 }
