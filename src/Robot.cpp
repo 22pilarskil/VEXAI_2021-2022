@@ -106,7 +106,7 @@ std::vector<int> find_location(std::string sample, char find){
 
 void Robot::receive_data(nlohmann::json msg)
 {
-    double position_temp[] = {gps.get_status().x*meters_to_inches + 72, gps.get_status().y*meters_to_inches + 72, pi/4};
+    double position_temp[] = {gps.get_status().x*meters_to_inches/24 + 3, gps.get_status().y*meters_to_inches/24 + 3, pi/4};
     std::map<std::string, std::vector<double*>> objects;
     string names[] = {"ring", "mogo"};
     // if (stop) return;
