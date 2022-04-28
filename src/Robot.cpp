@@ -227,8 +227,8 @@ void Robot::mogo_receive(vector<float> det)
 
   double coefficient;
 
-  if (abs(angle) > angle_threshold) coefficient = 300 * lidar_depth * (0.20 / seconds_per_frame);
-  else if (abs(angle) < angle_threshold && chasing_mogo == true) coefficient = 600;
+  if (abs(angle) > angle_threshold) coefficient = 150 * lidar_depth * (0.20 / seconds_per_frame);
+  else if (abs(angle) < angle_threshold && chasing_mogo == true) coefficient = 300;
 
   heading = imu_val + angle;
   new_y = y + coefficient * cos(heading / 180 * pi);
@@ -259,25 +259,20 @@ void Robot::ring_receive(vector<float> det) {
     while ((abs(new_y - y) > 100 || abs(new_x - x) > 100) && stagnant < 10) delay(5);
     delay(500);
     //checks if bot is too close to the wall and balance on the sides and goes back to the middle
-    if(cur_x_gps >0.65){
-        new_x_gps = 0;
-        delay(3000);
-    }
-    else if(cur_x_gps<-0.65){
-        new_x_gps = 0;
-        delay(3000);
-    }
 
-    //checks if bot is too close to the walls on the forward and back side and goes back to the middle before spinning
+    move_to_mode = 1;
 
-    if(cur_y_gps>1.15){
-        new_y_gps = 0;
-        delay(3000);
+    if (abs(cur_x_gps) > 0.65 || abs(cur_y_gps) > 1.15) {
+        new_x_gps = new_x_gps / 2;
+        new_y_gps = new_y_gps / 2;
+        while (!(abs(new_x_gps - cur_x_gps) < 0.1 && abs(new_y_gps - cur_y_gps) < 0.1)){
+            delay(5);
+        }
     }
-    else if(cur_y_gps<-1.15){
-        new_y_gps = 0;
-        delay(3000);
-    }
+    stay();
+
+    move_to_mode = 0;
+
     turn_in_place = true;
     turn_coefficient = 1;
     resetting = false;
@@ -473,7 +468,6 @@ void Robot::check_depth(void *ptr){
 void Robot::depth_angler(void *ptr){
     std::deque<double> depth_vals;
 
-    int angler_pot_threshold = 270;
     int depth_threshold = 47;
     int depth_coefficient = 6;
     int cap = 20;
@@ -481,6 +475,7 @@ void Robot::depth_angler(void *ptr){
     while (abs(angler_dist.get() - depth_threshold) > cap){
         angler = 127;
     }
+    int angler_finish = angler_pot.get_value();
     while (true){
 
         if ((int)depth_vals.size() == 100) depth_vals.pop_front();
@@ -489,7 +484,11 @@ void Robot::depth_angler(void *ptr){
         for (int i = 0; i < depth_vals.size(); i++) sum += depth_vals[i];
         double depth_average = sum / 100;
 
-        if (abs(angler_dist.get() - depth_threshold) <= cap){
+
+        if (abs(angler_pot.get_value() - angler_finish) > 100){
+            angler = angler_pot.get_value() - angler_finish;
+        }
+        else {
             angler = depth_coefficient * (angler_dist.get() - depth_threshold);
         }
 
@@ -512,7 +511,7 @@ void Robot::depth_angler(void *ptr){
             stagnant = 0;
             while (!(abs(new_x_gps - cur_x_gps) < .1 && abs(new_y_gps - cur_y_gps) < .1 && abs(new_heading_gps - gps.get_heading()) < 3)){
                 delay(5);
-                angler = depth_coefficient * (angler_dist.get() - depth_threshold);
+                angler = angler_pot.get_value() - angler_finish;
             }
 
             //move to corner of the field to deposit mogo
@@ -532,17 +531,16 @@ void Robot::depth_angler(void *ptr){
             stagnant = 0;
             while (!(abs(new_x_gps - cur_x_gps) < .1 && abs(new_y_gps - cur_y_gps) < .1 && abs(new_heading_gps - gps.get_heading()) < 3)){
                 delay(5);
-                angler = depth_coefficient * (angler_dist.get() - depth_threshold);
+                angler = angler_pot.get_value() - angler_finish;
             }
             stay();
-            move_to_mode = 0;
 
             //release mogo
             while (angler_pot.get_value() < 2150) angler = -(2150 - angler_pot.get_value());
 
             angler = 0;
             angler_piston.set_value(false);
-            move_to_mode = 1;
+            delay(200);
             new_y_gps = 0;
             new_x_gps = 0;
             mode = "mogo";

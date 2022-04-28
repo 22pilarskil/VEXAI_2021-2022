@@ -33,6 +33,7 @@ void opcontrol() {
 	}
 
 	if (slot == 2){
+		delay(2500);
 		Robot::start_task("IMU", Robot::imu_clamp);
 		Robot::start_task("FPS", Robot::fps);
 		lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#camera#l515_front#@#");
@@ -41,7 +42,13 @@ void opcontrol() {
 	}
 
 	if (slot == 3){
-		Robot::start_task("RESET", Robot::reset);
+		delay(2500);
+		Robot::start_task("IMU", Robot::imu_clamp);
+		Robot::start_task("MOVETO", Robot::move_to);
+		Robot::new_x = 1000;
+		Robot::new_y = 1000;
+		Robot::heading = 45;
+
 	}
 
 	lib7405x::Serial::Instance()->onReceive("fps", Robot::receive_fps);
