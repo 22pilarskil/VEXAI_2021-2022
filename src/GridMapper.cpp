@@ -14,8 +14,6 @@ class GridMapper {
 
       // For this, I will be using a sample dictionary.
       std::vector<int> validBoxes = remove_viewed(robot_pos);
-      robot_pos[0] *= 24;
-      robot_pos[1] *= 24;
       for (auto const& x : objects) {
         std::string name = x.first;
         std::vector<double*> pos_list = x.second;
