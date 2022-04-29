@@ -156,7 +156,6 @@ void Robot::receive_data(nlohmann::json msg)
 }
 
 
-
 void Robot::receive_mogo(std::vector<float> det) {
     //copy and pasted, changed to work with the attributes given by receive_data
       failed_update = 0;
