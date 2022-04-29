@@ -104,6 +104,22 @@ std::vector<int> find_location(std::string sample, char find){
     return character_locations;
 }
 
+//sends string to nano for purpose of printing out map data for demo
+//string is in form "#boxnum#ringcount mogocount...#"
+void Robot::print_map(void *ptr) {
+    std::string return_string = "#";
+    for (int i = 1; i < 37; i++) {
+        return_string += std::to_string(i) + "#";
+        int ring_count = gridMapper->getBox(i)["ring"];
+        int mogo_count = gridMapper->getBox(i)["mogo"];
+        return_string += std::to_string(ring_count) + " " + std::to_string(mogo_count) + "#";
+    }
+
+    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, return_string);
+
+
+}
+
 void Robot::receive_data(nlohmann::json msg)
 {
     double position_temp[] = {gps.get_status().x*meters_to_inches/24 + 3, gps.get_status().y*meters_to_inches/24 + 3, pi/4}; //angle is unit circle degrees with y+ at true north and x+ at true east
@@ -120,7 +136,7 @@ void Robot::receive_data(nlohmann::json msg)
     
     gridMapper->map(position_temp, objects); 
 
-    for (int i = 2; i <= 6; i++) { // TEST CODE
+    for (int i = 1; i <= 6; i++) { // TEST CODE
        std::string print_string = "";
        for (int j = 0; j < 6; j++) {
           print_string += ("%i:%i  ", (i + 6 * j), gridMapper->getBox((i + 6 * j))["mogo"]);
