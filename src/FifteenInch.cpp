@@ -3,6 +3,9 @@
 #include "FifteenInch.h"
 #include "system/json.hpp"
 #include "system/Serial.h"
+#include "system/Data.h"
+#include "PD.h"
+#include "GridMapper.cpp"
 #include <map>
 #include <cmath>
 #include <atomic>
@@ -12,6 +15,9 @@
 #include <deque>
 using namespace pros;
 using namespace std;
+const double inches_to_encoder = 41.669;
+const double meters_to_inches = 39.3701;
+const double pi = 3.141592653589793238;
 
 Controller FifteenInch::master(E_CONTROLLER_MASTER);
 
@@ -24,60 +30,128 @@ Motor FifteenInch::FR(1);
 Motor FifteenInch::MR(2);
 Motor FifteenInch::BR(3);
 Motor FifteenInch::four_bar(20, true);
+double FifteenInch::cur_x_gps;
+double FifteenInch::cur_y_gps;
+double FifteenInch::cur_heading_gps;
+Gps FifteenInch::gps(5);
 
+int s = 0;
 Imu FifteenInch::IMU(15);
 Rotation FifteenInch::left_dead_wheel(21);
 Rotation FifteenInch::right_dead_wheel(14);
-
+GridMapper* gridMapper = new GridMapper();
 std::map<std::string, std::unique_ptr<pros::Task>> FifteenInch::tasks;
 void FifteenInch::tank_drive(int power, int turn)
-  {
-    int left_side;
-    int right_side;
+{
+  int left_side;
+  int right_side;
 
 
-    left_side = power + turn;
-    right_side = power - turn;
+  left_side = power + turn;
+  right_side = power - turn;
 
 
-    FL = -left_side;
-    ML = left_side;
-    BL = -left_side;
-    FR = right_side;
-    MR = -right_side;
-    BR = right_side;
+  FL = -left_side;
+  ML = left_side;
+  BL = -left_side;
+  FR = right_side;
+  MR = -right_side;
+  BR = right_side;
+}
+
+
+void FifteenInch::drive(void *ptr){
+  while(true){
+    int power = master.get_analog(ANALOG_LEFT_Y);
+    int turn = master.get_analog(ANALOG_RIGHT_X);
+    int four_bar_power = master.get_analog(ANALOG_LEFT_Y);
+
+    tank_drive(power, turn);
+    four_bar = four_bar_power;
+    delay(5);
   }
+}
+void FifteenInch::gps_initialize(void *ptr)
+{
+  while (true){
 
-
-  void FifteenInch::drive(void *ptr){
-    while(true){
-      int power = master.get_analog(ANALOG_LEFT_Y);
-      int turn = master.get_analog(ANALOG_RIGHT_X);
-      int four_bar_power = master.get_analog(ANALOG_LEFT_Y);
-
-      tank_drive(power, turn);
-      four_bar = four_bar_power;
-      delay(5);
+      pros::c::gps_status_s cur_status = gps.get_status();
+      cur_x_gps = (double)cur_status.x;
+      cur_y_gps = (double)cur_status.y;
+      cur_heading_gps = (double)gps.get_heading();
+      delay(20);
+  }
+}
+void FifteenInch::send_data() {
+    std::string return_string = "#";
+    for (int i = 1; i < 37; i++) {
+        return_string += std::to_string(i) + "#";
+        int ring_count = gridMapper->getBox(i)["ring"];
+        int mogo_count = gridMapper->getBox(i)["mogo"];
+        return_string += std::to_string(ring_count) + " " + std::to_string(mogo_count) + "#";
     }
+    return_string = return_string +"@#";
+    lcd::print(2,"%s",return_string);
+    lcd::print(4, "prepping send");
+
+    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#@#");
+    delay(250);//serial sometimes concatenates packets into 1, which makes the continue packet contain the actual data packet sometimes
+    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, return_string);
+
+
+
+
+
+}
+
+void FifteenInch::receive_data(nlohmann::json msg)
+{
+  s++;
+  lcd::print(3, "%d",(double)s);
+  double position_temp_[] = {gps.get_status().x*meters_to_inches/24 + 3, gps.get_status().y*meters_to_inches/24 + 3, pi/4}; //angle is unit circle degrees with y+ at true north and x+ at true east
+  double position_temp[] = {0.0,0.0,pi/4};
+  std::map<std::string, std::vector<double*>> objects;
+  string names[] = {"ring", "mogo"};
+  string x;
+  // if (stop) return;
+  //     started = true;
+  std:vector<std::vector<float>> pred = Data::get_pred(msg);
+
+  for (std::vector<float> det : pred) {
+      double location[] = {(double)det[0] * meters_to_inches, (double)det[1]*-1/180*pi};
+      objects[names[(int)det[2]]].push_back(location);
   }
 
-  void FifteenInch::start_task(std::string name, void (*func)(void *)) {
-      if (!task_exists(name)) {
-          tasks.insert(std::pair<std::string, std::unique_ptr<pros::Task>>(name, std::move(std::make_unique<pros::Task>(func, &x, TASK_PRIORITY_DEFAULT, TASK_STACK_DEPTH_DEFAULT, ""))));
-      }
+  gridMapper->map(position_temp, objects);
+
+  send_data();
+
+}
+void FifteenInch::gps_test(void *ptr)
+{
+  while(true)
+  {
+    lcd::print(0, "%f, %f, %f", (float)cur_x_gps, (float)cur_y_gps, (float)(360-cur_heading_gps));
+    delay(5);
   }
+}
+void FifteenInch::start_task(std::string name, void (*func)(void *)) {
+    if (!task_exists(name)) {
+        tasks.insert(std::pair<std::string, std::unique_ptr<pros::Task>>(name, std::move(std::make_unique<pros::Task>(func, &x, TASK_PRIORITY_DEFAULT, TASK_STACK_DEPTH_DEFAULT, ""))));
+    }
+}
 
-  bool FifteenInch::task_exists(std::string name) {
-      return tasks.find(name) != tasks.end();
-  }
+bool FifteenInch::task_exists(std::string name) {
+    return tasks.find(name) != tasks.end();
+}
 
-  void FifteenInch::kill_task(std::string name) {
-      if (task_exists(name)) {
-          tasks.erase(name);
-      }
-  }
+void FifteenInch::kill_task(std::string name) {
+    if (task_exists(name)) {
+        tasks.erase(name);
+    }
+}
 
 
-  void FifteenInch::move_to(void *ptr){
+void FifteenInch::move_to(void *ptr){
 
-  }
+}

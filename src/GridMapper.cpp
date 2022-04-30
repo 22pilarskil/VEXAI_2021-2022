@@ -34,7 +34,7 @@ class GridMapper {
 
       robot_pos[0] = robot_pos[0] / 24.0;
       robot_pos[1] = robot_pos[1] / 24.0;
-    
+
 
       if (robot_pos[2] > 35/180.0*M_PI && robot_pos[2] < (180-35)/180.0*M_PI) { // Facing Up
         int range_prev[] = {0,0};
@@ -53,7 +53,7 @@ class GridMapper {
               viewed_boxes.push_back(i + 1 + (6 - y) * g->get_x_length());
             }
           }
- 
+
           range_prev[0] = range[0];
           range_prev[1] = range[1];
 
@@ -77,18 +77,18 @@ class GridMapper {
               viewed_boxes.push_back(x + (6 - i) * (g->get_x_length()));
             }
           }
- 
+
           range_prev[0] = range[0];
           range_prev[1] = range[1];
         }
       }
-      
+
       else if (robot_pos[2] > (180.0+35)/180*M_PI && robot_pos[2] < (360.0-35)/180*M_PI) { // Facing Down
         int range_prev[] = {0,0};
         for (int y = floor(robot_pos[1]); y >= 0; y--) {
           int x_right = floor((y - robot_pos[1]) / tan(robot_pos[2] + 35.0/180*M_PI) + robot_pos[0]);
           int x_left = ceil((y - robot_pos[1]) / tan(robot_pos[2] - 35.0/180*M_PI) + robot_pos[0]);
-          
+
           int range[] = {0,0};
           range[0] = std::max(0, x_left);
           range[1] = std::min(6, x_right);
@@ -100,7 +100,7 @@ class GridMapper {
               viewed_boxes.push_back(i + 1 + (6 - (y+1)) * g->get_x_length());
             }
           }
- 
+
           range_prev[0] = range[0];
           range_prev[1] = range[1];
         }
@@ -123,7 +123,7 @@ class GridMapper {
               viewed_boxes.push_back(x + 1 + (6 - i) * (g->get_x_length()));
             }
           }
- 
+
           range_prev[0] = range[0];
           range_prev[1] = range[1];
         }
