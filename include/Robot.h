@@ -71,6 +71,7 @@ class Robot{
 		static double offset_middle;
 		static double wheel_circumference;
 		static std::map<std::string, std::unique_ptr<pros::Task>> tasks;
+		static void print_map(void *ptr);
 		static void receive_data(nlohmann::json msg);
 		static void receive_mogo(std::vector<float> det);
 		static void receive_ring(std::vector<float> det);
