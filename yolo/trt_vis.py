@@ -7,7 +7,7 @@ import math
 import torch
 from utils.yolo.plots import Annotator, colors
 from utils.serial import Coms
-from utils.data import return_data, determine_color, determine_depth, degree, sort_distance, quicksort
+from utils.data import return_data, determine_depth, degree, sort_distance, quicksort
 from utils.camera import Camera
 from utils.models import Model
 from sklearn.cluster import DBSCAN
@@ -43,8 +43,11 @@ comm = Coms()
 try:
     while True:
         start = time.time()
-
-        data = cam.poll_frames()
+        try:
+            data = cam.poll_frames()
+        except Exception as e:
+            bcolors.print(str(e), "blue")
+            continue
         if data is None:
             continue
         color_image, depth_image, color_image_t, depth_colormap, depth_frame = data
@@ -99,10 +102,10 @@ try:
                 continue
             if "stop" in msg:
                 bcolors.print("STOP", "green")
-                comm.wait("continue")
+                comm.wait(["continue"])
             comm.send("whole_data", whole_str)
             if (cam.name == "l515_front" and contains_ring): 
-                comm.wait("continue_ring")
+                comm.wait(["continue_ring", "stop"])
             comm.send("fps", time.time() - start)
                 
             

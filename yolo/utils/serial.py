@@ -27,9 +27,8 @@ class Coms:
          self.ser.write((header + "#" + json.dumps(body) + "\n").encode('ascii', 'replace'))
 
     def read(self, signals):
-        
-        msg = self.ser.readline().decode('ascii').strip('\n').strip('\r').split("#") 
-        print("MSG: " + str(msg))
+        msg = self.ser.readline().decode('ascii').strip('\n').strip('\r').split("#")
+        bcolors.print("MSG: " + str(msg), "yellow") 
         for signal in signals:
             if signal in msg: 
                 self.data[signal] = msg[msg.index(signal) + 1]
@@ -42,8 +41,8 @@ class Coms:
         return data
 
     def wait(self, signal):
-        signal+=["camera"]
-        print("Awaiting {} signal".format(signal))
+        signal += ["camera"]
+        print("Awaiting {} signal".format(str(signal)))
         while not self.read(signal):
             pass
 

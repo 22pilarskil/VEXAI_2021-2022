@@ -60,11 +60,9 @@ class Camera:
         if self.cameras[self.name]['flip']:
             depth_image = np.flipud(depth_image)
             color_image = np.flipud(color_image)
-        print(color_image.shape)
+
         depth_image = cv2.resize(depth_image, dsize=self.img_size, interpolation=cv2.INTER_AREA)
         color_image = cv2.resize(color_image, dsize=self.img_size, interpolation=cv2.INTER_AREA)
-        print(color_image.shape)
-
         depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET)
         color_image_t = np.transpose(color_image, [2, 0, 1])[None] / 255.0
 
