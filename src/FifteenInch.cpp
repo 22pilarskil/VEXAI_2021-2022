@@ -91,8 +91,8 @@ void FifteenInch::send_data() {
         return_string += std::to_string(ring_count) + " " + std::to_string(mogo_count) + "#";
     }
     return_string = return_string +"@#";
-    lcd::print(2,"%s",return_string);
-    lcd::print(4, "prepping send");
+    // lcd::print(2,"%s",return_string);
+    // lcd::print(4, "prepping send");
 
     lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#@#");
     delay(250);//serial sometimes concatenates packets into 1, which makes the continue packet contain the actual data packet sometimes
@@ -104,14 +104,12 @@ void FifteenInch::send_data() {
 
 }
 
-void FifteenInch::receive_data(nlohmann::json msg)
-{
+void FifteenInch::receive_data(nlohmann::json msg){
   s++;
-  lcd::print(3, "%d",(double)s);
-  double position_temp_[] = {gps.get_status().x*meters_to_inches/24 + 3, gps.get_status().y*meters_to_inches/24 + 3, pi/4}; //angle is unit circle degrees with y+ at true north and x+ at true east
-  double position_temp[] = {0.0,0.0,pi/4};
+  //double position_temp[] = {gps.get_status().x*meters_to_inches/24 + 3, gps.get_status().y*meters_to_inches/24 + 3, pi/4}; //angle is unit circle degrees with y+ at true north and x+ at true east
+  //double position_temp[] = {0.0,0.0,pi/4};
   std::map<std::string, std::vector<double*>> objects;
-  string names[] = {"ring", "mogo"};
+  string names[] = {"mogo", "ring"}; //had to switch to this b/c of the recent ID change to 0 = mogo and 1 = ring
   string x;
   // if (stop) return;
   //     started = true;
@@ -119,19 +117,29 @@ void FifteenInch::receive_data(nlohmann::json msg)
 
   for (std::vector<float> det : pred) {
       double location[] = {(double)det[0] * meters_to_inches, (double)det[1]*-1/180*pi};
-      objects[names[(int)det[2]]].push_back(location);
+      objects[names[(int)det[2]]].push_back(location); //haven't touched any of this, so I'm assuming it to be right
   }
 
+  double position_temp[] = {1.0, 5.0, 3.14159/4}; // I'm assuming this to be the point near the corner we tested from the first time
   gridMapper->map(position_temp, objects);
 
-  send_data();
+  for (int i = 1; i <= 6; i++) { // TEST CODE
+       std::string print_string = "";
+       for (int j = 0; j < 6; j++) {
+          print_string += std::to_string(i + 6 * j) + ":" + std::to_string(gridMapper->getBox((i + 6 * j))["mogo"]) + " ";
+       }
+       lcd::print(i, print_string.c_str());
+       delay(5);
+  } 
+
+  //send_data();
 
 }
 void FifteenInch::gps_test(void *ptr)
 {
   while(true)
   {
-    lcd::print(0, "%f, %f, %f", (float)cur_x_gps, (float)cur_y_gps, (float)(360-cur_heading_gps));
+    //lcd::print(0, "%f, %f, %f", (float)cur_x_gps, (float)cur_y_gps, (float)(360-cur_heading_gps));
     delay(5);
   }
 }

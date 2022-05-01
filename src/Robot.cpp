@@ -91,7 +91,6 @@ double last_heading = 0;
 
 std::map<std::string, std::unique_ptr<pros::Task>> Robot::tasks;
 
-GridMapper* gridMapper = new GridMapper();
 
 
 std::vector<int> find_location(std::string sample, char find){
@@ -104,47 +103,15 @@ std::vector<int> find_location(std::string sample, char find){
     return character_locations;
 }
 
-//sends string to nano for purpose of printing out map data for demo
-//string is in form "#boxnum#ringcount mogocount...#"
-void Robot::print_map(void *ptr) {
-    std::string return_string = "#";
-    for (int i = 1; i < 37; i++) {
-        return_string += std::to_string(i) + "#";
-        int ring_count = gridMapper->getBox(i)["ring"];
-        int mogo_count = gridMapper->getBox(i)["mogo"];
-        return_string += std::to_string(ring_count) + " " + std::to_string(mogo_count) + "#";
-    }
-
-    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, return_string);
-
-
-}
-
 void Robot::receive_data(nlohmann::json msg)
 {
-    double position_temp[] = {gps.get_status().x*meters_to_inches/24 + 3, gps.get_status().y*meters_to_inches/24 + 3, pi/4}; //angle is unit circle degrees with y+ at true north and x+ at true east
+    double position_temp[] = {1.0, 5.0, 3.14159/4}; //= {gps.get_status().x*meters_to_inches/24 + 3, gps.get_status().y*meters_to_inches/24 + 3, pi/4}; //angle is unit circle degrees with y+ at true north and x+ at true east
     std::map<std::string, std::vector<double*>> objects;
     string names[] = {"ring", "mogo"};
     // if (stop) return;
     //     started = true;
     std:vector<std::vector<float>> pred = Data::get_pred(msg);
-    
-    for (std::vector<float> det : pred) {
-        double location[] = {(double)det[0] * meters_to_inches, (double)det[1]*-1/180*pi};
-        objects[names[(int)det[2]]].push_back(location);
-    }
-    
-    gridMapper->map(position_temp, objects); 
-
-    for (int i = 1; i <= 6; i++) { // TEST CODE
-       std::string print_string = "";
-       for (int j = 0; j < 6; j++) {
-          print_string += ("%i:%i  ", (i + 6 * j), gridMapper->getBox((i + 6 * j))["mogo"]);
-          print_string += (std::to_string((i-1) * 6 + j + 1) + "," + 
-            std::to_string(gridMapper->getBox((i-1) * 6 + j + 1)["mogo"]) + " ");
-       }
-       lcd::print(i, print_string.c_str());
-    } 
+ 
     
     
     if (mode.compare("mogo") == 0){
