@@ -36,14 +36,24 @@ class Coms:
         print("DATA: " + str(data))
         
         if not "@" in msg: 
-            self.data = {}
             
+            self.data = {}
+            return False
+        
         return data
-
-    def wait(self, signal):
-        signal += ["camera"]
-        print("Awaiting {} signal".format(str(signal)))
-        while not self.read(signal):
+    def read_raw():
+        msg = self.ser.readline().decode('ascii').strip('\n').strip('\r').split("#")
+        return msg
+    def wait(self, signals):
+        signals += ["camera","mode"]
+        
+        while not self.read(signals):
             pass
+         
+ 
+
+             
+
+	
 
 

@@ -5,9 +5,11 @@ import argparse
 import math
 import matplotlib.pyplot as plt
 import torch
+import random
+import pygame_test as pgt
 from utils.yolo.plots import Annotator, colors
 from utils.serial import Coms
-from utils.data import return_data, determine_color, determine_depth, degree, sort_distance, quicksort
+from utils.data import return_data, determine_depth, degree, sort_distance, quicksort
 from utils.camera import Camera
 from utils.models import Model
 from sklearn.cluster import DBSCAN
@@ -35,11 +37,8 @@ cameras = {
 cam = Camera(cameras, args.camera)
 
 comm = Coms()
-fig, axs = plt.subplots(6,6)
-for row in range(6):
-	for col in range(6):
-		axs[row,col].set_title("Box #" + str(row*6+col+1))
-		
+displayer = pgt.Display()
+temp_msg = ""
 
 try:
 	while(True):
@@ -81,31 +80,38 @@ try:
 			cv2.imshow('RealSense', images)
 			cv2.waitKey(1)
 		try:
-			comm.wait(["continue"])
-			msg = comm.read(["1", "2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30","31","32","33","34","35","36"])
-			
-			print("RECEIVED: " + str(msg))
-			for x in range(1,37):
-				if str(x) in msg:
-					col = math.floor((x-1)/6)
-					row = x-1-col
-					msg_str = msg[str(x)]
-					temp = msg_str.split()
-					ring = int(temp[1])
-					mogo = int(temp[0])
-					axs[row, col].text(0.3, 0.5, str(ring) + " rings")
-					axs[row, col].text(0.7, 0.5, str(mogo) + " mogos")
-					
-				else: 
-					axs[row, col].text(0.7, 0.5, "No rings or mogos.")
-					
-			if "stop" in msg:
-				bcolors.print("STOP", "green")
-			
 			print(whole_str)
 			
 			comm.send("whole_data", whole_str)
-			plt.show()
+
+			msg = False
+			while not msg:
+				print("waiting")
+				msg = comm.read(["1", "2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30","31","32","33","34","35","36", "@"])
+
+			
+			dict_ = {}
+			print("RECEIVED: " + str(msg))
+			for x in range(1,37):
+				if str(x) in msg:
+					temp = msg[str(x)].split()
+					ring = int(temp[1])
+					mogo = int(temp[0])
+					dict_[x] = [mogo, ring]
+						
+						
+				else: 
+					dict_[x] = [0,0]
+			print("DICTIONARY: " + str(dict_))
+			displayer.runner(dict_)
+
+			if "stop" in msg:
+				bcolors.print("STOP", "green")
+		
+			if(msg==False):
+				comm.wait(["continue"])
+				print("HERE")
+			
 			
 			#comm.send("fps", time.time())
 		 
