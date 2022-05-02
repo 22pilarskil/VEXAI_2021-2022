@@ -73,12 +73,19 @@ void FifteenInch::drive(void *ptr){
 }
 void FifteenInch::gps_initialize(void *ptr)
 {
-  while (true){
+    double degree_offset = 0; // gps offset from forward; counterclockwise is positive
+    double x_offset = 0; // x offset on bot of gps from the bot's frame of reference
+    double y_offset = 0; // same as x but for y
+    while (true){
 
       pros::c::gps_status_s cur_status = gps.get_status();
-      cur_x_gps = (double)cur_status.x;
-      cur_y_gps = (double)cur_status.y;
-      cur_heading_gps = (double)gps.get_heading();
+      cur_heading_gps = 360.0 - (double)gps.get_heading() - 90.0 - degree_offset;
+      //uncomment these lines when real offsets are put in place. Leave them commented if x_offset is 0 to avoid / by 0
+      //x_offset = sqrt(x_offset ** 2 + y_offset ** 2) * cos(atan(y_offset / x_offset) + cur_heading_gps * 3.14159 / 180); //totally not burke's trig
+      //y_offset = sqrt(x_offset ** 2 + y_offset ** 2) * sin(atan(y_offset / x_offset) + cur_heading_gps * 3.14159 / 180);
+      cur_x_gps = (double)cur_status.x + x_offset;
+      cur_y_gps = (double)cur_status.y + y_offset;
+      if (cur_heading_gps < 0) cur_heading_gps += 360;
       delay(20);
   }
 }
@@ -120,7 +127,11 @@ void FifteenInch::receive_data(nlohmann::json msg){
       objects[names[(int)det[2]]].push_back(location); //haven't touched any of this, so I'm assuming it to be right
   }
 
+  //this position_temp uses gps values. use if using gps
+  //double position_temp[] = {cur_x_gps * meters_to_inches / 24.0 + 3, cur_y_gps * meters_to_inches / 24.0 + 3, cur_heading_gps * 3.14159 / 180}; // I'm assuming this to be the point near the corner we tested from the first time
+  
   double position_temp[] = {1.0, 5.0, 3.14159/4}; // I'm assuming this to be the point near the corner we tested from the first time
+  
   gridMapper->map(position_temp, objects);
 
   for (int i = 1; i <= 6; i++) { // TEST CODE
