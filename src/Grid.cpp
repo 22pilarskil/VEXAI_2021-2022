@@ -3,16 +3,18 @@
 #include <list>
 #include <cmath>
 #include <vector>
+#include "main.h"
+using namespace pros;
 
 class Grid
 {
-  private: 
+  private:
     std::map<std::string, std::map<int, int>> object_to_pos;
     std::map<int, std::map<std::string, int>> pos_to_object;
 
-// {"yellow mogo": {1: 2, 2: 2, 3: 0}, 
+// {"yellow mogo": {1: 2, 2: 2, 3: 0},
 //  "ring": {1: 6, 2: 0, 3: 2}}
-// {1: {"yellow mogo": 2, "ring": 6}, 
+// {1: {"yellow mogo": 2, "ring": 6},
 //  2: {"yellow mogo": 2, "ring": 0}}
 
     int x_length = 6;
@@ -36,10 +38,11 @@ class Grid
     std::map<std::string, int> get(int box) {
       return pos_to_object[box];
     }
-  
+
     void add(std::string name, double *pos, std::vector<int> validBoxes)
     {
       int box = 1 + floor(pos[0] / 24.0) + x_length * (6 - ceil(pos[1] / 24.0));
+      // lcd::print(6, (std::to_string(box) + " " + std::to_string(pos[0]) + " " + std::to_string(pos[1])).c_str());
 
       for (int i = 0; i < validBoxes.size(); i++)
       {
@@ -56,9 +59,9 @@ class Grid
       object_to_pos[name][box]++;
       pos_to_object[box][name]++;
     }
-  
+
     void remove(std::string name, double *pos) {
-      int box = 1 + floor(pos[0] / 12.0) + x_length *  (ceil(pos[1] / 24.0));
+      int box = 1 + floor(pos[0] / 24.0) + x_length * (6 - ceil(pos[1] / 24.0));
       object_to_pos[name][box]--;
       pos_to_object[box][name]--;
     }
@@ -83,4 +86,3 @@ class Grid
       return object_to_pos[objName];
     }
 };
-
