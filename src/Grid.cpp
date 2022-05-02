@@ -39,6 +39,7 @@ class Grid
       return pos_to_object[box];
     }
 
+
     void add(std::string name, double *pos, std::vector<int> validBoxes)
     {
       int box = 1 + floor(pos[0] / 24.0) + x_length * (6 - ceil(pos[1] / 24.0));

@@ -15,7 +15,6 @@ class GridMapper {
       // I'm going to be working under the assumption that we can get the position, true heading and distance / angle of all objects we see.
 
       // For this, I will be using a sample dictionary.
-      lcd::print(6, (std::to_string(objects["mogo"][0][1])).c_str());
       std::vector<int> validBoxes = remove_viewed(robot_pos);
       // lcd::print(6, (std::to_string(objects["mogo"][0][1])).c_str());
       robot_pos[0] *= 24;
