@@ -2,27 +2,33 @@
 #include "Grid.cpp"
 #include <vector>
 #include <cmath>
+#include "main.h"
+using namespace pros;
 
 class GridMapper {
   private:
     Grid *g = new Grid();
   public:
-    void map(double robot_pos[], std::map<std::string, std::vector<double*>> objects) // Needs to take in everything we see. We need to decide what format our data will be before this is coded.
+    void map(double robot_pos[], std::map<std::string, std::vector<std::vector<double>>> objects) // Needs to take in everything we see. We need to decide what format our data will be before this is coded.
     {
       // This current one is just for testing. For the actual version, all objects will be parsed and put into the grid.
       // I'm going to be working under the assumption that we can get the position, true heading and distance / angle of all objects we see.
 
       // For this, I will be using a sample dictionary.
+      lcd::print(6, (std::to_string(objects["mogo"][0][1])).c_str());
       std::vector<int> validBoxes = remove_viewed(robot_pos);
+      // lcd::print(6, (std::to_string(objects["mogo"][0][1])).c_str());
+      robot_pos[0] *= 24;
+      robot_pos[1] *= 24;
       for (auto const& x : objects) {
         std::string name = x.first;
-        std::vector<double*> pos_list = x.second;
+        std::vector<std::vector<double>> pos_list = x.second;
         for (int i = 0; i < pos_list.size(); i++)
         {
           double truePos[2];
-          truePos[0] = robot_pos[0] + pos_list[i][0] * cos(robot_pos[2] + pos_list[i][1]);
-          truePos[1] = robot_pos[1] + pos_list[i][0] * sin(robot_pos[2] + pos_list[i][1]);
-          std::cout << std::to_string(truePos[0] / 24) + " " + std::to_string(truePos[1] / 24) << std::endl;
+          truePos[0] = robot_pos[0] * 24 + pos_list[i][0] * cos(robot_pos[2] + pos_list[i][1]);
+          truePos[1] = robot_pos[1] * 24 + pos_list[i][0] * sin(robot_pos[2] + pos_list[i][1]);
+          // lcd::print(6, (std::to_string(robot_pos[0]) + " " + std::to_string(pos_list[i][0])).c_str());
           g->add(name, truePos, validBoxes);
         }
       }

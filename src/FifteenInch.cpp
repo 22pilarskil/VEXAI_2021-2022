@@ -58,7 +58,7 @@ void FifteenInch::tank_drive(int power, int turn)
   MR = -right_side;
   BR = right_side;
 }
-
+ // te
 
 void FifteenInch::drive(void *ptr){
   while(true){
@@ -115,7 +115,7 @@ void FifteenInch::receive_data(nlohmann::json msg){
   s++;
   //double position_temp[] = {gps.get_status().x*meters_to_inches/24 + 3, gps.get_status().y*meters_to_inches/24 + 3, pi/4}; //angle is unit circle degrees with y+ at true north and x+ at true east
   //double position_temp[] = {0.0,0.0,pi/4};
-  std::map<std::string, std::vector<double*>> objects;
+  std::map<std::string, std::vector<std::vector<double>>> objects;
   string names[] = {"mogo", "ring"}; //had to switch to this b/c of the recent ID change to 0 = mogo and 1 = ring
   string x;
   // if (stop) return;
@@ -123,27 +123,31 @@ void FifteenInch::receive_data(nlohmann::json msg){
   std:vector<std::vector<float>> pred = Data::get_pred(msg);
 
   for (std::vector<float> det : pred) {
-      double location[] = {(double)det[0] * meters_to_inches, (double)det[1]*-1/180*pi};
+      std::vector<double> location = {(double)det[0] * meters_to_inches, (double)det[1]/180*pi};
+      // location[0] = 1.6 * meters_to_inches;
+      // location[1] = 28.0 / 180.0 * pi;
       objects[names[(int)det[2]]].push_back(location); //haven't touched any of this, so I'm assuming it to be right
   }
+
+  //lcd::print(6, (std::to_string(objects["mogo"][0][1])).c_str());
 
   //this position_temp uses gps values. use if using gps
   //double position_temp[] = {cur_x_gps * meters_to_inches / 24.0 + 3, cur_y_gps * meters_to_inches / 24.0 + 3, cur_heading_gps * 3.14159 / 180}; // I'm assuming this to be the point near the corner we tested from the first time
   
   double position_temp[] = {1.0, 5.0, 3.14159/4}; // I'm assuming this to be the point near the corner we tested from the first time
-  
+
   gridMapper->map(position_temp, objects);
 
-  for (int i = 1; i <= 6; i++) { // TEST CODE
+  for (int i = 0; i < 5; i++) { // TEST CODE
        std::string print_string = "";
-       for (int j = 0; j < 6; j++) {
-          print_string += std::to_string(i + 6 * j) + ":" + std::to_string(gridMapper->getBox((i + 6 * j))["mogo"]) + " ";
+       for (int j = 1; j <= 6; j++) {
+          print_string += std::to_string(j + 6 * i) + ":" + std::to_string(gridMapper->getBox((j + 6 * i))["mogo"]) + " ";
        }
-       lcd::print(i, print_string.c_str());
+       lcd::print((i+1), print_string.c_str());
        delay(5);
-  } 
+  }
 
-  //send_data();
+  // send_data();
 
 }
 void FifteenInch::gps_test(void *ptr)
