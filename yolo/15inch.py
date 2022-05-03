@@ -6,7 +6,7 @@ import math
 import matplotlib.pyplot as plt
 import torch
 import random
-import pygame_test as pgt
+from utils.animation import Display
 from utils.yolo.plots import Annotator, colors
 from utils.serial import Coms
 from utils.data import return_data, determine_depth, degree, sort_distance, quicksort
@@ -37,7 +37,7 @@ cameras = {
 cam = Camera(cameras, args.camera)
 
 comm = Coms()
-displayer = pgt.Display()
+displayer = Display()
 temp_msg = ""
 
 try:
