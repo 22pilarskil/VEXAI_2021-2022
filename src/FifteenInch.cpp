@@ -103,10 +103,6 @@ void FifteenInch::send_data() {
     }
     return_string = return_string +"@#";
     lcd::print(0,"%s",return_string);
-    // lcd::print(4, "prepping send");
-
-    lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#@#");
-    delay(250);//serial sometimes concatenates packets into 1, which makes the continue packet contain the actual data packet sometimes
 
     lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, return_string);
 
@@ -139,7 +135,7 @@ void FifteenInch::receive_data(nlohmann::json msg){
   //this position_temp uses gps values. use if using gps
   //double position_temp[] = {cur_x_gps * meters_to_inches / 24.0 + 3, cur_y_gps * meters_to_inches / 24.0 + 3, cur_heading_gps * 3.14159 / 180}; // I'm assuming this to be the point near the corner we tested from the first time
 
-  double position_temp[] = {1.0, 5.0, 3.14159/4}; // I'm assuming this to be the point near the corner we tested from the first time
+  double position_temp[] = {1.0, 1.0, 3.14159/4}; // I'm assuming this to be the point near the corner we tested from the first time
 
   gridMapper->map(position_temp, objects);
 

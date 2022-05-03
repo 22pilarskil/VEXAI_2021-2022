@@ -16,7 +16,7 @@ void opcontrol() {
 	//FifteenInch::start_task("GPS INIT", FifteenInch::gps_initialize);
 	//FifteenInch::start_task("GPS Test", FifteenInch::gps_test);
 
-	lcd::print(1, "sent");
+	lcd::print(1, "sendding");
 	lib7405x::Serial::Instance()->onReceive("whole_data",FifteenInch::receive_data);
 	lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#@#");
 	// serial_initialize();

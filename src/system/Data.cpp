@@ -22,6 +22,7 @@ vector<vector<float>> Data::pred_id(vector<vector<float>> pred, int id)
 
 vector<vector<float>> Data::get_pred(nlohmann::json msg){
     string s = msg.dump();
+    lcd::print(1, "%s", s);
     s = s.substr(1, s.size()-2);
     string delimiter = "|";
     vector<vector<float>> pred;
