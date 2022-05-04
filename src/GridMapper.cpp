@@ -36,11 +36,9 @@ class GridMapper {
 
     std::vector<int> remove_viewed(double robot_pos[]) {
       std::vector<int> viewed_boxes;
-
-      robot_pos[0] = robot_pos[0] / 24.0;
-      robot_pos[1] = robot_pos[1] / 24.0;
-
-
+      lcd::print(6, "%f, %f, %f", (float)robot_pos[0], (float)robot_pos[1], (float)robot_pos[2]);
+      robot_pos[0] = robot_pos[0]/24.0;
+      robot_pos[1] = robot_pos[1]/24.0;
       if (robot_pos[2] > 35/180.0*M_PI && robot_pos[2] < (180-35)/180.0*M_PI) { // Facing Up
         int range_prev[] = {0,0};
         for (int y = ceil(robot_pos[1]); y <= g->get_y_length(); y++) {
@@ -65,7 +63,7 @@ class GridMapper {
         }
       }
 
-      else if (robot_pos[2] < 35.0/180*M_PI && (robot_pos[2] > (360.0-35)/180*M_PI || robot_pos[2] >= 0)) { // Facing Right
+      else if (robot_pos[2] < 35.0/180*M_PI || (robot_pos[2] > (360.0-35)/180*M_PI)) { // Facing Right
         int range_prev[] = {0,0};
         for (int x = ceil(robot_pos[0]); x <= g->get_x_length(); x++) {
           int y_top = floor(tan(robot_pos[2] + 35.0/180*M_PI) * (x - robot_pos[0]) + robot_pos[1]);
@@ -133,11 +131,17 @@ class GridMapper {
           range_prev[1] = range[1];
         }
       }
-
+      bool x[37];
       for(int i : viewed_boxes){
-        std::cout << "Box: " + std::to_string(i) << std::endl;
+        x[i] = true;
         g->remove(i);
       }
+      std::string ret;
+      for(int i = 1; i<37; i++)
+      {
+        if(!x[i])ret += std::to_string(i)+" ";
+      }
+      //, "%s", ret);
 
       return viewed_boxes;
     }

@@ -12,6 +12,7 @@ void opcontrol() {
 	serial_initialize();
 
 	delay(100);
+	FifteenInch::start_task("gps",FifteenInch::gps_initialize);
 	//FifteenInch::start_task("DRIVE", FifteenInch::drive);
 	//FifteenInch::start_task("GPS INIT", FifteenInch::gps_initialize);
 	//FifteenInch::start_task("GPS Test", FifteenInch::gps_test);

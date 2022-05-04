@@ -19,6 +19,9 @@ const double inches_to_encoder = 41.669;
 const double meters_to_inches = 39.3701;
 const double pi = 3.141592653589793238;
 
+
+
+
 Controller FifteenInch::master(E_CONTROLLER_MASTER);
 
 std::atomic<double> FifteenInch::x = 0;
@@ -33,7 +36,7 @@ Motor FifteenInch::four_bar(20, true);
 double FifteenInch::cur_x_gps;
 double FifteenInch::cur_y_gps;
 double FifteenInch::cur_heading_gps;
-Gps FifteenInch::gps(5);
+Gps FifteenInch::gps(1);
 
 int s = 0;
 Imu FifteenInch::IMU(15);
@@ -65,7 +68,7 @@ void FifteenInch::drive(void *ptr){
     int power = master.get_analog(ANALOG_LEFT_Y);
     int turn = master.get_analog(ANALOG_RIGHT_X);
     int four_bar_power = master.get_analog(ANALOG_LEFT_Y);
-
+    //lcd::print(7, "%f, %f, %f", (float)cur_x_gps, (float)cur_y_gps, (float)cur_heading_gps);
     tank_drive(power, turn);
     four_bar = four_bar_power;
     delay(5);
@@ -74,18 +77,22 @@ void FifteenInch::drive(void *ptr){
 void FifteenInch::gps_initialize(void *ptr)
 {
     double degree_offset = 0; // gps offset from forward; counterclockwise is positive
-    double x_offset = 0; // x offset on bot of gps from the bot's frame of reference
-    double y_offset = 0; // same as x but for y
+    double x_offset = (double)5/meters_to_inches; // x offset on bot of gps from the bot's frame of reference
+    double y_offset = (double)0.5/meters_to_inches; // same as x but for y
+    double new_x_offset = 0;
+    double new_y_offset = 0;
     while (true){
 
       pros::c::gps_status_s cur_status = gps.get_status();
-      cur_heading_gps = 360.0 - (double)gps.get_heading() - 90.0 - degree_offset;
-      //uncomment these lines when real offsets are put in place. Leave them commented if x_offset is 0 to avoid / by 0
-      //x_offset = sqrt(x_offset ** 2 + y_offset ** 2) * cos(atan(y_offset / x_offset) + cur_heading_gps * 3.14159 / 180); //totally not burke's trig
-      //y_offset = sqrt(x_offset ** 2 + y_offset ** 2) * sin(atan(y_offset / x_offset) + cur_heading_gps * 3.14159 / 180);
-      cur_x_gps = (double)cur_status.x + x_offset;
-      cur_y_gps = (double)cur_status.y + y_offset;
+      cur_heading_gps = 360.0 - (double)gps.get_heading() + 90 + degree_offset;
       if (cur_heading_gps < 0) cur_heading_gps += 360;
+      if (cur_heading_gps >= 360) cur_heading_gps -= 360;
+      //uncomment these lines when real offsets are put in place. Leave them commented if x_offset is 0 to avoid / by 0
+      new_x_offset = sqrt(pow(x_offset, 2) + pow(y_offset, 2)) * cos(atan(y_offset / x_offset) + cur_heading_gps * 3.14159 / 180); //totally not burke's trig
+      new_y_offset = sqrt(pow(x_offset, 2) + pow(y_offset, 2)) * sin(atan(y_offset / x_offset) + cur_heading_gps * 3.14159 / 180);
+      cur_x_gps = (double)cur_status.x + new_x_offset;
+      cur_y_gps = (double)cur_status.y + new_y_offset;
+      //lcd::print(6, "%f, %f, %f", cur_x_gps, cur_y_gps, cur_heading_gps);
       delay(20);
   }
 }
@@ -97,12 +104,18 @@ void FifteenInch::send_data() {
         int mogo_count = gridMapper->getBox(i)["mogo"];
         if(ring_count > 0 || mogo_count > 0)
         {
-          return_string += std::to_string(i) + "#" + std::to_string(ring_count) + " " + std::to_string(mogo_count) + "#";
+          return_string += std::to_string(i) + "#y#" + std::to_string(ring_count) + " " + std::to_string(mogo_count) + "#@#";
         }
 
     }
+    //"#R#" + std::to_string(cur_x_gps) + " " + std::to_string(cur_y_gps) + " " + std::to_string(cur_heading_gps) + "#" + 
+    double unit_circle = 90-cur_heading_gps;
+    if(unit_circle <0){
+      unit_circle += 360;
+    }
+    return_string = "#x#" + to_string(cur_x_gps) + "#y#"+to_string(cur_y_gps)+"#z#"+to_string(unit_circle)+"#";
     return_string = return_string +"@#";
-    lcd::print(0,"%s",return_string);
+    lcd::print(7,"%s",return_string);
 
     lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, return_string);
 
@@ -133,9 +146,10 @@ void FifteenInch::receive_data(nlohmann::json msg){
   //lcd::print(6, (std::to_string(objects["mogo"][0][1])).c_str());
 
   //this position_temp uses gps values. use if using gps
-  //double position_temp[] = {cur_x_gps * meters_to_inches / 24.0 + 3, cur_y_gps * meters_to_inches / 24.0 + 3, cur_heading_gps * 3.14159 / 180}; // I'm assuming this to be the point near the corner we tested from the first time
-
-  double position_temp[] = {1.0, 1.0, 3.14159/4}; // I'm assuming this to be the point near the corner we tested from the first time
+  //double position_temp[] = {cur_y_gps * meters_to_inches / 24.0 + 3, cur_x_gps * meters_to_inches / 24.0 + 3, cur_heading_gps * 3.14159 / 180}; // I'm assuming this to be the point near the corner we tested from the first time
+  //lcd::print(7, "%f, %f, %f", (float)position_temp[0], (float)position_temp[1], (float)position_temp[2]);
+  double position_temp[] = {1.0, 1.0, 3.1415/4}; // I'm assuming this to be the point near the corner we tested from the first time
+  //lcd::print(7, "%f, %f, %f", (float)position_temp[0], (float)position_temp[1], (float)position_temp[2]);
 
   gridMapper->map(position_temp, objects);
 
