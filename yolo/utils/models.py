@@ -13,6 +13,7 @@ except ImportError:
     bcolors.print("TRT import fail, check that it is installed or don't use it", 'red')
 
 from models.experimental import attempt_load
+from yolov5.models.common import DetectMultiBackend
 
 class Model:
     def __init__(self, filepath):
@@ -37,9 +38,12 @@ class Model:
             self.mode = "pt"
             self.has_cuda = torch.cuda.is_available()
 
-            self.model = attempt_load(filepath)
             device = torch.device("cuda" if self.has_cuda else 'cpu')
-            self.model.to(device)
+            #maybe use this instead, need to get new file from yolov5 repo: from models.common import DetectMultiBackend
+            #same can probably be done in previous .engine section
+            self.model = DetectMultiBackend(filepath, device=device)
+            #self.model = attempt_load(filepath, map_location=device) #added device variable
+            #self.model.to(device)
 
     @timer("Model Time")
     def predict(self, img, img_shape, conf_thres=.3):
@@ -58,10 +62,18 @@ class Model:
 
         elif self.mode == "pt":
             image_t = None
+
+            #instead of if else code:
+            img_t = torch.from_numpy(im).to(device)
+            img_t = im.float()
+            img_t /= 255
+            """
             if self.has_cuda:
                 image_t = torch.cuda.FloatTensor(img)
+
             else:
                 image_t = torch.FloatTensor(img)
+            """
             pred = self.model(image_t)[0]
 
 
