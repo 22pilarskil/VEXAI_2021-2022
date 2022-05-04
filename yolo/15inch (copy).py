@@ -61,7 +61,6 @@ try:
 
 		contains_ring = False
 		whole_str = ""
-		pred1 = []
 		for i, det in enumerate(pred):
 			print("this is a det")
 			turn_angle = degree(det)
@@ -71,8 +70,6 @@ try:
 				class_id = str(int(det[5]))
 				if int(class_id) == 1: contains_ring = True
 				whole_str += depth + "," + turn_angle + "," + class_id + ",|"
-				pred1.append([depth, turn_angle, class_id])
-		#print("PRED1: " + str(pred1))
 
 		if args.display:
 			for det in pred:
@@ -83,9 +80,7 @@ try:
 			cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
 			cv2.imshow('RealSense', images)
 			cv2.waitKey(1)
-
-	
-		if True:
+		try:
 			print(whole_str)
 			
 			comm.send("whole_data", whole_str)
@@ -93,20 +88,11 @@ try:
 			msg = False
 			while not msg:
 				print("waiting")
-				msg = comm.read(["x","y","z","1", "2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30","31","32","33","34","35","36", "@"])
+				msg = comm.read(["1", "2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30","31","32","33","34","35","36", "@"])
 
 			
 			dict_ = {}
 			print("RECEIVED: " + str(msg))
-			robot_x = float(msg["x"])
-			robot_y = float(msg["y"])
-			robot_heading = 90 - float(msg["z"])
-			robot_coords = displayer.robot_coords(robot_x, robot_y)
-			in_view = displayer.boxes_inside(robot_heading, robot_coords[0], robot_coords[1])
-			new_det = displayer
-			print("P1:" + str(pred1))
-
-			'''
 			for x in range(1,37):
 				if str(x) in msg:
 					temp = msg[str(x)].split()
@@ -119,36 +105,6 @@ try:
 					dict_[x] = [0,0]
 			print("DICTIONARY: " + str(dict_))
 			displayer.runner(dict_)
-			'''
-			det_box = displayer.det_to_boxes(robot_x, robot_y, robot_heading, pred1)
-			print("DETBOX: " + str(det_box))
-			box_numrings = {}
-			box_nummogos = {}
-			for det in det_box:
-				det = [int(det[0]), int(det[1])]
-				box_id = det[0]
-				if(det[1]==0):
-					if not box_id in box_numrings: box_numrings[box_id] = 1
-					else: box_numrings[box_id] += 1
-				if(det[1]== 1):
-					if not box_id in box_nummogos: box_nummogos[box_id] = 1
-					else: box_nummogos[box_id] +=1
-			full_dict = {}
-			print("BOXNUMRINGS: " +str(box_numrings))
-			print("BOXNUMMOGOS: " +str(box_nummogos))
-			print("CHECK: " + str(in_view))
-			for box in range(1,37):
-				full_dict[box] = [0,0]
-				if(in_view[box]):
-					rings = 0
-					mogos = 0
-					if box in box_numrings: rings = box_numrings[box]
-					if box in box_nummogos: mogos = box_nummogos[box]
-					
-					full_dict[box] = [mogos, rings]
-			print("DICTIONARY: " +str(full_dict))
-			displayer.runner(full_dict, robot_coords[0], robot_coords[1], robot_heading)
-				
 
 			if "stop" in msg:
 				bcolors.print("STOP", "green")
@@ -160,8 +116,8 @@ try:
 			
 			#comm.send("fps", time.time())
 		 
-		#except Exception as e:
-		#	bcolors.print(str(e), "blue")
-		#	comm.open()
+		except Exception as e:
+			bcolors.print(str(e), "blue")
+			comm.open()
 finally:
 	cam.stop()
