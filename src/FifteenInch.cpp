@@ -26,12 +26,12 @@ Controller FifteenInch::master(E_CONTROLLER_MASTER);
 
 std::atomic<double> FifteenInch::x = 0;
 
-Motor FifteenInch::FL(17, true);
-Motor FifteenInch::ML(18, true);
-Motor FifteenInch::BL(19, true);
-Motor FifteenInch::FR(1);
-Motor FifteenInch::MR(2);
-Motor FifteenInch::BR(3);
+Motor FifteenInch::FL(15, true);
+Motor FifteenInch::ML(14, true);
+Motor FifteenInch::BL(16, true);
+Motor FifteenInch::FR(12);
+Motor FifteenInch::MR(13);
+Motor FifteenInch::BR(11);
 Motor FifteenInch::four_bar(20, true);
 double FifteenInch::cur_x_gps;
 double FifteenInch::cur_y_gps;
@@ -49,7 +49,6 @@ void FifteenInch::tank_drive(int power, int turn)
   int left_side;
   int right_side;
 
-
   left_side = power + turn;
   right_side = power - turn;
 
@@ -57,9 +56,9 @@ void FifteenInch::tank_drive(int power, int turn)
   FL = -left_side;
   ML = left_side;
   BL = -left_side;
-  FR = right_side;
+  FR = -right_side;
   MR = -right_side;
-  BR = right_side;
+  BR = -right_side;
 }
  // te
 

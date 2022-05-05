@@ -12,14 +12,14 @@ void opcontrol() {
 	serial_initialize();
 
 	delay(100);
-	FifteenInch::start_task("gps",FifteenInch::gps_initialize);
-	//FifteenInch::start_task("DRIVE", FifteenInch::drive);
+	//FifteenInch::start_task("gps",FifteenInch::gps_initialize);
+	FifteenInch::start_task("DRIVE", FifteenInch::drive);
 	//FifteenInch::start_task("GPS INIT", FifteenInch::gps_initialize);
 	//FifteenInch::start_task("GPS Test", FifteenInch::gps_test);
 
-	lcd::print(1, "sendding");
-	lib7405x::Serial::Instance()->onReceive("whole_data",FifteenInch::receive_data);
-	lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#@#");
+	// lcd::print(1, "sendding");
+	// lib7405x::Serial::Instance()->onReceive("whole_data",FifteenInch::receive_data);
+	// lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#@#");
 	// serial_initialize();
 	// lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#camera#l515_back#mode#false#@#");
 	// //Robot::start_task("GPS", Robot::gps_fps);
