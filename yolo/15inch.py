@@ -9,7 +9,7 @@ import random
 from utils.animation import Display
 from utils.yolo.plots import Annotator, colors
 from utils.serial import Coms
-from utils.data import return_data, determine_depth, degree, sort_distance, quicksort
+from utils.data import return_data, determine_depth, degree, sort_distance, quicksort, determine_color
 from utils.camera import Camera
 from utils.models import Model
 from sklearn.cluster import DBSCAN
@@ -51,6 +51,10 @@ try:
 
 		for i, det in enumerate(pred):
 			pred[i, 6] = determine_depth(det, depth_image) * depth_frame.get_units()
+            if pred[i, 5] == 0:
+                pred[i, 5] == determine_color(det, color_image)
+            else:
+                pred[i, 5] = 2
 		try:
 			pred = torch.stack(quicksort(pred))
 		except:
@@ -84,10 +88,10 @@ try:
 			cv2.imshow('RealSense', images)
 			cv2.waitKey(1)
 
-	
+
 		if True:
 			print(whole_str)
-			
+
 			comm.send("whole_data", whole_str)
 
 			msg = False
@@ -95,7 +99,7 @@ try:
 				print("waiting")
 				msg = comm.read(["x","y","z","1", "2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30","31","32","33","34","35","36", "@"])
 
-			
+
 			dict_ = {}
 			print("RECEIVED: " + str(msg))
 			robot_x = float(msg["x"])
@@ -113,9 +117,9 @@ try:
 					ring = int(temp[1])
 					mogo = int(temp[0])
 					dict_[x] = [mogo, ring]
-						
-						
-				else: 
+
+
+				else:
 					dict_[x] = [0,0]
 			print("DICTIONARY: " + str(dict_))
 			displayer.runner(dict_)
@@ -127,12 +131,19 @@ try:
 			for det in det_box:
 				det = [int(det[0]), int(det[1])]
 				box_id = det[0]
-				if(det[1]==0):
-					if not box_id in box_numrings: box_numrings[box_id] = 1
-					else: box_numrings[box_id] += 1
-				if(det[1]== 1):
-					if not box_id in box_nummogos: box_nummogos[box_id] = 1
-					else: box_nummogos[box_id] +=1
+                match det[1]:
+                    case -1:
+                        if not box_id in box_nummogos: box_nummogos[box_id] = 1
+                        else: box_nummogos[box_id] = 1
+                    case 0:
+                        if not box_id in box_nummogos: box_nummogos[box_id] = 1
+                        else: box_nummogos[box_id] = 2
+                    case 1:
+                        if not box_id in box_nummogos: box_nummogos[box_id] = 1
+                        else: box_nummogos[box_id] = 3
+                    case 2:
+					    if not box_id in box_numrings: box_numrings[box_id] = 1
+					    else: box_numrings[box_id] += 1
 			full_dict = {}
 			print("BOXNUMRINGS: " +str(box_numrings))
 			print("BOXNUMMOGOS: " +str(box_nummogos))
@@ -144,22 +155,22 @@ try:
 					mogos = 0
 					if box in box_numrings: rings = box_numrings[box]
 					if box in box_nummogos: mogos = box_nummogos[box]
-					
+
 					full_dict[box] = [mogos, rings]
 			print("DICTIONARY: " +str(full_dict))
 			displayer.runner(full_dict, robot_coords[0], robot_coords[1], robot_heading)
-				
+
 
 			if "stop" in msg:
 				bcolors.print("STOP", "green")
-		
+
 			if(msg==False):
 				comm.wait(["continue"])
 				print("HERE")
-			
-			
+
+
 			#comm.send("fps", time.time())
-		 
+
 		#except Exception as e:
 		#	bcolors.print(str(e), "blue")
 		#	comm.open()

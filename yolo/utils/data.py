@@ -77,8 +77,12 @@ def return_data(mogos, find="all", colors=[-1, 0, 1], conf_thres=1, close_thresh
     #If find all return all of the mogos
     return mogos
 
+def determine_depth(det, depth_image):
+    d = depth_image[int(det[1] + (float(det[3] - det[1]) * (2 / 10))):int(det[1] + (float(det[3] - det[1]) * (4.0 / 10))), int(det[0] + (float(det[2] - det[0]) * (4.0 / 10))):int(det[0] + (float(det[2] - det[0]) * (6.0 / 10)))]
+    d = np.array(d[d > 0])
+    return np.median(d)
 
-def convert_rgb_to_hsv(r, g, b):
+ef convert_rgb_to_hsv(r, g, b):
     color_hsv_percentage = colorsys.rgb_to_hsv(r / float(255), g / float(255), b / float(255))
 
     color_h = round(360 * color_hsv_percentage[0])
@@ -87,12 +91,20 @@ def convert_rgb_to_hsv(r, g, b):
     color_hsv = (color_h, color_s, color_v)
     return color_hsv
 
-
-
-def determine_depth(det, depth_image):
-    d = depth_image[int(det[1] + (float(det[3] - det[1]) * (2 / 10))):int(det[1] + (float(det[3] - det[1]) * (4.0 / 10))), int(det[0] + (float(det[2] - det[0]) * (4.0 / 10))):int(det[0] + (float(det[2] - det[0]) * (6.0 / 10)))]
-    d = np.array(d[d > 0])
-    return np.median(d)
+def determine_color(det, color_image):
+    bgr = color_image[int(det[1] + (float(det[3] - det[1]) * (2 / 10))):int(det[1] + (float(det[3] - det[1]) * (4.0 / 10))), int(det[0] + (float(det[2] - det[0]) * (4.0 / 10))):int(det[0] + (float(det[2] - det[0]) * (6.0 / 10)))]
+    bgr = np.mean(bgr, axis=(0,1))
+    hsv = convert_rgb_to_hsv(bgr[2],bgr[1], bgr[0])
+    min_difference = np.argmin(np.absolute(np.subtract(np.full((1,3),hsv[0], dtype=float), np.array([60.0, 0.0, 240.0]))))
+    if min_difference == 0:
+        #yellow
+        return 0
+    elif min_difference == 1:
+        #red
+        return 1
+    else:
+        #blue
+        return -1
 
 def degree(det):
     pixel_degree = 0.109375
