@@ -45,8 +45,8 @@ void opcontrol() {
 		delay(2500);
 		Robot::start_task("IMU", Robot::imu_clamp);
 		Robot::start_task("MOVETO", Robot::move_to);
-		Robot::new_x = 1000;
-		Robot::new_y = 1000;
+		Robot::new_x = 300;
+		Robot::new_y = 300;
 		Robot::heading = 45;
 
 	}

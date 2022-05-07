@@ -18,8 +18,8 @@ using namespace pros;
 using namespace std;
 
 Controller Robot::master(E_CONTROLLER_MASTER);
-PD Robot::power_PD(.4, 0, 0);
-PD Robot::strafe_PD(.4, 0, 0);
+PD Robot::power_PD(0.4, 0, 0);
+PD Robot::strafe_PD(0.4, 0, 0);
 PD Robot::turn_PD(1.0, 0, 0);
 
 Motor Robot::BRB(1, true);
@@ -35,11 +35,10 @@ Motor Robot::angler(20);
 Motor Robot::conveyor(2);
 Motor Robot::lift(8);
 
-ADIEncoder Robot::LE({{16, 5, 6}});
-ADIEncoder Robot::RE({{16, 1, 2}});
+ADIEncoder Robot::LE({{16, 1, 2}});
+ADIEncoder Robot::RE({{16, 5, 6}});
 ADIEncoder Robot::BE(7, 8);
-ADIAnalogIn Robot::angler_pot({{16, 8}});
-ADIAnalogIn Robot::lift_pot(3);
+ADIAnalogIn Robot::angler_pot(3);
 ADIDigitalOut Robot::angler_piston(2);
 ADIDigitalOut Robot::lift_piston(1);
 ADIUltrasonic Robot::ring_ultrasonic(5, 6);
@@ -201,7 +200,7 @@ void Robot::dummy(nlohmann::json msg){
             valid_mogos += 1;
         }
     }
-    lcd::print(6, "VR %d IR %d VM %d IM %d", valid_rings, invalid_rings, valid_mogos, invalid_mogos);
+    //lcd::print(6, "VR %d IR %d VM %d IM %d", valid_rings, invalid_rings, valid_mogos, invalid_mogos);
     lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue_ring#true#@#");
 
 }
@@ -250,17 +249,17 @@ void Robot::ring_receive(vector<float> det) {
     while(abs(temp - imu_val) > 1 && stagnant < 10) delay(5);
     turn_coefficient = 3;
     heading = temp;
-    conveyor = -80;
+    conveyor = -127;
     double coefficient = lidar_depth * meters_to_inches * inches_to_encoder;
     double angle_threshold = 1;
 
     new_y = y - coefficient * cos(heading / 180 * pi);
     new_x = x + coefficient * sin(heading / 180 * pi);
     while ((abs(new_y - y) > 100 || abs(new_x - x) > 100) && stagnant < 10) delay(5);
-    delay(500);
     //checks if bot is too close to the wall and balance on the sides and goes back to the middle
 
     move_to_mode = 1;
+    delay(500);
 
     if (abs(cur_x_gps) > 0.65 || abs(cur_y_gps) > 1.15) {
         new_x_gps = new_x_gps / 2;
@@ -285,7 +284,6 @@ void Robot::receive_fps(nlohmann::json msg){
     last_heading = imu_val;
     if (turn_in_place){
         heading = imu_val + 30;
-
     }
     if (chasing_mogo) {failed_update += 1;}
     last_x_gps = (double)cur_x_gps;
@@ -299,7 +297,7 @@ void Robot::reposition(void *ptr)
     if(!turn_in_place)
     {
       last_imu_angle = imu_val;
-      turn_degree =0;
+      turn_degree = 0;
       delay(5);
     }
     else if(turn_in_place)
@@ -318,7 +316,7 @@ void Robot::reposition(void *ptr)
         }
         stay();
         turn_in_place = true;
-        conveyor = 80;
+        conveyor = 127;
         move_to_mode = 0;
         stagnant = 0;
         turn_degree = 0;
@@ -338,8 +336,10 @@ this thread. For example, if we are depositing a mogo in a corner or some other 
 temporarily, we would set resetting to false so that the if statement is never called */
 void Robot::reset(void *ptr) {
     stagnant = 0;
+    lcd::print(6, "STARTED");
     while (true) {
         if (stagnant > 10 && resetting){
+            lcd::print(6, "RESETTING");
             delay(50);
             stagnant = 0;
             conveyor = 0;
@@ -361,7 +361,7 @@ void Robot::reset(void *ptr) {
             turn_in_place = true;
             move_to_mode = 0;
             stagnant = 0;
-            resetting = false;
+            lcd::print(6, "stopping");
         }
 
         delay(5);
@@ -413,8 +413,8 @@ void Robot::drive(void *ptr) {
         if (lift_piston_open) lift_piston.set_value(true);
         else if (lift_piston_close) lift_piston.set_value(false);
 
-        if (conveyor_forward) conveyor = 80;
-        else if (conveyor_backward) conveyor = -80;
+        if (conveyor_forward) conveyor = 127;
+        else if (conveyor_backward) conveyor = -127;
         else conveyor = 0;
 
 
@@ -435,11 +435,11 @@ void Robot::check_depth(void *ptr){
     double depth_average = 0;
 
     do {
-        if ((int)depth_vals.size() == 10) depth_vals.pop_front();
+        if ((int)depth_vals.size() == 50) depth_vals.pop_front();
         depth_vals.push_back(mogo_dist.get());
         double sum = 0;
         for (int i = 0; i < depth_vals.size(); i++) sum += depth_vals[i];
-        depth_average = sum / 10;
+        depth_average = sum / 50;
         delay(5);
 
         if (failed_update > 1){
@@ -468,7 +468,7 @@ void Robot::check_depth(void *ptr){
 void Robot::depth_angler(void *ptr){
     std::deque<double> depth_vals;
 
-    int depth_threshold = 47;
+    int depth_threshold = 55;
     int depth_coefficient = 6;
     int cap = 20;
     bool reached = false;
@@ -485,15 +485,15 @@ void Robot::depth_angler(void *ptr){
         double depth_average = sum / 100;
 
 
-        if (abs(angler_pot.get_value() - angler_finish) > 100){
-            angler = angler_pot.get_value() - angler_finish;
+        if (abs(angler_pot.get_value() - angler_finish) > 200){
+            angler = .25 * (angler_pot.get_value() - angler_finish);
         }
         else {
             angler = depth_coefficient * (angler_dist.get() - depth_threshold);
         }
 
         //When a mogo has been filled
-        if (depth_average < 130 && depth_vals.size() == 100){
+        if (depth_average < 200 && depth_vals.size() == 100){
 
             stop = true;
             //switch to move_to_gps, move to the center of the field
@@ -534,6 +534,7 @@ void Robot::depth_angler(void *ptr){
                 angler = angler_pot.get_value() - angler_finish;
             }
             stay();
+            lcd::print(7, "REASCHED");
 
             //release mogo
             while (angler_pot.get_value() < 2150) angler = -(2150 - angler_pot.get_value());
@@ -651,7 +652,6 @@ void Robot::move_to_gps(void *ptr) {
         double power = power_PD.get_value(y_error * std::sin(phi) - x_error * std::cos(phi));
         double strafe = strafe_PD.get_value(x_error * std::sin(phi) + y_error * std::cos(phi));
         double turn = turn_PD.get_value(gps_error);
-
         mecanum(power, strafe, turn, 127);
 
         delay(5);
@@ -716,6 +716,7 @@ void Robot::display(void *ptr){
         lcd::print(2, "GPS: X %.2f Y: %.2f HEADING: %.2f", (float)(cur_x_gps), (float)(cur_y_gps), (float)(cur_heading_gps));
         lcd::print(3, "STAGNANT FOR: %d", (int)stagnant);
         lcd::print(4, "TEMP: %f", (float)drive_temp);
+        lcd::print(5, "%d", ring_ultrasonic.get_value());
         delay(5);
     }
 }
