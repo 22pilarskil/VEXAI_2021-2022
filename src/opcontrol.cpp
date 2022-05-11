@@ -8,6 +8,7 @@ void opcontrol() {
 	std::string mode = "mogo";
 	int slot = 1;
 	lcd::initialize();
+<<<<<<< Updated upstream
 	serial_initialize();
 	Robot::IMU.reset();
 	if (slot == 1){
@@ -62,5 +63,34 @@ void opcontrol() {
 
 
 
+=======
+	//serial_initialize();
+
+	delay(100);
+	lcd::print(1, "Start");
+	FifteenInch::start_task("gps",FifteenInch::gps_initialize);
+	FifteenInch::start_task("DRIVE", FifteenInch::dummy);
+	//FifteenInch::start_task("GPS INIT", FifteenInch::gps_initialize);
+	//FifteenInch::start_task("GPS Test", FifteenInch::gps_test);
+
+	// lcd::print(1, "sendding");
+	// lib7405x::Serial::Instance()->onReceive("whole_data",FifteenInch::receive_data);
+	// lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#@#");
+	// serial_initialize();
+	// lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#camera#l515_back#mode#false#@#");
+	// //Robot::start_task("GPS", Robot::gps_fps);
+	// Robot::start_task("DRIVE", Robot::drive);
+	// Robot::start_task("CONTROLLER", Robot::controller_print);
+
+	// Robot::IMU.reset();
+	// delay(2500);
+	// Robot::start_task("FPS", Robot::fps);
+	// Robot::start_task("DISPLAY", Robot::display);
+	// lib7405x::Serial::Instance()->onReceive("fps", Robot::receive_fps);
+	// lib7405x::Serial::Instance()->onReceive("mogo", Robot::receive_mogo);
+	// lib7405x::Serial::Instance()->onReceive("ring", Robot::receive_ring);
+	// //Robot::start_task("MOVETO", Robot::move_to);
+	// Robot::start_task("IMU", Robot::imu_clamp);
+>>>>>>> Stashed changes
 
 }
