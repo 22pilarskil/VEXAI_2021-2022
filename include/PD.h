@@ -16,7 +16,6 @@ class PD {
 
 		PD(double p, double d, double min = 0, int counter_ = 100);
 		double get_value(double error);
-		double get_value(double error, double stop_error, double slowdown_error);
 		void reset();
 };
 

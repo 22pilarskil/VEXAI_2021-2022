@@ -27,7 +27,7 @@ class FifteenInch {
     static Gps gps;
     static double move_to_x;
     static double move_to_y;
-    static double unit_circle_heading;
+    static double unit_circle;
 
     static PD turn_PD;
 
