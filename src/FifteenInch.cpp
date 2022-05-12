@@ -37,7 +37,7 @@ Motor FifteenInch::four_bar(20, true);
 double FifteenInch::cur_x_gps;
 double FifteenInch::cur_y_gps;
 double FifteenInch::cur_heading_gps;
-double FifteenInch::unit_circle;
+double FifteenInch::unit_circle_heading;
 Gps FifteenInch::gps(1);
 double FifteenInch::move_to_x;
 double FifteenInch::move_to_y;
@@ -89,47 +89,68 @@ void FifteenInch::gps_initialize(void *ptr)
 
       pros::c::gps_status_s cur_status = gps.get_status();
       cur_heading_gps = (double)gps.get_heading();
-      unit_circle = 90 - cur_heading_gps;
-      if(unit_circle < 0) unit_circle +=360;
+      unit_circle_heading = 90 - cur_heading_gps;
+      if(unit_circle_heading < 0) unit_circle_heading +=360;
       //uncomment these lines when real offsets are put in place. Leave them commented if x_offset is 0 to avoid / by 0
-      new_x_offset = sqrt(pow(x_offset, 2) + pow(y_offset, 2)) * cos(atan(y_offset / x_offset) + unit_circle * 3.14159 / 180); //totally not burke's trig
-      new_y_offset = sqrt(pow(x_offset, 2) + pow(y_offset, 2)) * sin(atan(y_offset / x_offset) + unit_circle * 3.14159 / 180);
+      new_x_offset = sqrt(pow(x_offset, 2) + pow(y_offset, 2)) * cos(atan(y_offset / x_offset) + unit_circle_heading * 3.14159 / 180); //totally not burke's trig
+      new_y_offset = sqrt(pow(x_offset, 2) + pow(y_offset, 2)) * sin(atan(y_offset / x_offset) + unit_circle_heading * 3.14159 / 180);
       cur_x_gps = (double)cur_status.x + new_x_offset;
       cur_y_gps = (double)cur_status.y + new_y_offset;
-      lcd::print(6, "%f, %f, %f", cur_x_gps, cur_y_gps, unit_circle);
+      lcd::print(6, "%f, %f, %f", cur_x_gps, cur_y_gps, unit_circle_heading);
       delay(20);
   }
 }
-void FifteenInch::dummy(void *ptr)
+
+//designed to make the bot move (with curves?) to a desired location and heading. It should slow down just before it gets there so it doesn't overshoot
+void FifteenInch::move_to(void *ptr)
 {
 
+  //make these variables parameters in the end
   double go_to_x = 0;
   double go_to_y = 0;
   double needed_heading = atan((go_to_y-cur_y_gps)/(go_to_x-cur_x_gps))*180/pi;
-  while(abs(go_to_x - cur_x_gps)>0.1 || abs(go_to_y - cur_y_gps) > 0.1)
-  {
-    while(abs(unit_circle-needed_heading)>1)
-    {
-      needed_heading = fmod(atan((go_to_y-cur_y_gps)/(go_to_x-cur_x_gps))*180/pi + 180.0, 360);
-      if(needed_heading < 0) needed_heading += 360;
 
+  
+  while(abs(go_to_x - cur_x_gps)>0.02 || abs(go_to_y - cur_y_gps) > 0.02)
+  {
+    //is there a reason for these being seperate loops? it looks like once heading is correct it will turn it into a while true loop as you can never reach your destination
+    while(abs(unit_circle_heading-needed_heading)>1)
+    {
+      //why the plus 180.0?
+      needed_heading = atan((go_to_y-cur_y_gps)/(go_to_x-cur_x_gps))*180/pi + 180.0;
+      if(needed_heading < 0) needed_heading += ((int)needed_heading / 360 + 1) * 360;
+      if(needed_heading > 0) needed_heading += ((int)needed_heading / 360 - 1) * 360;
+
+      //what is this? it isn't used
       double acc_constant = 0.2;
 
 
-      double gps_error;
-      double cur_heading_gps2 = unit_circle-360;
 
-      if(abs(needed_heading - unit_circle)<abs(needed_heading - cur_heading_gps2))
+      double gps_error;
+      double clockwise_heading = unit_circle_heading-360;
+
+      //calculates shortest heading dif between current heading and needed heading
+      if(abs(needed_heading - unit_circle_heading)<abs(needed_heading - clockwise_heading))
       {
-        gps_error = needed_heading - unit_circle;
+        gps_error = needed_heading - unit_circle_heading;
       }
-      else{gps_error = needed_heading - cur_heading_gps2;}
+      else{gps_error = needed_heading - clockwise_heading;}
+
+
       //how to adjust turn coefficient
-      double turn = turn_PD.get_value(gps_error);
+
+      double stop_dist = 0.02; //if we're within this we stop
+      double slowdown_dist = 0.1; //arbetrary, tunable
+      
+      //new get_value function: should use for both heading error and distance error (x and y)
+      double turn = turn_PD.get_value(gps_error, stop_dist, slowdown_dist);
+
+
+      /*
       if(turn<20.0){turn*=1.1;}
       if(turn<10.0){turn*=1.2;}
-
-      tank_drive(0, -1*turn);
+      */
+      tank_drive(0, -1*turn); //why the negative?
       lcd::print(5, "%f, %f", gps_error,(turn));
 
       delay(5);
@@ -151,6 +172,8 @@ void FifteenInch::send_data() {
 
     }
     //"#R#" + std::to_string(cur_x_gps) + " " + std::to_string(cur_y_gps) + " " + std::to_string(cur_heading_gps) + "#" +
+
+    //is this old? it looks like it needs to be removed and replaced with unit_circle_heading
     double unit_circle = 90-cur_heading_gps;
     if(unit_circle <0){
       unit_circle += 360;
@@ -236,6 +259,6 @@ void FifteenInch::kill_task(std::string name) {
 }
 
 
-void FifteenInch::move_to(void *ptr){
+//void FifteenInch::move_to(void *ptr){
 
-}
+//}
