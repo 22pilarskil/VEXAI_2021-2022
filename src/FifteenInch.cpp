@@ -42,7 +42,7 @@ int s = 0;
 Imu FifteenInch::IMU(15);
 Rotation FifteenInch::left_dead_wheel(21);
 Rotation FifteenInch::right_dead_wheel(14);
-GridMapper* gridMapper = new GridMapper();
+GridMapper* smallBotGrid = new GridMapper();
 std::map<std::string, std::unique_ptr<pros::Task>> FifteenInch::tasks;
 void FifteenInch::tank_drive(int power, int turn)
 {
@@ -99,8 +99,8 @@ void FifteenInch::send_data() {
     std::string return_string = "#";
     for (int i = 1; i < 37; i++) {
 
-        int ring_count = gridMapper->getBox(i)["ring"];
-        int mogo_count = gridMapper->getBox(i)["mogo"];
+        int ring_count = smallBotGrid->getBox(i)["ring"];
+        int mogo_count = smallBotGrid->getBox(i)["mogo"];
         if(ring_count > 0 || mogo_count > 0)
         {
           return_string += std::to_string(i) + "#y#" + std::to_string(ring_count) + " " + std::to_string(mogo_count) + "#@#";
@@ -150,13 +150,13 @@ void FifteenInch::receive_data(nlohmann::json msg){
   double position_temp[] = {1.0, 1.0, 3.1415/4}; // I'm assuming this to be the point near the corner we tested from the first time
   //lcd::print(7, "%f, %f, %f", (float)position_temp[0], (float)position_temp[1], (float)position_temp[2]);
 
-  gridMapper->map(position_temp, objects);
+  smallBotGrid->map(position_temp, objects);
 
   for (int i = 0; i < 5; i++) { // TEST CODE
        std::string print_string = "";
        for (int j = 1; j <= 6; j++) {
 
-            print_string += std::to_string(j + 6 * i) + ":" + std::to_string(gridMapper->getBox((j + 6 * i))["mogo"]) + " ";
+            print_string += std::to_string(j + 6 * i) + ":" + std::to_string(smallBotGrid->getBox((j + 6 * i))["mogo"]) + " ";
 
        }
        lcd::print((i+1), print_string.c_str());

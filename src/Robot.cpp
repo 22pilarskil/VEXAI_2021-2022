@@ -15,7 +15,6 @@
 #include <chrono>
 #include <unordered_map>
 #include <deque>
-#include "GridMapper.cpp"
 using namespace pros;
 using namespace std;
 
@@ -101,7 +100,7 @@ std::atomic<int> move_to_gps_count = 0;
 int mogo_count = 0;
 int corner = 0;
 
-GridMapper* gridMapper = new GridMapper();
+GridMapper* bigBotGrid = new GridMapper();
 
 
 std::map<std::string, std::unique_ptr<pros::Task>> Robot::tasks;
@@ -125,7 +124,7 @@ void Robot::receive_data(nlohmann::json msg)
     // }
 
     // double position_temp[] = {gps.get_status().x*meters_to_inches + 72, gps.get_status().y*meters_to_inches + 72, pi/4};
-    // gridMapper->map(position_temp, objects);
+    // bigBotGrid->map(position_temp, objects);
 
 
     if (mode.compare("mogo") == 0){
@@ -424,7 +423,6 @@ void Robot::drive(void *ptr) {
         else lift = 0;
 
         mecanum(power, strafe, turn);
-        for (int i = 0; i < 4; i++) {if(i==0)lcd::print(3, "MOVING?: %s", is_moving_gps(power,strafe,127,20) ? "yes" : "no");}
         delay(5);
     }
 }
@@ -656,7 +654,6 @@ void Robot::move_to_gps(void *ptr) {
         double strafe = strafe_PD.get_value(x_error * std::sin(phi) + y_error * std::cos(phi));
         double turn = turn_PD.get_value(gps_error);
         mecanum(power, strafe, turn, 127);
-        is_moving = is_moving_gps(power, strafe, 127, 5);
 
         delay(5);
     }
