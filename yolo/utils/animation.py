@@ -5,15 +5,19 @@ import math
 from shapely.geometry import Point, Polygon
 
 class Display:
-   
-	def __init__ (self):	
+
+	def __init__ (self):
 		pygame.init()
 		WIDTH, HEIGHT = 720, 720
 		self.WIN = pygame.display.set_mode((WIDTH, HEIGHT))
 		field = pygame.image.load("/home/vexai/VEXAI_2021-2022/yolo/sprites/field.png")
 		self.field = pygame.transform.scale(field, (WIDTH, HEIGHT))
-		mogo = pygame.image.load("/home/vexai/VEXAI_2021-2022/yolo/sprites/mogo.png")
-		self.mogo = pygame.transform.scale(mogo, (400, 300))
+		bmogo = pygame.image.load("/home/vexai/VEXAI_2021-2022/yolo/sprites/bmogo.png")
+		self.bmogo = pygame.transform.scale(bmogo, (400, 300))
+		rmogo = pygame.image.load("/home/vexai/VEXAI_2021-2022/yolo/sprites/rmogo.png")
+		self.rmogo = pygame.transform.scale(rmogo, (400, 300))
+		ymogo = pygame.image.load("/home/vexai/VEXAI_2021-2022/yolo/sprites/ymogo.png")
+		self.ymogo = pygame.transform.scale(ymogo, (400, 300))
 		ring = pygame.image.load("/home/vexai/VEXAI_2021-2022/yolo/sprites/ring.png")
 		self.ring = pygame.transform.scale(ring, (100, 75))
 		robot = pygame.image.load("/home/vexai/VEXAI_2021-2022/yolo/sprites/robot.png")
@@ -33,13 +37,21 @@ class Display:
 
 		print(self.boxes)
 
-	def blit_box(self, box_id, num_mogos, num_rings):
+	def blit_box(self, box_id, mogos, num_rings):
 		col_num = (box_id + 5) % 6 + 1
 		row_num = int((box_id - 1) / 6) + 1
-		if num_mogos != 0:
+		if mogos != 0:
 			mogo_x = (col_num - 1) * 120 + 60
 			mogo_y = (row_num - 1) * 120 + 60
-			self.WIN.blit(self.mogo, self.center(self.mogo, mogo_x, mogo_y))
+            m_img = self.ymogo
+            match mogos:
+                case 1:
+                    m_img = self.bmogo
+                case 2:
+                    m_img = self.ymogo
+                case 3:
+                    m_img = self.rmogo
+			    self.WIN.blit(m_img, self.center(m_img, mogo_x, mogo_y))
 			if num_rings != 0:
 				ring_y = mogo_y + 50
 				base_x = mogo_x - 60
@@ -84,7 +96,7 @@ class Display:
 		p3 = Point(720 * 2 * math.cos(p3_heading) + x, y - 720 * 2 * math.sin(p3_heading))
 		coords = [p1, p2, p3]
 		print(coords)
-                
+
 		return(Polygon(coords))
 
 	def boxes_inside(self, theta, x, y):
@@ -106,7 +118,7 @@ class Display:
 			temp = self.robot_coords(dx,dy)
 			new_det.append([temp[0], temp[1], det[2]])
 		return new_det
-	
+
 	def det_to_boxes(self, x, y, heading, dets):
 		dets = self.det_to_coords(x, y, heading, dets)
 		print("DET COORS: " + str(dets))
@@ -132,13 +144,11 @@ class Display:
 
 	def robot_coords(self, x, y):
 		return [(x+1.8)*720/3.6, (1.8-y)*720/3.6]
-				
-		
+
+
 if __name__ == '__main__':
 	displayer = Display()
 	print(displayer.cone.get_height() / 2)
 	while True:
 		time.sleep(0.05)
 		displayer.runner({1: [1, 0]})
-
-
