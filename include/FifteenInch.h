@@ -33,6 +33,7 @@ class FifteenInch {
 
     static void drive(void *ptr);
     static void receive_data(nlohmann::json msg);
+    static void autonomous(void *ptr);
     static void send_data();
     static void tank_drive(int power, int turn);
     static void move_to(void *ptr);

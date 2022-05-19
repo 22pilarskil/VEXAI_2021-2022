@@ -13,6 +13,7 @@
 #include <chrono>
 #include <unordered_map>
 #include <deque>
+#include <utility> //for pairs
 using namespace pros;
 using namespace std;
 const double inches_to_encoder = 41.669;
@@ -33,9 +34,12 @@ Motor FifteenInch::FR(12);
 Motor FifteenInch::MR(13);
 Motor FifteenInch::BR(11);
 Motor FifteenInch::four_bar(20, true);
+
+//variables relating to bot state. maybe combine into a struct at some point.
 double FifteenInch::cur_x_gps;
 double FifteenInch::cur_y_gps;
 double FifteenInch::cur_heading_gps;
+
 Gps FifteenInch::gps(1);
 
 int s = 0;
@@ -168,6 +172,99 @@ void FifteenInch::receive_data(nlohmann::json msg){
   send_data();
 
 }
+
+
+//function is NOT complete
+//any comment with + at the beginning is waiting on david finishing move_to
+void FifteenInch::autonomous(void *ptr) {
+    //all x and y variables are in meters and heading values are assumed to be based on unit circle degrees
+    //all variables that should be ajusted/changed/tuned are here at the beginning
+
+    //these 2 relate to starting pos on the field
+    bool north = false;
+    bool blue_team = false;
+
+    //all of these are measured 
+    double mogo_x = 0;
+    double north_mogo_y = 0;
+    double mid_mogo_y = 0;
+    double south_mogo_y = 0;
+
+    double bot_mogo_dist = 0; //this is the distance the bot should be from the mogos when both arms are in the buckets. Measured from center of bot to center of mogos (x val only)
+    double backup_dist = 0; //distance we back up after grabbing both mogos with the arms
+    double grab_dist = 0; //distance away from the center of a mogo we should be for a clamp. Measured from center of bot
+    double arm_delay = 0; //time between telling arms to move and them being in position. Can be solved by a bool value being returned
+
+
+    //construction for all mogo positions. current positions are temporary
+    pair<double, double> north_mogo_pos;
+    north_mogo_pos.first = mogo_x;
+    north_mogo_pos.second = north_mogo_y;
+    pair<double, double> mid_mogo_pos;
+    mid_mogo_pos.first = mogo_x;
+    mid_mogo_pos.second = mid_mogo_y;
+    pair<double, double> south_mogo_pos;
+    south_mogo_pos.first = mogo_x;
+    south_mogo_pos.second = south_mogo_y;
+
+    pair<double, double> grab_2_pos; //position that the bot should go to to be in the right spot to grab both mogos
+
+    //these pair values are not correct until after the if(north == blue_team) statement
+    //also all the assignments are very confusing in random if statements but that allows for reusing of if statements
+    pair<double, double> left_mogo_pos;
+    pair<double, double> right_mogo_pos;
+
+    if (north) {
+        grab_2_pos.second = (north_mogo_pos.second + mid_mogo_pos.second) / 2;
+    } else {
+        grab_2_pos.second = (south_mogo_pos.second + mid_mogo_pos.second) / 2;
+    }
+
+    double goto_heading = 0;
+    if (blue_team) {
+        grab_2_pos.first = mogo_x + bot_mogo_dist;
+        goto_heading = 180;
+        left_mogo_pos.first = bot_mogo_dist;
+        right_mogo_pos.first = bot_mogo_dist;
+        left_mogo_pos.second = south_mogo_y;
+        right_mogo_pos.second = north_mogo_y;
+    } else {
+        grab_2_pos.first = mogo_x - bot_mogo_dist;
+        left_mogo_pos.first = -bot_mogo_dist;
+        right_mogo_pos.first = -bot_mogo_dist;
+        left_mogo_pos.second = north_mogo_y;
+        right_mogo_pos.second = south_mogo_y;
+    }
+
+    //these two move_tos grab the mogos with the arms then pull them back
+    //while (move_to(grab_2_pos.first, grab_2_pos.second, goto_heading)) delay(5);
+    //.lower_arms()
+    delay(arm_delay); //tune this delay to allow time for arms to get in place, or start arms early, or have a return true from arms when they finish lowering
+    //+while (move_to(grab_2_pos.first - backup_dist, grab_2_pos.second, goto_heading)) delay(5);
+
+    //.raise_arms()
+    delay(arm_delay); //same comment as other delay
+
+    if (north == blue_team) {
+        left_mogo_pos.first += mogo_x;
+        left_mogo_pos.second = mid_mogo_y;
+        right_mogo_pos.first += mogo_x;
+    } else {
+        left_mogo_pos.first += mogo_x;
+        right_mogo_pos.first += mogo_x;
+        right_mogo_pos.second = mid_mogo_y;
+    }
+
+    //+while(move_to(left_mogo_pos.first, left_mogo_pos.second, /*idk what to do for heading here: maybe use trig to calc*/)) delay(5);
+    //.clamp() (integrate depth sensors into when we want to do this)
+    //+while(move_to(right_mogo_pos.first, right_mogo_pos.second, /*same problem with heading*/)) delay(5);
+    //.clamp()
+
+    //end conditions: bot holds middle yellow mogo and one side mogo
+
+}
+
+
 void FifteenInch::gps_test(void *ptr)
 {
   while(true)
