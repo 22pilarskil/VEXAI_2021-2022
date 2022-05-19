@@ -15,7 +15,7 @@ class Camera:
 
         self.pipeline = rs.pipeline()
         self.config = rs.config()
-        self.initialize_config(self.cameras[self.name]['id'])
+        self.initialize_config(self.cameras[self.name][0])
 
         self.img_size = (640, 640)
         self.align = rs.align(rs.stream.color)
@@ -57,7 +57,7 @@ class Camera:
         depth_image = np.asanyarray(depth_frame.get_data())
         color_image = np.asanyarray(color_frame.get_data())
 
-        if self.cameras[self.name]['flip']:
+        if self.cameras[self.name][1]:
             depth_image = np.flipud(depth_image)
             color_image = np.flipud(color_image)
 
@@ -74,7 +74,7 @@ class Camera:
         self.pipeline.stop()
         self.name = name
         try:
-            self.initialize_config(self.cameras[self.name]['id'])
+            self.initialize_config(self.cameras[self.name][0])
             return True
         except Exception as e:
             bcolors.print(str(e), "red")
