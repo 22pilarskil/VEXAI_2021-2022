@@ -20,9 +20,11 @@ class FifteenInch {
     static Motor MR;
     static Motor BR;
     static Motor four_bar;
-    static double cur_x_gps;
-    static double cur_y_gps;
-    static double cur_heading_gps;
+    static ADIDigitalOut arm_pistons;
+    static std::atomic<double> cur_x_gps;
+    static std::atomic<double> cur_y_gps;
+    static std::atomic<double> cur_heading_gps;
+    static std::atomic<bool> arms_down;
     static Gps gps;
 
 
@@ -33,6 +35,7 @@ class FifteenInch {
 
     static void drive(void *ptr);
     static void receive_data(nlohmann::json msg);
+    static void arm_change();
     static void autonomous(void *ptr);
     static void send_data();
     static void tank_drive(int power, int turn);

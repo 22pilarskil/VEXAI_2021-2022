@@ -34,11 +34,13 @@ Motor FifteenInch::FR(12);
 Motor FifteenInch::MR(13);
 Motor FifteenInch::BR(11);
 Motor FifteenInch::four_bar(20, true);
+ADIDigitalOut FifteenInch::arm_pistons(1); //port value not accurate
 
 //variables relating to bot state. maybe combine into a struct at some point.
-double FifteenInch::cur_x_gps;
-double FifteenInch::cur_y_gps;
-double FifteenInch::cur_heading_gps;
+std::atomic<double> FifteenInch::cur_x_gps;
+std::atomic<double> FifteenInch::cur_y_gps;
+std::atomic<double> FifteenInch::cur_heading_gps;
+std::atomic<bool> arms_down = false;
 
 Gps FifteenInch::gps(1);
 
@@ -88,8 +90,8 @@ void FifteenInch::gps_initialize(void *ptr)
 
       pros::c::gps_status_s cur_status = gps.get_status();
       cur_heading_gps = 360.0 - (double)gps.get_heading() + 90 + degree_offset;
-      if (cur_heading_gps < 0) cur_heading_gps += 360;
-      if (cur_heading_gps >= 360) cur_heading_gps -= 360;
+      if (cur_heading_gps < 0) cur_heading_gps = cur_heading_gps + (std::atomic<double>)360.0;
+      if (cur_heading_gps >= 360) cur_heading_gps = cur_heading_gps - (std::atomic<double>)360.0;
       //uncomment these lines when real offsets are put in place. Leave them commented if x_offset is 0 to avoid / by 0
       new_x_offset = sqrt(pow(x_offset, 2) + pow(y_offset, 2)) * cos(atan(y_offset / x_offset) + cur_heading_gps * 3.14159 / 180); //totally not burke's trig
       new_y_offset = sqrt(pow(x_offset, 2) + pow(y_offset, 2)) * sin(atan(y_offset / x_offset) + cur_heading_gps * 3.14159 / 180);
@@ -173,10 +175,21 @@ void FifteenInch::receive_data(nlohmann::json msg){
 
 }
 
+void FifteenInch::arm_change() {
+    arm_pistons.set_value(!arms_down);
+    arms_down = !arms_down;
+}
 
 //function is NOT complete
 //any comment with + at the beginning is waiting on david finishing move_to
 void FifteenInch::autonomous(void *ptr) {
+    //setting initial conditions
+    if (arms_down) {
+        FifteenInch::arm_change();
+    }
+
+
+
     //all x and y variables are in meters and heading values are assumed to be based on unit circle degrees
     //all variables that should be ajusted/changed/tuned are here at the beginning
 
@@ -237,13 +250,13 @@ void FifteenInch::autonomous(void *ptr) {
     }
 
     //these two move_tos grab the mogos with the arms then pull them back
-    //while (move_to(grab_2_pos.first, grab_2_pos.second, goto_heading)) delay(5);
-    //.lower_arms()
+    //+while (move_to(grab_2_pos.first, grab_2_pos.second, goto_heading)) delay(5);
+    FifteenInch::arm_change();
     delay(arm_delay); //tune this delay to allow time for arms to get in place, or start arms early, or have a return true from arms when they finish lowering
     //+while (move_to(grab_2_pos.first - backup_dist, grab_2_pos.second, goto_heading)) delay(5);
 
-    //.raise_arms()
-    delay(arm_delay); //same comment as other delay
+    FifteenInch::arm_change();
+    delay(arm_delay); //same comment as other delay; probably use a shorter delay
 
     if (north == blue_team) {
         left_mogo_pos.first += mogo_x;
@@ -255,9 +268,9 @@ void FifteenInch::autonomous(void *ptr) {
         right_mogo_pos.second = mid_mogo_y;
     }
 
-    //+while(move_to(left_mogo_pos.first, left_mogo_pos.second, /*idk what to do for heading here: maybe use trig to calc*/)) delay(5);
+    //+while(move_to(left_mogo_pos.first, left_mogo_pos.second, atan((left_mogo_pos.second - cur_y_gps)/(left_mogo_pos.first - cur_x_gps)))) delay(5);
     //.clamp() (integrate depth sensors into when we want to do this)
-    //+while(move_to(right_mogo_pos.first, right_mogo_pos.second, /*same problem with heading*/)) delay(5);
+    //+while(move_to(right_mogo_pos.first, right_mogo_pos.second, atan((right_mogo_pos.second - cur_y_gps)/(right_mogo_pos.first - cur_x_gps)))) delay(5);
     //.clamp()
 
     //end conditions: bot holds middle yellow mogo and one side mogo
