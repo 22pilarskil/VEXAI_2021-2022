@@ -82,7 +82,7 @@ def determine_depth(det, depth_image):
     d = np.array(d[d > 0])
     return np.median(d)
 
-ef convert_rgb_to_hsv(r, g, b):
+def convert_rgb_to_hsv(r, g, b):
     color_hsv_percentage = colorsys.rgb_to_hsv(r / float(255), g / float(255), b / float(255))
 
     color_h = round(360 * color_hsv_percentage[0])

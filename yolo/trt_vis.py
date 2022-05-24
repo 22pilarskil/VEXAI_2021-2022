@@ -27,7 +27,7 @@ conf_thres = .4
 
 cameras = {
     'l515_front': {
-        'id': 'f1181409',
+        'id': '017322071832',
         'flip': False,
         },
     'l515_back': {

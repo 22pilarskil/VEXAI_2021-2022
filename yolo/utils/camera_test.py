@@ -56,6 +56,14 @@ try:
             continue
         color_image, depth_image, color_image_t, depth_colormap, depth_frame = data
 
+        det = [300,340,340,300]
+        #print(depth_image)
+        d = depth_image[int(det[1] + (float(det[3] - det[1]))):int(det[1] + (float(det[3] - det[1]))), int(det[0] + (float(det[2] - det[0]))):int(det[0] + (float(det[2] - det[0])))]
+
+        #for x in range(len(d)):
+                #print(x )
+        print(d)
+
         images = np.hstack((color_image, depth_colormap))
         cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
         cv2.imshow('RealSense', images)
