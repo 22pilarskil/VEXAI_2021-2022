@@ -28,7 +28,10 @@ class Camera:
         pipeline_wrapper = rs.pipeline_wrapper(self.pipeline)
         pipeline_profile = self.config.resolve(pipeline_wrapper)
         device = pipeline_profile.get_device().first_depth_sensor()
-        device.set_option(rs.option.min_distance, 0)
+        try:
+             device.set_option(rs.option.min_distance, 0)
+        except:
+             pass
         bcolors.print("Initializing device {}".format(device_number), "violet")
 
         self.config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)

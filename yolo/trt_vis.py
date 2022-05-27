@@ -27,11 +27,11 @@ conf_thres = .4
 
 cameras = {
     'l515_front': {
-        'id': 'f1180887',
+        'id': '048322070458',
         'flip': True,
         },
     'l515_back': {
-        'id': 'f1181848',
+        'id': 'f1181409',
         'flip': True,
         },
     }
@@ -92,7 +92,7 @@ try:
             cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
             cv2.imshow('RealSense', images)
             cv2.waitKey(1)
-
+        print("wholestr: " + whole_str)
         try:
             msg = comm.read(["camera", "stop"])
             print(msg)
