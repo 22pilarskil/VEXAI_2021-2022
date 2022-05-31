@@ -1,17 +1,17 @@
-#ifndef _Robot
-#define _Robot
+#ifndef _BigBot
+#define _BigBot
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 #include <deque>
 #include "system/json.hpp"
-#include "PD.h"
+#include "utils/PD.h"
 
 #include <atomic>
 using namespace pros;
 using namespace std;
-class Robot{
+class BigBot{
 	public:
 		static Controller master;
 		static PD power_PD;
@@ -46,19 +46,21 @@ class Robot{
 
 		static std::atomic<double> x;
 		static std::atomic<double> y;
+		static std::atomic<double> heading;
 		static std::atomic<double> new_x;
 		static std::atomic<double> new_y;
-		static std::atomic<double> heading;
-		static std::atomic<double> imu_val;
-		static std::atomic<double> cur_x_gps;
-		static std::atomic<double> cur_y_gps;
-		static std::atomic<double> cur_heading_gps;
-		static std::atomic<double> last_x_gps;
-		static std::atomic<double> last_y_gps;
-		static std::atomic<double> last_phi_gps;
+		static std::atomic<double> new_heading;
+
+		static std::atomic<double> x_gps;
+		static std::atomic<double> y_gps;
+		static std::atomic<double> heading_gps;
 		static std::atomic<double> new_x_gps;
         static std::atomic<double> new_y_gps;
         static std::atomic<double> new_heading_gps;
+		static std::atomic<double> last_x_gps;
+		static std::atomic<double> last_y_gps;
+		static std::atomic<double> last_heading_gps;
+
         static std::atomic<int> stagnant;
         static std::atomic<double> drive_temp;
 
@@ -84,11 +86,9 @@ class Robot{
         static void gps_fps(void *ptr);
         static void move_to_gps(void *ptr);
         static void reset(void *ptr);
-				static void motor_temperature(void *ptr);
+		static void motor_temperature(void *ptr);
 
 		static void reposition(void *ptr);
-		static double turn_degree;
-		static double last_imu_angle;
 
 
 		static void move_to(void *ptr);

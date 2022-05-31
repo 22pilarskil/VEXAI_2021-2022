@@ -1,5 +1,5 @@
-#ifndef _FifteenInch
-#define _FifteenInch
+#ifndef _SmallBot
+#define _SmallBot
 #include <map>
 #include <memory>
 #include <string>
@@ -7,7 +7,7 @@
 #include <deque>
 #include "system/json.hpp"
 using namespace pros;
-class FifteenInch {
+class SmallBot {
   public:
     static std::atomic<double> x;
     static Controller controller;
@@ -27,8 +27,7 @@ class FifteenInch {
 
 
     static Imu IMU;
-    static Rotation left_dead_wheel;
-    static Rotation right_dead_wheel;
+    static Rotation BE;
     // can't find radio api, will code for it once found
 
     static void drive(void *ptr);

@@ -1,11 +1,11 @@
 
 #include "main.h"
-#include "FifteenInch.h"
+#include "SmallBot.h"
 #include "system/json.hpp"
 #include "system/Serial.h"
 #include "system/Data.h"
-#include "PD.h"
-#include "GridMapper.cpp"
+#include "utils/PD.h"
+#include "utils/GridMapper.cpp"
 #include <map>
 #include <cmath>
 #include <atomic>
@@ -22,29 +22,28 @@ const double pi = 3.141592653589793238;
 
 
 
-Controller FifteenInch::master(E_CONTROLLER_MASTER);
+Controller SmallBot::master(E_CONTROLLER_MASTER);
 
-std::atomic<double> FifteenInch::x = 0;
+std::atomic<double> SmallBot::x = 0;
 
-Motor FifteenInch::FL(15, true);
-Motor FifteenInch::ML(14, true);
-Motor FifteenInch::BL(16, true);
-Motor FifteenInch::FR(12);
-Motor FifteenInch::MR(13);
-Motor FifteenInch::BR(11);
-Motor FifteenInch::four_bar(20, true);
-double FifteenInch::cur_x_gps;
-double FifteenInch::cur_y_gps;
-double FifteenInch::cur_heading_gps;
-Gps FifteenInch::gps(1);
+Motor SmallBot::FL(15, true);
+Motor SmallBot::ML(14, true);
+Motor SmallBot::BL(16, true);
+Motor SmallBot::FR(12);
+Motor SmallBot::MR(13);
+Motor SmallBot::BR(11);
+Motor SmallBot::four_bar(20, true);
+double SmallBot::cur_x_gps;
+double SmallBot::cur_y_gps;
+double SmallBot::cur_heading_gps;
+Gps SmallBot::gps(1);
 
 int s = 0;
-Imu FifteenInch::IMU(15);
-Rotation FifteenInch::left_dead_wheel(21);
-Rotation FifteenInch::right_dead_wheel(14);
+Imu SmallBot::IMU(15);
+Rotation SmallBot::BE(20);
 GridMapper* smallBotGrid = new GridMapper();
-std::map<std::string, std::unique_ptr<pros::Task>> FifteenInch::tasks;
-void FifteenInch::tank_drive(int power, int turn)
+std::map<std::string, std::unique_ptr<pros::Task>> SmallBot::tasks;
+void SmallBot::tank_drive(int power, int turn)
 {
   int left_side;
   int right_side;
@@ -62,7 +61,7 @@ void FifteenInch::tank_drive(int power, int turn)
 }
  // te
 
-void FifteenInch::drive(void *ptr){
+void SmallBot::drive(void *ptr){
   while(true){
     int power = master.get_analog(ANALOG_LEFT_Y);
     int turn = master.get_analog(ANALOG_RIGHT_X);
@@ -73,7 +72,7 @@ void FifteenInch::drive(void *ptr){
     delay(5);
   }
 }
-void FifteenInch::gps_initialize(void *ptr)
+void SmallBot::gps_initialize(void *ptr)
 {
     double degree_offset = 0; // gps offset from forward; counterclockwise is positive
     double x_offset = (double)5/meters_to_inches; // x offset on bot of gps from the bot's frame of reference
@@ -95,7 +94,7 @@ void FifteenInch::gps_initialize(void *ptr)
       delay(20);
   }
 }
-void FifteenInch::send_data() {
+void SmallBot::send_data() {
     std::string return_string = "#";
     for (int i = 1; i < 37; i++) {
 
@@ -124,7 +123,7 @@ void FifteenInch::send_data() {
 
 }
 
-void FifteenInch::receive_data(nlohmann::json msg){
+void SmallBot::receive_data(nlohmann::json msg){
   s++;
   //double position_temp[] = {gps.get_status().x*meters_to_inches/24 + 3, gps.get_status().y*meters_to_inches/24 + 3, pi/4}; //angle is unit circle degrees with y+ at true north and x+ at true east
   //double position_temp[] = {0.0,0.0,pi/4};
@@ -168,7 +167,7 @@ void FifteenInch::receive_data(nlohmann::json msg){
   send_data();
 
 }
-void FifteenInch::gps_test(void *ptr)
+void SmallBot::gps_test(void *ptr)
 {
   while(true)
   {
@@ -176,23 +175,23 @@ void FifteenInch::gps_test(void *ptr)
     delay(5);
   }
 }
-void FifteenInch::start_task(std::string name, void (*func)(void *)) {
+void SmallBot::start_task(std::string name, void (*func)(void *)) {
     if (!task_exists(name)) {
         tasks.insert(std::pair<std::string, std::unique_ptr<pros::Task>>(name, std::move(std::make_unique<pros::Task>(func, &x, TASK_PRIORITY_DEFAULT, TASK_STACK_DEPTH_DEFAULT, ""))));
     }
 }
 
-bool FifteenInch::task_exists(std::string name) {
+bool SmallBot::task_exists(std::string name) {
     return tasks.find(name) != tasks.end();
 }
 
-void FifteenInch::kill_task(std::string name) {
+void SmallBot::kill_task(std::string name) {
     if (task_exists(name)) {
         tasks.erase(name);
     }
 }
 
 
-void FifteenInch::move_to(void *ptr){
+void SmallBot::move_to(void *ptr){
 
 }

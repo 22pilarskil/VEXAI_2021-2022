@@ -1,12 +1,12 @@
 
 #include "main.h"
-#include "Robot.h"
+#include "BigBot.h"
 #include "system/Data.h"
 #include "system/json.hpp"
 #include "system/Serial.h"
 #include "system/Data.h"
-#include "PD.h"
-#include "GridMapper.cpp"
+#include "utils/PD.h"
+#include "utils/GridMapper.cpp"
 #include <map>
 #include <cmath>
 #include <string>
@@ -18,70 +18,70 @@
 using namespace pros;
 using namespace std;
 
-Controller Robot::master(E_CONTROLLER_MASTER);
-PD Robot::power_PD(0.4, 0, 0);
-PD Robot::strafe_PD(0.4, 0, 0);
-PD Robot::turn_PD(1.0, 0, 0);
+Controller BigBot::master(E_CONTROLLER_MASTER);
+PD BigBot::power_PD(0.4, 0, 0);
+PD BigBot::strafe_PD(0.4, 0, 0);
+PD BigBot::turn_PD(1.0, 0, 0);
 
-Motor Robot::BRB(1, true);
-Motor Robot::BRT(3);
-Motor Robot::BLT(10, true);
-Motor Robot::BLB(9);
-Motor Robot::FLT(18, true);
-Motor Robot::FLB(19);
-Motor Robot::FRB(13, true);
-Motor Robot::FRT(11);
-Motor Robot::flicker(17);
-Motor Robot::angler(20);
-Motor Robot::conveyor(2);
-Motor Robot::lift(8);
+Motor BigBot::BRB(1, true);
+Motor BigBot::BRT(3);
+Motor BigBot::BLT(10, true);
+Motor BigBot::BLB(9);
+Motor BigBot::FLT(18, true);
+Motor BigBot::FLB(19);
+Motor BigBot::FRB(13, true);
+Motor BigBot::FRT(11);
+Motor BigBot::flicker(17);
+Motor BigBot::angler(20);
+Motor BigBot::conveyor(2);
+Motor BigBot::lift(8);
 
-ADIEncoder Robot::LE({{16, 1, 2}});
-ADIEncoder Robot::RE({{16, 5, 6}});
-ADIEncoder Robot::BE(7, 8);
-ADIAnalogIn Robot::angler_pot(3);
-ADIDigitalOut Robot::angler_piston(2);
-ADIDigitalOut Robot::lift_piston(1);
-ADIUltrasonic Robot::ring_ultrasonic(5, 6);
-Gps Robot::gps(5);
-Imu Robot::IMU(12);
-Distance Robot::angler_dist(21);
-Distance Robot::mogo_dist(7);
+ADIEncoder BigBot::LE({{16, 1, 2}});
+ADIEncoder BigBot::RE({{16, 5, 6}});
+ADIEncoder BigBot::BE(7, 8);
+ADIAnalogIn BigBot::angler_pot(3);
+ADIDigitalOut BigBot::angler_piston(2);
+ADIDigitalOut BigBot::lift_piston(1);
+ADIUltrasonic BigBot::ring_ultrasonic(5, 6);
+Gps BigBot::gps(5);
+Imu BigBot::IMU(12);
+Distance BigBot::angler_dist(21);
+Distance BigBot::mogo_dist(7);
 
 const double inches_to_encoder = 41.669;
 const double meters_to_inches = 39.3701;
 const double pi = 3.141592653589793238;
 
+std::atomic<double> BigBot::x = 0;
+std::atomic<double> BigBot::y = 0;
+std::atomic<double> BigBot::heading = 0;
+std::atomic<double> BigBot::new_x = 0;
+std::atomic<double> BigBot::new_y = 0;
+std::atomic<double> BigBot::new_heading = 0;
 
-std::atomic<double> Robot::y = 0;
-std::atomic<double> Robot::x = 0;
-std::atomic<double> Robot::imu_val = 0;
-std::atomic<double> Robot::new_x = 0;
-std::atomic<double> Robot::new_y = 0;
-std::atomic<double> Robot::heading = 0;
-std::atomic<double> Robot::new_x_gps = 0;
-std::atomic<double> Robot::new_y_gps = 0;
-std::atomic<double> Robot::new_heading_gps = 0;
-std::atomic<double> Robot::cur_x_gps = 0;
-std::atomic<double> Robot::cur_y_gps = 0;
-std::atomic<double> Robot::cur_heading_gps = 0;
-std::atomic<double> Robot::last_x_gps = 0;
-std::atomic<double> Robot::last_y_gps = 0;
-std::atomic<double> Robot::last_phi_gps = 0;
-std::atomic<double> Robot::drive_temp = 0;
+std::atomic<double> BigBot::x_gps = 0;
+std::atomic<double> BigBot::y_gps = 0;
+std::atomic<double> BigBot::heading_gps = 0;
+std::atomic<double> BigBot::new_x_gps = 0;
+std::atomic<double> BigBot::new_y_gps = 0;
+std::atomic<double> BigBot::new_heading_gps = 0;
+std::atomic<double> BigBot::last_x_gps = 0;
+std::atomic<double> BigBot::last_y_gps = 0;
+std::atomic<double> BigBot::last_heading_gps = 0;
+
+std::atomic<double> BigBot::drive_temp = 0;
 
 
-std::atomic<int> Robot::stagnant = 0;
+std::atomic<int> BigBot::stagnant = 0;
 
-std::string Robot::mode = "mogo";
-bool Robot::stop = false;
+std::string BigBot::mode = "mogo";
+bool BigBot::stop = false;
 
-double Robot::offset_back = 5.25;
-double Robot::offset_middle = 7.625;
-double Robot::wheel_circumference = 2.75 * pi;
+double BigBot::offset_back = 5.25;
+double BigBot::offset_middle = 7.625;
+double BigBot::wheel_circumference = 2.75 * pi;
 
-double Robot::turn_degree = 0;
-double Robot::last_imu_angle = 0;
+
 
 std::atomic<bool> chasing_mogo = false;
 std::atomic<double> turn_coefficient = 1;
@@ -103,10 +103,10 @@ int corner = 0;
 GridMapper* bigBotGrid = new GridMapper();
 
 
-std::map<std::string, std::unique_ptr<pros::Task>> Robot::tasks;
+std::map<std::string, std::unique_ptr<pros::Task>> BigBot::tasks;
 
 
-void Robot::receive_data(nlohmann::json msg)
+void BigBot::receive_data(nlohmann::json msg)
 {
     double position_temp[] = {gps.get_status().x*meters_to_inches + 72, gps.get_status().y*meters_to_inches + 72, pi/4};
     std::map<std::string, std::vector<double*>> objects;
@@ -131,7 +131,7 @@ void Robot::receive_data(nlohmann::json msg)
         vector<vector<float>> mogos = Data::pred_id(pred, 0);
         for (vector<float> det : mogos){
             det[0] += 0.4;
-            if (Data::invalid_det(det, last_x_gps, last_y_gps, 360-last_phi_gps)) {
+            if (Data::invalid_det(det, last_x_gps, last_y_gps, 360-last_heading_gps)) {
                 continue;
             }
             det[0] -= 0.4;
@@ -147,7 +147,7 @@ void Robot::receive_data(nlohmann::json msg)
         for (vector<float> det : rings){
             det[0] += 0.2;
 
-            if(Data::invalid_det(det, last_x_gps, last_y_gps, fmod(540-last_phi_gps, 360))) {//opposite camera so have to do different stuff to make it unit circle
+            if(Data::invalid_det(det, last_x_gps, last_y_gps, fmod(540-last_heading_gps, 360))) {//opposite camera so have to do different stuff to make it unit circle
                 continue;
             }
             ring_receive(det);
@@ -157,25 +157,25 @@ void Robot::receive_data(nlohmann::json msg)
     }
 }
 
-void Robot::motor_temperature(void *ptr)
+void BigBot::motor_temperature(void *ptr)
 {
     while(true)
     {
         drive_temp = 0;
-        drive_temp = drive_temp + Robot::BRB.get_temperature();
-        drive_temp = drive_temp + Robot::BRT.get_temperature();
-        drive_temp = drive_temp + Robot::BLB.get_temperature();
-        drive_temp = drive_temp + Robot::BLT.get_temperature();
-        drive_temp = drive_temp + Robot::FRB.get_temperature();
-        drive_temp = drive_temp + Robot::FRT.get_temperature();
-        drive_temp = drive_temp + Robot::FLB.get_temperature();
-        drive_temp = drive_temp + Robot::FLT.get_temperature();
+        drive_temp = drive_temp + BigBot::BRB.get_temperature();
+        drive_temp = drive_temp + BigBot::BRT.get_temperature();
+        drive_temp = drive_temp + BigBot::BLB.get_temperature();
+        drive_temp = drive_temp + BigBot::BLT.get_temperature();
+        drive_temp = drive_temp + BigBot::FRB.get_temperature();
+        drive_temp = drive_temp + BigBot::FRT.get_temperature();
+        drive_temp = drive_temp + BigBot::FLB.get_temperature();
+        drive_temp = drive_temp + BigBot::FLT.get_temperature();
         drive_temp = drive_temp / 8;
         delay(5);
     }
 }
 
-void Robot::dummy(nlohmann::json msg){
+void BigBot::dummy(nlohmann::json msg){
     vector<vector<float>> pred = Data::get_pred(msg);
     int valid_rings = 0;
     int invalid_rings = 0;
@@ -184,7 +184,7 @@ void Robot::dummy(nlohmann::json msg){
     vector<vector<float>> rings = Data::pred_id(pred, 1);
     for (vector<float> det : rings){
         det[0] += 0.2;
-        if (Data::invalid_det(det, last_x_gps, last_y_gps, fmod(540-last_phi_gps, 360))) {
+        if (Data::invalid_det(det, last_x_gps, last_y_gps, fmod(540-last_heading_gps, 360))) {
             invalid_rings += 1;
         }
         else {
@@ -194,7 +194,7 @@ void Robot::dummy(nlohmann::json msg){
     vector<vector<float>> mogos = Data::pred_id(pred, 0);
     for (vector<float> det : mogos){
         det[0] += 0.4;
-        if (Data::invalid_det(det, last_x_gps, last_y_gps, 360-last_phi_gps)) {
+        if (Data::invalid_det(det, last_x_gps, last_y_gps, 360-last_heading_gps)) {
             invalid_mogos += 1;
         }
         else {
@@ -207,7 +207,7 @@ void Robot::dummy(nlohmann::json msg){
 }
 
 
-void Robot::mogo_receive(vector<float> det)
+void BigBot::mogo_receive(vector<float> det)
 {
   failed_update = 0;
   move_to_mode = 0;
@@ -218,7 +218,7 @@ void Robot::mogo_receive(vector<float> det)
   double angle_threshold = 1;
   turn_coefficient = 3;
 
-  if (!task_exists("DEPTH")) start_task("DEPTH", Robot::check_depth);
+  if (!task_exists("DEPTH")) start_task("DEPTH", BigBot::check_depth);
 
 
   double lidar_depth = std::max((double)det[0], (double)0.2);
@@ -229,15 +229,15 @@ void Robot::mogo_receive(vector<float> det)
   if (abs(angle) > angle_threshold) coefficient = 150 * lidar_depth * (0.20 / seconds_per_frame);
   else if (abs(angle) < angle_threshold && chasing_mogo == true) coefficient = 300;
 
-  heading = imu_val + angle;
-  new_y = y + coefficient * cos(heading / 180 * pi);
-  new_x = x - coefficient * sin(heading / 180 * pi);
+  new_heading = heading + angle;
+  new_y = y + coefficient * cos(new_heading / 180 * pi);
+  new_x = x - coefficient * sin(new_heading / 180 * pi);
 
   delay(5);
   turn_coefficient = 1;
 }
 
-void Robot::ring_receive(vector<float> det) {
+void BigBot::ring_receive(vector<float> det) {
 
     resetting = true;
     double lidar_depth = std::max((double)det[0], (double)0.2);
@@ -245,26 +245,26 @@ void Robot::ring_receive(vector<float> det) {
     move_to_mode = 0;
     turn_in_place = false;
     double temp = last_heading + angle;
-    heading = (angle > 0) ? last_heading + 60 : last_heading - 60;
-    while(abs(temp - imu_val) > 1 && stagnant < 10) delay(5);
+    new_heading = (angle > 0) ? last_heading + 60 : last_heading - 60;
+    while(abs(temp - heading) > 1 && stagnant < 10) delay(5);
     turn_coefficient = 3;
-    heading = temp;
+    new_heading = temp;
     conveyor = -127;
     double coefficient = lidar_depth * meters_to_inches * inches_to_encoder;
     double angle_threshold = 1;
 
-    new_y = y - coefficient * cos(heading / 180 * pi);
-    new_x = x + coefficient * sin(heading / 180 * pi);
+    new_y = y - coefficient * cos(new_heading / 180 * pi);
+    new_x = x + coefficient * sin(new_heading / 180 * pi);
     while ((abs(new_y - y) > 100 || abs(new_x - x) > 100) && stagnant < 10) delay(5);
     //checks if bot is too close to the wall and balance on the sides and goes back to the middle
 
     move_to_mode = 1;
     delay(500);
 
-    if (abs(cur_x_gps) > 0.65 || abs(cur_y_gps) > 1.15) {
+    if (abs(x_gps) > 0.65 || abs(y_gps) > 1.15) {
         new_x_gps = new_x_gps / 2;
         new_y_gps = new_y_gps / 2;
-        while (!(abs(new_x_gps - cur_x_gps) < 0.1 && abs(new_y_gps - cur_y_gps) < 0.1)){
+        while (!(abs(new_x_gps - x_gps) < 0.1 && abs(new_y_gps - y_gps) < 0.1)){
             delay(5);
         }
     }
@@ -278,63 +278,61 @@ void Robot::ring_receive(vector<float> det) {
 
 }
 
-void Robot::receive_fps(nlohmann::json msg){
+void BigBot::receive_fps(nlohmann::json msg){
     double seconds_per_frame = std::stod(msg.dump());
     //, "Seconds per frame: %f", seconds_per_frame);
-    last_heading = imu_val;
+    last_heading = heading;
     if (turn_in_place){
-        heading = imu_val + 30;
+        new_heading = heading + 30;
     }
     if (chasing_mogo) {failed_update += 1;}
-    last_x_gps = (double)cur_x_gps;
-    last_y_gps = (double)cur_y_gps;
-    last_phi_gps = (double)cur_heading_gps;
+    last_x_gps = (double)x_gps;
+    last_y_gps = (double)y_gps;
+    last_heading_gps = (double)heading_gps;
 }
-void Robot::reposition(void *ptr)
+void BigBot::reposition(void *ptr)
 {
-  while(true)
-  {
-    if(!turn_in_place)
-    {
-      last_imu_angle = imu_val;
-      turn_degree = 0;
-      delay(5);
-    }
-    else if(turn_in_place)
-    {
-      turn_degree += abs(imu_val - last_imu_angle);
-      last_imu_angle = imu_val;
-      if(turn_degree > 360)
-      {
-
-        turn_in_place = false;
-        move_to_mode = 1;
-        new_y_gps = cur_x_gps/2;
-        new_x_gps = cur_x_gps/2;
-        while (!(abs(new_x_gps - cur_x_gps) < 0.1 && abs(new_y_gps - cur_y_gps) < 0.1)){
+    double turn_degree = 0;
+    double last_imu_angle = 0;
+    
+    while(true){
+        if(!turn_in_place){
+            last_imu_angle = heading;
+            turn_degree = 0;
             delay(5);
         }
-        stay();
-        turn_in_place = true;
-        conveyor = 127;
-        move_to_mode = 0;
-        stagnant = 0;
-        turn_degree = 0;
-        last_imu_angle = imu_val;
-        continue;
-      }
-      delay(5);
+        else if(turn_in_place){
+            turn_degree += abs(heading - last_imu_angle);
+            last_imu_angle = heading;
+            if(turn_degree > 360){
+                turn_in_place = false;
+                move_to_mode = 1;
+                new_y_gps = x_gps/2;
+                new_x_gps = x_gps/2;
+                while (!(abs(new_x_gps - x_gps) < 0.1 && abs(new_y_gps - y_gps) < 0.1)){
+                    delay(5);
+                }
+                stay();
+                turn_in_place = true;
+                conveyor = 127;
+                move_to_mode = 0;
+                stagnant = 0;
+                turn_degree = 0;
+                last_imu_angle = heading;
+                continue;
+            }
+            delay(5);
+        }
     }
-  }
 
 }
 
-/* Uses the stagnant variable from Robot::is_moving to tell whether the robot hit an obstacle (i.e. ran into a balance)
-If the robot has run into an obstacle, move the robot closer to the center of the field by halving both coordinates so as
+/* Uses the stagnant variable from BigBot::is_moving to tell whether the BigBot hit an obstacle (i.e. ran into a balance)
+If the BigBot has run into an obstacle, move the BigBot closer to the center of the field by halving both coordinates so as
 to bring the bot closer to (0, 0). resetting variable is used to keep track of whether or not we actually want to be using
 this thread. For example, if we are depositing a mogo in a corner or some other action where the bot will not be moving
 temporarily, we would set resetting to false so that the if statement is never called */
-void Robot::reset(void *ptr) {
+void BigBot::reset(void *ptr) {
     stagnant = 0;
     lcd::print(6, "STARTED");
     while (true) {
@@ -345,16 +343,16 @@ void Robot::reset(void *ptr) {
             conveyor = 0;
             move_to_mode = 1;
             stay();
-            new_y_gps = cur_y_gps / 2;
-            new_x_gps = cur_x_gps / 2;
-            while (!(abs(new_x_gps - cur_x_gps) < .1 && abs(new_y_gps - cur_y_gps) < .1)){
+            new_y_gps = y_gps / 2;
+            new_x_gps = x_gps / 2;
+            while (!(abs(new_x_gps - x_gps) < .1 && abs(new_y_gps - y_gps) < .1)){
                 delay(5);
             }
             stay();
 
-            /*After a reset, send a continue_ring signal so that if the robot was going after rings, it starts looking again. If
-            it was going after mogos, nothing happens. Set chasing_mogo to false to tell the robot it needs to look for a new target,
-            turn_in_place to true so the robot starts turning once more, and move_to_mode back to 0 so that our fps move_to can take
+            /*After a reset, send a continue_ring signal so that if the BigBot was going after rings, it starts looking again. If
+            it was going after mogos, nothing happens. Set chasing_mogo to false to tell the BigBot it needs to look for a new target,
+            turn_in_place to true so the BigBot starts turning once more, and move_to_mode back to 0 so that our fps move_to can take
             care of our turning in place. Reset stagnant back to 0 so we don't call reset accidentally again. */
             lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue_ring#true#@#");
             chasing_mogo = false;
@@ -369,7 +367,7 @@ void Robot::reset(void *ptr) {
 }
 
 
-void Robot::drive(void *ptr) {
+void BigBot::drive(void *ptr) {
     bool flicker_on = false;
     while (true) {
         int power = master.get_analog(ANALOG_LEFT_Y);
@@ -403,7 +401,7 @@ void Robot::drive(void *ptr) {
         else if (angler_forward) angler = -40;
         else angler = 0;
 
-        if (angler_start_thread  && !task_exists("ANGLER")) start_task("ANGLER", Robot::depth_angler);
+        if (angler_start_thread  && !task_exists("ANGLER")) start_task("ANGLER", BigBot::depth_angler);
 
         if (flicker_on) flicker = 127;
 
@@ -428,7 +426,7 @@ void Robot::drive(void *ptr) {
 }
 
 
-void Robot::check_depth(void *ptr){
+void BigBot::check_depth(void *ptr){
 
     double depth_threshold = 10;
     std::deque<double> depth_vals;
@@ -443,8 +441,8 @@ void Robot::check_depth(void *ptr){
         delay(5);
 
         if (failed_update > 1){
-            new_y = y + 150 * cos(imu_val / 180 * pi);
-            new_x = x - 150 * sin(imu_val / 180 * pi);
+            new_y = y + 150 * cos(heading / 180 * pi);
+            new_x = x - 150 * sin(heading / 180 * pi);
         }
     } while (!(abs(depth_average - mogo_dist.get()) < 1 && (mogo_dist.get() > 0 && mogo_dist.get() < 30)));
 
@@ -458,14 +456,14 @@ void Robot::check_depth(void *ptr){
 
     delay(250);
     lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#camera#l515_front#@#");
-    start_task("ANGLER", Robot::depth_angler);
+    start_task("ANGLER", BigBot::depth_angler);
     mode = "ring";
     turn_in_place = true;
     kill_task("DEPTH");
 }
 
 
-void Robot::depth_angler(void *ptr){
+void BigBot::depth_angler(void *ptr){
     std::deque<double> depth_vals;
 
     int depth_threshold = 55;
@@ -509,7 +507,7 @@ void Robot::depth_angler(void *ptr){
 
             //make sure bot has stopped moving (aka reached its target)
             stagnant = 0;
-            while (!(abs(new_x_gps - cur_x_gps) < .1 && abs(new_y_gps - cur_y_gps) < .1 && abs(new_heading_gps - gps.get_heading()) < 3)){
+            while (!(abs(new_x_gps - x_gps) < .1 && abs(new_y_gps - y_gps) < .1 && abs(new_heading_gps - gps.get_heading()) < 3)){
                 delay(5);
                 angler = angler_pot.get_value() - angler_finish;
             }
@@ -529,7 +527,7 @@ void Robot::depth_angler(void *ptr){
 
             //make sure bot has stopped moving (aka reached its target)
             stagnant = 0;
-            while (!(abs(new_x_gps - cur_x_gps) < .1 && abs(new_y_gps - cur_y_gps) < .1 && abs(new_heading_gps - gps.get_heading()) < 3)){
+            while (!(abs(new_x_gps - x_gps) < .1 && abs(new_y_gps - y_gps) < .1 && abs(new_heading_gps - gps.get_heading()) < 3)){
                 delay(5);
                 angler = angler_pot.get_value() - angler_finish;
             }
@@ -546,7 +544,7 @@ void Robot::depth_angler(void *ptr){
             new_x_gps = 0;
             mode = "mogo";
             lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#camera#l515_back#@#");
-            while (!(abs(new_x_gps - cur_x_gps) < .1 && abs(new_y_gps - cur_y_gps) < .1 && abs(new_heading_gps - gps.get_heading()) < 3)){
+            while (!(abs(new_x_gps - x_gps) < .1 && abs(new_y_gps - y_gps) < .1 && abs(new_heading_gps - gps.get_heading()) < 3)){
                 delay(5);
             }
             stay();
@@ -561,34 +559,31 @@ void Robot::depth_angler(void *ptr){
 }
 
 
-void Robot::imu_clamp(void *ptr){
+void BigBot::imu_clamp(void *ptr){
     double offset = 0;
     while (true){
         double rotation = IMU.get_rotation();
-        if (abs(imu_val - rotation) < 10) offset = 0;
-        else if (rotation > imu_val) offset = -360;
-        else if (rotation < imu_val) offset = 360;
-        imu_val = rotation + offset;
+        if (abs(heading - rotation) < 10) offset = 0;
+        else if (rotation > heading) offset = -360;
+        else if (rotation < heading) offset = 360;
+        heading = rotation + offset;
         delay(5);
     }
 }
 
 
-void Robot::fps(void *ptr) {
+void BigBot::fps(void *ptr) {
 
     double last_x = 0;
     double last_y = 0;
     double last_phi = 0;
     double turn_offset_x = 0;
-    double turn_offset_y = 0;
 
     while (true) {
-        double cur_phi = imu_val / 180 * pi;
+        double cur_phi = heading / 180 * pi;
         double dphi = cur_phi - last_phi;
 
         double cur_turn_offset_x = 360 * (offset_back * dphi) / wheel_circumference;
-        double cur_turn_offset_y = 360 * (offset_middle * dphi) / wheel_circumference;
-
         turn_offset_x = (float)turn_offset_x + cur_turn_offset_x;
 
         double cur_y = (RE.get_value() - LE.get_value()) / 2;
@@ -612,13 +607,13 @@ void Robot::fps(void *ptr) {
 }
 
 //must be run before using any cur or last gps variables
-void Robot::gps_fps(void *ptr){
+void BigBot::gps_fps(void *ptr){
     int i = 0;
     while (true){
         pros::c::gps_status_s cur_status = gps.get_status();
-        cur_x_gps = cur_status.x;
-        cur_y_gps = cur_status.y;
-        cur_heading_gps = gps.get_heading();
+        x_gps = cur_status.x;
+        y_gps = cur_status.y;
+        heading_gps = gps.get_heading();
         delay(5);
     }
 }
@@ -629,7 +624,7 @@ void Robot::gps_fps(void *ptr){
  * (0,0) in the center of the field in meters
  * 0 degrees is facing north (red side on left, blue side on right)
  */
-void Robot::move_to_gps(void *ptr) {
+void BigBot::move_to_gps(void *ptr) {
     while (true)
     {
         if (move_to_mode != 1) {
@@ -637,18 +632,18 @@ void Robot::move_to_gps(void *ptr) {
             continue;
         }
         move_to_gps_count = (int)move_to_gps_count + 1;
-        double phi = cur_heading_gps * pi / 180;
+        double phi = heading_gps * pi / 180;
         double gps_error;
-        double cur_heading_gps2 = cur_heading_gps - 360;
+        double heading_gps2 = heading_gps - 360;
 
-        if(std::abs(new_heading_gps-cur_heading_gps) < std::abs(new_heading_gps-cur_heading_gps2)){
-            gps_error = new_heading_gps - cur_heading_gps;
+        if(std::abs(new_heading_gps-heading_gps) < std::abs(new_heading_gps-heading_gps2)){
+            gps_error = new_heading_gps - heading_gps;
         }
         else{
-            gps_error = new_heading_gps - cur_heading_gps2;
+            gps_error = new_heading_gps - heading_gps2;
         }
-        double y_error = -(new_y_gps - cur_y_gps) * meters_to_inches * inches_to_encoder;
-        double x_error = -(new_x_gps - cur_x_gps) * meters_to_inches * inches_to_encoder;
+        double y_error = -(new_y_gps - y_gps) * meters_to_inches * inches_to_encoder;
+        double x_error = -(new_x_gps - x_gps) * meters_to_inches * inches_to_encoder;
 
         double power = power_PD.get_value(y_error * std::sin(phi) - x_error * std::cos(phi));
         double strafe = strafe_PD.get_value(x_error * std::sin(phi) + y_error * std::cos(phi));
@@ -660,7 +655,7 @@ void Robot::move_to_gps(void *ptr) {
 }
 
 
-void Robot::move_to(void *ptr)
+void BigBot::move_to(void *ptr)
 {
     while (true)
     {
@@ -669,9 +664,9 @@ void Robot::move_to(void *ptr)
             continue;
         }
         move_to_count = (int)move_to_count + 1;
-        double phi = imu_val * pi / 180;
+        double phi = heading * pi / 180;
 
-        double imu_error = -(imu_val - heading);
+        double imu_error = -(heading - new_heading);
         double y_error = new_y - y;
         double x_error = -(new_x - x);
 
@@ -688,7 +683,7 @@ void Robot::move_to(void *ptr)
 
 
 //threshold can and should be adjusted if return value is inacurate
-void Robot::is_moving_gps(void *ptr) {
+void BigBot::is_moving_gps(void *ptr) {
     double xy_threshold = 20;
     double turn_threshold = 0.5;
     while(true)
@@ -710,11 +705,11 @@ void Robot::is_moving_gps(void *ptr) {
 }
 
 
-void Robot::display(void *ptr){
+void BigBot::display(void *ptr){
     while (true){
 
         lcd::print(1, "FPS: X %d Y %d IMU %d", (int)y, (int)x, (int)IMU.get_rotation());
-        lcd::print(2, "GPS: X %.2f Y: %.2f HEADING: %.2f", (float)(cur_x_gps), (float)(cur_y_gps), (float)(cur_heading_gps));
+        lcd::print(2, "GPS: X %.2f Y: %.2f HEADING: %.2f", (float)(x_gps), (float)(y_gps), (float)(heading_gps));
         lcd::print(3, "STAGNANT FOR: %d", (int)stagnant);
         lcd::print(4, "TEMP: %f", (float)drive_temp);
         lcd::print(5, "%d", ring_ultrasonic.get_value());
@@ -723,23 +718,23 @@ void Robot::display(void *ptr){
 }
 
 
-void Robot::start_task(std::string name, void (*func)(void *)) {
+void BigBot::start_task(std::string name, void (*func)(void *)) {
     if (!task_exists(name)) {
         tasks.insert(std::pair<std::string, std::unique_ptr<pros::Task>>(name, std::move(std::make_unique<pros::Task>(func, &x, TASK_PRIORITY_DEFAULT, TASK_STACK_DEPTH_DEFAULT, ""))));
     }
 }
 
-bool Robot::task_exists(std::string name) {
+bool BigBot::task_exists(std::string name) {
     return tasks.find(name) != tasks.end();
 }
 
-void Robot::kill_task(std::string name) {
+void BigBot::kill_task(std::string name) {
     if (task_exists(name)) {
         tasks.erase(name);
     }
 }
 
-void Robot::mecanum(int power, int strafe, int turn, int max_power) {
+void BigBot::mecanum(int power, int strafe, int turn, int max_power) {
 
     int powers[] {
         power + strafe + turn,
@@ -764,12 +759,12 @@ void Robot::mecanum(int power, int strafe, int turn, int max_power) {
     BRB = powers[3] * scalar;
 }
 
-void Robot::stay(){
+void BigBot::stay(){
     new_y = (float)y;
     new_x = (float)x;
-    heading = (float)imu_val;
+    new_heading = (float)heading;
 
-    new_x_gps = (float)cur_x_gps;
-    new_y_gps = (float)cur_y_gps;
+    new_x_gps = (float)x_gps;
+    new_y_gps = (float)y_gps;
     new_heading_gps = gps.get_heading();
 }
