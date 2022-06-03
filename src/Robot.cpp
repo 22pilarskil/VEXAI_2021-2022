@@ -108,7 +108,9 @@ std::map<std::string, std::unique_ptr<pros::Task>> Robot::tasks;
 
 void Robot::receive_data(nlohmann::json msg)
 {
-    double position_temp[] = {gps.get_status().x*meters_to_inches + 72, gps.get_status().y*meters_to_inches + 72, pi/4};
+    double angle = (90 - last_heading) / 180 * pi;
+    angle = fmod(fmod(angle, 2*pi) + 2*pi);
+    double position_temp[] = {gps.get_status().x*meters_to_inches + 72, gps.get_status().y*meters_to_inches + 72, angle};
     std::map<std::string, std::vector<double*>> objects;
     string names[] = {"ring", "mogo"};
     if (stop) return;
@@ -117,15 +119,24 @@ void Robot::receive_data(nlohmann::json msg)
     stagnant = 0;
     vector<vector<float>> pred = Data::get_pred(msg);
     if(pred.empty())return;
+    
+    
 
-    // for (vector<double> det : objects) {
-    //     double location[] = {det[0] * meters_to_inches, det[1]*-1/180*pi};
-    //     objects[names[det[2]]].push_back(location);
-    // }
+    for (vector<double> det : pred) {
+        double location[] = {det[0] * meters_to_inches, det[1]*-1/180*pi};
+        objects[names[det[2]]].push_back(location);
+    }
 
-    // double position_temp[] = {gps.get_status().x*meters_to_inches + 72, gps.get_status().y*meters_to_inches + 72, pi/4};
-    // gridMapper->map(position_temp, objects);
+    gridMapper->map(position_temp, objects);
 
+    for (int i = 2; i <= 6; i++) { // print on lcd
+       lcd::print (1, "X:" << ((gps.get_status().x*meters_to_inches + 72) / 24.0) << " Y:" <<  ((gps.get_status().y*meters_to_inches + 72) / 24.0) << "  det[0]:" << det[0]);
+       std::string print_string = "";
+       for (int j = 0; j < 6; j++) {
+          print_string += ("%i:%i  ", (i + 6 * j), gridMapper->getBox((i + 6 * j))["mogo"]);
+       }
+       lcd::print(i, print_string.c_str());
+    }
 
     if (mode.compare("mogo") == 0){
         vector<vector<float>> mogos = Data::pred_id(pred, 0);
