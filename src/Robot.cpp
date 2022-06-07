@@ -108,9 +108,13 @@ std::map<std::string, std::unique_ptr<pros::Task>> Robot::tasks;
 
 void Robot::receive_data(nlohmann::json msg)
 {
+    // Changes angle to our coordinate system, and converts to radians. If angle doesn't work, this is the issue.
     double angle = (90 - last_heading) / 180 * pi;
+    // Keeps angle positive and between 0 and 2 pi
     angle = fmod(fmod(angle, 2*pi) + 2*pi);
-    double position_temp[] = {gps.get_status().x*meters_to_inches + 72, gps.get_status().y*meters_to_inches + 72, angle};
+    // Robot Position should be in the form: {x: inches, y: inches, theta: radians}
+    double robot_pos[] = {gps.get_status().x*meters_to_inches + 72, gps.get_status().y*meters_to_inches + 72, angle}; 
+    // Creates a hashmap of objects. This will be used for the map function.
     std::map<std::string, std::vector<double*>> objects;
     string names[] = {"ring", "mogo"};
     if (stop) return;
@@ -123,14 +127,17 @@ void Robot::receive_data(nlohmann::json msg)
     
 
     for (vector<double> det : pred) {
+        // Saves each object to the map of objects. objects[NAME] = {{DISTANCE: inches, THETA: radians}, {DISTANCE: inches, THETA: radians}...}
         double location[] = {det[0] * meters_to_inches, det[1]*-1/180*pi};
         objects[names[det[2]]].push_back(location);
     }
+    // Runs the map function.
+    gridMapper->map(robot_pos, objects);
 
-    gridMapper->map(position_temp, objects);
-
-    for (int i = 2; i <= 6; i++) { // print on lcd
-       lcd::print (1, "X:" << ((gps.get_status().x*meters_to_inches + 72) / 24.0) << " Y:" <<  ((gps.get_status().y*meters_to_inches + 72) / 24.0) << "  det[0]:" << det[0]);
+    // Prints x, y and angle
+    lcd::print (1, "X:" + std::to_string((gps.get_status().x*meters_to_inches + 72) / 24.0) + " Y:" +  std::to_string((gps.get_status().y*meters_to_inches + 72) / 24.0) + " Ang: " + std::to_string(angle));
+    
+    for (int i = 2; i <= 6; i++) { // Runs print statement. Does not print to first line.
        std::string print_string = "";
        for (int j = 0; j < 6; j++) {
           print_string += ("%i:%i  ", (i + 6 * j), gridMapper->getBox((i + 6 * j))["mogo"]);
@@ -138,6 +145,8 @@ void Robot::receive_data(nlohmann::json msg)
        lcd::print(i, print_string.c_str());
     }
 
+    // From here on out, this has nothing to do with mapping.
+    
     if (mode.compare("mogo") == 0){
         vector<vector<float>> mogos = Data::pred_id(pred, 0);
         for (vector<float> det : mogos){
