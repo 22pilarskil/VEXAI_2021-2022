@@ -10,23 +10,18 @@ class Display:
 		pygame.init()
 		WIDTH, HEIGHT = 720, 720
 		self.WIN = pygame.display.set_mode((WIDTH, HEIGHT))
-		field = pygame.image.load("../sprites/field.png")
+		field = pygame.image.load("/home/vexai/VEXAI_2021-2022/yolo/sprites/field.png")
 		self.field = pygame.transform.scale(field, (WIDTH, HEIGHT))
-		mogo = pygame.image.load("../sprites/mogo.png")
+		mogo = pygame.image.load("/home/vexai/VEXAI_2021-2022/yolo/sprites/mogo.png")
 		self.mogo = pygame.transform.scale(mogo, (400, 300))
-		ring = pygame.image.load("../sprites/ring.png")
+		ring = pygame.image.load("/home/vexai/VEXAI_2021-2022/yolo/sprites/ring.png")
 		self.ring = pygame.transform.scale(ring, (100, 75))
-		robot = pygame.image.load("../sprites/robot.png")
+		robot = pygame.image.load("/home/vexai/VEXAI_2021-2022/yolo/sprites/robot.png")
 		self.robot = pygame.transform.scale(robot, (60, 60))
-		cone = pygame.image.load("../sprites/cone.png")
+		cone = pygame.image.load("/home/vexai/VEXAI_2021-2022/yolo/sprites/cone.png")
 		self.cone = pygame.transform.scale(cone, (int(cone.get_width() * 3), int(cone.get_height() * 3)))
-		self.boxes = {}
-		box = pygame.image.load("../sprites/download.png")
-		self.boxh = pygame.transform.scale(box, (850, 120))
-		self.boxv = pygame.transform.scale(box, (120, 850))
 		pygame.Surface.set_alpha(self.cone, 30)
-
-
+		self.boxes = {}
 		for box_id in range(1, 37):
 			col_num = (box_id + 5) % 6 + 1
 			row_num = int((box_id - 1) / 6) + 1
@@ -38,8 +33,6 @@ class Display:
 
 		print(self.boxes)
 
-
-			
 	def blit_box(self, box_id, num_mogos, num_rings):
 		col_num = (box_id + 5) % 6 + 1
 		row_num = int((box_id - 1) / 6) + 1
@@ -65,6 +58,7 @@ class Display:
 
 		adjusted_x = 590 * math.sin(heading * math.pi/180) + x
 		adjusted_y = 590 * math.cos(heading*math.pi/180) + y
+
 		self.WIN.blit(rotated_bot, self.center(rotated_bot, x, y))
 		self.WIN.blit(rotated_cone, self.center(rotated_cone, adjusted_x, adjusted_y))
 
@@ -74,10 +68,6 @@ class Display:
 
 	def runner(self, full_map, x, y, heading):
 		self.WIN.blit(self.field, (0, 0))
-		self.WIN.blit(self.boxh, self.center(self.boxh, 360, 60))
-		self.WIN.blit(self.boxh, self.center(self.boxh, 360, 660))
-		self.WIN.blit(self.boxv, self.center(self.boxv, 60, 360))
-		self.WIN.blit(self.boxv, self.center(self.boxv, 660, 360))
 		self.blit_bot(x, y, heading)
 		for i in full_map:
 			self.blit_box(i, full_map[i][1], full_map[i][0])
@@ -149,5 +139,6 @@ if __name__ == '__main__':
 	print(displayer.cone.get_height() / 2)
 	while True:
 		time.sleep(0.05)
-		displayer.runner({1: [1, 0]}, 0, 0 ,0)
+		displayer.runner({1: [1, 0]})
+
 
