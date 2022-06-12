@@ -99,10 +99,11 @@ class Display:
 		return in_view
 
 	def det_to_coords(self, x, y, heading, dets):
+		coefficient = 1
 		new_det = []
 		for det in dets:
-			dx = x + math.cos((heading - float(det[1])) * math.pi / 180) * float(det[0])
-			dy = y + math.sin((heading - float(det[1])) * math.pi / 180) * float(det[0])
+			dx = x + coefficient * math.cos((heading - float(det[1])) * math.pi / 180) * float(det[0])
+			dy = y + coefficient * math.sin((heading - float(det[1])) * math.pi / 180) * float(det[0])
 			temp = self.robot_coords(dx,dy)
 			new_det.append([temp[0], temp[1], det[2]])
 		return new_det
@@ -115,18 +116,7 @@ class Display:
 			row = math.floor(float(det[1])/120)
 			col = math.floor(float(det[0])/120)
 			boxnum = 1+col+row*6
-			'''
-			bx = -1
-			for box_id in self.boxes:
-				#print("BOUNDS: "+str(self.boxes[box_id]))
-				poly = Polygon(self.boxes[box_id])
-				point = Point(det[0], det[1])
-				#print("POINT: "+str(point))
-				if point.within(poly):
-					bx = box_id
-					break
-			if not (bx==-1): new_det.append([bx, det[2]])
-			'''
+
 			new_det.append([boxnum,det[2]])
 		return new_det
 

@@ -31,7 +31,13 @@ cameras = {
     'l515_back': {
         'id': 'f1181409',
         'flip': True,
-        }
+        'front': False,
+        },
+    'd435_front': {
+        'id': '048322070458',
+        'flip': True,
+        'front': True,
+        },
     }
 
 cam = Camera(cameras, args.camera)
@@ -93,33 +99,20 @@ try:
 			msg = False
 			while not msg:
 				print("waiting")
-				msg = comm.read(["x","y","z","1", "2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30","31","32","33","34","35","36", "@"])
+				msg = comm.read([str(id) for id in range(1, 37)] + ["x","y","z","@"])
 
 			
 			dict_ = {}
-			print("RECEIVED: " + str(msg))
+			front = cam.cameras[cam.name]['front']
 			robot_x = float(msg["x"])
 			robot_y = float(msg["y"])
-			robot_heading = 90 - float(msg["z"])
+			robot_heading = 90 - float(msg["z"]) if front else 270 - float(msg["z"])
 			robot_coords = displayer.robot_coords(robot_x, robot_y)
 			in_view = displayer.boxes_inside(robot_heading, robot_coords[0], robot_coords[1])
+			print(in_view)
 			new_det = displayer
 			print("P1:" + str(pred1))
 
-			'''
-			for x in range(1,37):
-				if str(x) in msg:
-					temp = msg[str(x)].split()
-					ring = int(temp[1])
-					mogo = int(temp[0])
-					dict_[x] = [mogo, ring]
-						
-						
-				else: 
-					dict_[x] = [0,0]
-			print("DICTIONARY: " + str(dict_))
-			displayer.runner(dict_)
-			'''
 			det_box = displayer.det_to_boxes(robot_x, robot_y, robot_heading, pred1)
 			print("DETBOX: " + str(det_box))
 			box_numrings = {}
