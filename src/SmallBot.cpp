@@ -36,7 +36,7 @@ Motor SmallBot::four_bar(20, true);
 double SmallBot::cur_x_gps;
 double SmallBot::cur_y_gps;
 double SmallBot::cur_heading_gps;
-Gps SmallBot::gps(1);
+Gps SmallBot::gps(16);
 
 int s = 0;
 Imu SmallBot::IMU(15);
@@ -102,7 +102,7 @@ void SmallBot::send_data() {
         int mogo_count = smallBotGrid->getBox(i)["mogo"];
         if(ring_count > 0 || mogo_count > 0)
         {
-          return_string += std::to_string(i) + "#y#" + std::to_string(ring_count) + " " + std::to_string(mogo_count) + "#@#";
+          return_string += std::to_string(i) + "#" + std::to_string(ring_count) + " " + std::to_string(mogo_count) + "#@#";
         }
 
     }

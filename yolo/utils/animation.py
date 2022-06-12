@@ -140,5 +140,3 @@ if __name__ == '__main__':
 	while True:
 		time.sleep(0.05)
 		displayer.runner({1: [1, 0]})
-
-

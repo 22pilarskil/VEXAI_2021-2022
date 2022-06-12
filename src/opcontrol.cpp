@@ -6,7 +6,7 @@ using namespace pros;
 /* Creates all tasks required for our BigBot's driver control period */
 
 
-std::string bot = "big";
+std::string bot = "small";
 int slot = 1;
 
 
@@ -73,19 +73,15 @@ void opcontrol() {
 
 	if (bot.compare("small") == 0){
 
+
 		if (slot == 1){
+			serial_initialize();
+			SmallBot::start_task("GPS",SmallBot::gps_initialize);
 			lib7405x::Serial::Instance()->onReceive("whole_data",SmallBot::receive_data);
 			lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#@#");
-			serial_initialize();
-			lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#camera#l515_back#mode#false#@#");
-		}
-
-		if (slot == 2){
-			delay(100);
-			SmallBot::start_task("gps",SmallBot::gps_initialize);
-			SmallBot::start_task("DRIVE", SmallBot::drive);
-			SmallBot::start_task("GPS INIT", SmallBot::gps_initialize);
-			SmallBot::start_task("GPS Test", SmallBot::gps_test);
+			SmallBot::start_task("DRIVE", SmallBot::tank_drive);
+			
+			//slib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#camera#l515_back#mode#false#@#");
 		}
 
 	}
