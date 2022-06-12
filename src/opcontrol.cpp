@@ -6,8 +6,8 @@ using namespace pros;
 /* Creates all tasks required for our BigBot's driver control period */
 
 
-std::string bot = "small";
-int slot = 1;
+std::string bot = "big";
+int slot = 2;
 
 
 void opcontrol() {

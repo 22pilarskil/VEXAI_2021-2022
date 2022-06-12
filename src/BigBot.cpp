@@ -25,25 +25,24 @@ PD BigBot::turn_PD(1.0, 0, 0);
 
 Motor BigBot::BRB(1, true);
 Motor BigBot::BRT(3);
+//for some reason BRB can't be flipped to true, so I've added negatives to BRB and BRT's motor values in mecanum instead
+
 Motor BigBot::BLT(10, true);
 Motor BigBot::BLB(9);
-Motor BigBot::FLT(18, true);
-Motor BigBot::FLB(19);
-Motor BigBot::FRB(13, true);
-Motor BigBot::FRT(11);
-Motor BigBot::flicker(17);
+Motor BigBot::FLT(19, true);
+Motor BigBot::FLB(18);
+Motor BigBot::FRB(11, true);
+Motor BigBot::FRT(6);
 Motor BigBot::angler(20);
 Motor BigBot::conveyor(2);
-Motor BigBot::lift(8);
 
-ADIEncoder BigBot::LE({{16, 1, 2}});
-ADIEncoder BigBot::RE({{16, 5, 6}});
+ADIEncoder BigBot::LE({{17, 1, 2}});
+ADIEncoder BigBot::RE({{17, 5, 6}});
 ADIEncoder BigBot::BE(7, 8);
 ADIAnalogIn BigBot::angler_pot(3);
 ADIDigitalOut BigBot::angler_piston(2);
-ADIDigitalOut BigBot::lift_piston(1);
 ADIUltrasonic BigBot::ring_ultrasonic(5, 6);
-Gps BigBot::gps(5);
+Gps BigBot::gps(8);
 Imu BigBot::IMU(12);
 Distance BigBot::angler_dist(21);
 Distance BigBot::mogo_dist(7);
@@ -213,7 +212,6 @@ void BigBot::mogo_receive(vector<float> det)
   move_to_mode = 0;
   turn_in_place = false;
   chasing_mogo = true;
-  flicker = 127;
 
   double angle_threshold = 1;
   turn_coefficient = 3;
@@ -368,7 +366,6 @@ void BigBot::reset(void *ptr) {
 
 
 void BigBot::drive(void *ptr) {
-    bool flicker_on = false;
     while (true) {
         int power = master.get_analog(ANALOG_LEFT_Y);
         int strafe = master.get_analog(ANALOG_LEFT_X);
@@ -382,20 +379,8 @@ void BigBot::drive(void *ptr) {
         bool angler_piston_open = master.get_digital(DIGITAL_A);
         bool angler_piston_close = master.get_digital(DIGITAL_B);
 
-        bool lift_piston_open = master.get_digital(DIGITAL_X);
-        bool lift_piston_close = master.get_digital(DIGITAL_Y);
-
         bool conveyor_forward = master.get_digital(DIGITAL_R1);
         bool conveyor_backward = master.get_digital(DIGITAL_R2);
-
-        if(master.get_digital(DIGITAL_UP)) {
-            if(flicker_on) flicker_on = false;
-            else flicker_on = true;
-        }
-
-        bool lift_up = master.get_digital(DIGITAL_LEFT);
-        bool lift_down = master.get_digital(DIGITAL_RIGHT);
-
 
         if (angler_backward) angler = 40;
         else if (angler_forward) angler = -40;
@@ -403,22 +388,14 @@ void BigBot::drive(void *ptr) {
 
         if (angler_start_thread  && !task_exists("ANGLER")) start_task("ANGLER", BigBot::depth_angler);
 
-        if (flicker_on) flicker = 127;
 
         if (angler_piston_open) angler_piston.set_value(true);
         else if (angler_piston_close) angler_piston.set_value(false);
-
-        if (lift_piston_open) lift_piston.set_value(true);
-        else if (lift_piston_close) lift_piston.set_value(false);
 
         if (conveyor_forward) conveyor = 127;
         else if (conveyor_backward) conveyor = -127;
         else conveyor = 0;
 
-
-        if (lift_up) lift = 127;
-        else if (lift_down) lift = -127;
-        else lift = 0;
 
         mecanum(power, strafe, turn);
         delay(5);
@@ -450,7 +427,6 @@ void BigBot::check_depth(void *ptr){
 
     stay();
 
-    flicker = 0;
     chasing_mogo = false;
     angler_piston.set_value(true);
 
@@ -708,11 +684,12 @@ void BigBot::is_moving_gps(void *ptr) {
 void BigBot::display(void *ptr){
     while (true){
 
-        lcd::print(1, "FPS: X %d Y %d IMU %d", (int)y, (int)x, (int)IMU.get_rotation());
+        lcd::print(1, "FPS: X %d Y %d IMU %d", (int)x, (int)y, (int)IMU.get_rotation());
         lcd::print(2, "GPS: X %.2f Y: %.2f HEADING: %.2f", (float)(x_gps), (float)(y_gps), (float)(heading_gps));
         lcd::print(3, "STAGNANT FOR: %d", (int)stagnant);
         lcd::print(4, "TEMP: %f", (float)drive_temp);
         lcd::print(5, "%d", ring_ultrasonic.get_value());
+        lcd::print(6, "BE: %d RE: %d LE %d", BE.get_value(), RE.get_value(), LE.get_value());
         delay(5);
     }
 }
@@ -752,7 +729,7 @@ void BigBot::mecanum(int power, int strafe, int turn, int max_power) {
     FLT = powers[0] * scalar;
     FRT = powers[1] * scalar;
     BLT = powers[2] * scalar;
-    BRT = powers[3] * scalar;
+    BRT = -powers[3] * scalar;
     FLB = powers[0] * scalar;
     FRB = powers[1] * scalar;
     BLB = powers[2] * scalar;
