@@ -75,11 +75,11 @@ void opcontrol() {
 
 
 		if (slot == 1){
-			serial_initialize();
+			//serial_initialize();
 			SmallBot::start_task("GPS",SmallBot::gps_initialize);
 			lib7405x::Serial::Instance()->onReceive("whole_data",SmallBot::receive_data);
 			lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#@#");
-			SmallBot::start_task("DRIVE", SmallBot::tank_drive);
+			SmallBot::start_task("DRIVE", SmallBot::drive);
 			
 			//slib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#camera#l515_back#mode#false#@#");
 		}

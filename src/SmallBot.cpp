@@ -26,12 +26,12 @@ Controller SmallBot::master(E_CONTROLLER_MASTER);
 
 std::atomic<double> SmallBot::x = 0;
 
-Motor SmallBot::FL(15, true);
-Motor SmallBot::ML(14, true);
-Motor SmallBot::BL(16, true);
-Motor SmallBot::FR(12);
-Motor SmallBot::MR(13);
-Motor SmallBot::BR(11);
+Motor SmallBot::FL(1, true);
+Motor SmallBot::ML(3, true);
+Motor SmallBot::BL(5, true);
+Motor SmallBot::FR(4);
+Motor SmallBot::MR(2);
+Motor SmallBot::BR(6);
 Motor SmallBot::four_bar(20, true);
 double SmallBot::cur_x_gps;
 double SmallBot::cur_y_gps;
@@ -56,7 +56,7 @@ void SmallBot::tank_drive(int power, int turn)
   ML = left_side;
   BL = -left_side;
   FR = -right_side;
-  MR = -right_side;
+  MR = right_side;
   BR = -right_side;
 }
  // te
@@ -66,7 +66,7 @@ void SmallBot::drive(void *ptr){
     int power = master.get_analog(ANALOG_LEFT_Y);
     int turn = master.get_analog(ANALOG_RIGHT_X);
     int four_bar_power = master.get_analog(ANALOG_LEFT_Y);
-    //lcd::print(7, "%f, %f, %f", (float)cur_x_gps, (float)cur_y_gps, (float)cur_heading_gps);
+    lcd::print(7, "%f, %f, %f", (float)cur_x_gps, (float)cur_y_gps, (float)cur_heading_gps);
     tank_drive(power, turn);
     four_bar = four_bar_power;
     delay(5);
@@ -113,7 +113,7 @@ void SmallBot::send_data() {
     }
     return_string = "#x#" + to_string(cur_x_gps) + "#y#"+to_string(cur_y_gps)+"#z#"+to_string(unit_circle)+"#";
     return_string = return_string +"@#";
-    lcd::print(7,"%s",return_string);
+    //lcd::print(7,"%s",return_string);
 
     lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, return_string);
 
