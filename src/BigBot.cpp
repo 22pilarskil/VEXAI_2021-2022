@@ -39,7 +39,7 @@ Motor BigBot::conveyor(2);
 ADIEncoder BigBot::LE({{17, 1, 2}});
 ADIEncoder BigBot::RE({{17, 5, 6}});
 ADIEncoder BigBot::BE(7, 8);
-ADIAnalogIn BigBot::angler_pot(3);
+ADIAnalogIn BigBot::angler_pot(4);
 ADIDigitalOut BigBot::angler_piston(2);
 ADIUltrasonic BigBot::ring_ultrasonic(5, 6);
 Gps BigBot::gps(8);
@@ -98,6 +98,9 @@ std::atomic<int> move_to_count = 0;
 std::atomic<int> move_to_gps_count = 0;
 int mogo_count = 0;
 int corner = 0;
+int angler_finish = 0; 
+int angler_speed = 0;
+int angler_mode = 0;
 
 GridMapper* bigBotGrid = new GridMapper();
 
@@ -116,15 +119,6 @@ void BigBot::receive_data(nlohmann::json msg)
     stagnant = 0;
     vector<vector<float>> pred = Data::get_pred(msg);
     if(pred.empty())return;
-
-    // for (vector<double> det : objects) {
-    //     double location[] = {det[0] * meters_to_inches, det[1]*-1/180*pi};
-    //     objects[names[det[2]]].push_back(location);
-    // }
-
-    // double position_temp[] = {gps.get_status().x*meters_to_inches + 72, gps.get_status().y*meters_to_inches + 72, pi/4};
-    // bigBotGrid->map(position_temp, objects);
-
 
     if (mode.compare("mogo") == 0){
         vector<vector<float>> mogos = Data::pred_id(pred, 0);
@@ -382,13 +376,11 @@ void BigBot::drive(void *ptr) {
         bool conveyor_forward = master.get_digital(DIGITAL_R1);
         bool conveyor_backward = master.get_digital(DIGITAL_R2);
 
-        if (angler_backward) angler = 40;
-        else if (angler_forward) angler = -40;
+        if (angler_backward) angler = -40;
+        else if (angler_forward) angler = 40;
         else angler = 0;
 
         if (angler_start_thread  && !task_exists("ANGLER")) start_task("ANGLER", BigBot::depth_angler);
-
-
         if (angler_piston_open) angler_piston.set_value(true);
         else if (angler_piston_close) angler_piston.set_value(false);
 
@@ -442,14 +434,14 @@ void BigBot::check_depth(void *ptr){
 void BigBot::depth_angler(void *ptr){
     std::deque<double> depth_vals;
 
-    int depth_threshold = 55;
-    int depth_coefficient = 6;
-    int cap = 20;
+    int depth_threshold = 45;
+    int depth_coefficient = 12;
+    int cap = 1;
     bool reached = false;
     while (abs(angler_dist.get() - depth_threshold) > cap){
-        angler = 127;
+        angler = -127;
     }
-    int angler_finish = angler_pot.get_value();
+    angler_finish = angler_pot.get_value();
     while (true){
 
         if ((int)depth_vals.size() == 100) depth_vals.pop_front();
@@ -459,33 +451,33 @@ void BigBot::depth_angler(void *ptr){
         double depth_average = sum / 100;
 
 
-        if (abs(angler_pot.get_value() - angler_finish) > 200){
-            angler = .25 * (angler_pot.get_value() - angler_finish);
+        if (abs(angler_pot.get_value() - angler_finish) > 300){
+            angler_speed = .25 * (angler_pot.get_value() - angler_finish);
+            angler = angler_speed;
+            angler_mode = 0;
         }
         else {
-            angler = depth_coefficient * (angler_dist.get() - depth_threshold);
+            angler_speed = -1 * depth_coefficient * (angler_dist.get() - depth_threshold);
+            angler = angler_speed;
+            angler_mode = 1;
         }
 
         //When a mogo has been filled
-        if (depth_average < 200 && depth_vals.size() == 100){
+        if (false){//(depth_average < 200 && depth_vals.size() == 100){
 
             stop = true;
             //switch to move_to_gps, move to the center of the field
             move_to_mode = 1;
             new_y_gps = 0;
             new_x_gps = 0;
-            if(corner == 0){
-                new_heading_gps = 135;
-            }
-            else if(corner == 1){
-                new_heading_gps = 315;
-            }
+            if(corner == 0) new_heading_gps = 135;
+            else if(corner == 1) new_heading_gps = 315;
 
             //make sure bot has stopped moving (aka reached its target)
             stagnant = 0;
             while (!(abs(new_x_gps - x_gps) < .1 && abs(new_y_gps - y_gps) < .1 && abs(new_heading_gps - gps.get_heading()) < 3)){
                 delay(5);
-                angler = angler_pot.get_value() - angler_finish;
+                angler = .25 * (angler_pot.get_value() - angler_finish);
             }
 
             //move to corner of the field to deposit mogo
@@ -505,13 +497,13 @@ void BigBot::depth_angler(void *ptr){
             stagnant = 0;
             while (!(abs(new_x_gps - x_gps) < .1 && abs(new_y_gps - y_gps) < .1 && abs(new_heading_gps - gps.get_heading()) < 3)){
                 delay(5);
-                angler = angler_pot.get_value() - angler_finish;
+                angler = .25 * (angler_pot.get_value() - angler_finish);
             }
             stay();
             lcd::print(7, "REASCHED");
 
             //release mogo
-            while (angler_pot.get_value() < 2150) angler = -(2150 - angler_pot.get_value());
+            while (angler_pot.get_value() > 1250) angler =  - (1250 - angler_pot.get_value());
 
             angler = 0;
             angler_piston.set_value(false);
@@ -689,7 +681,7 @@ void BigBot::display(void *ptr){
         lcd::print(3, "STAGNANT FOR: %d", (int)stagnant);
         lcd::print(4, "TEMP: %f", (float)drive_temp);
         lcd::print(5, "%d", ring_ultrasonic.get_value());
-        lcd::print(6, "BE: %d RE: %d LE %d", BE.get_value(), RE.get_value(), LE.get_value());
+        lcd::print(6, "Dist %d POT %d AM %d", angler_dist.get(), angler_pot.get_value(), angler_speed);
         delay(5);
     }
 }
