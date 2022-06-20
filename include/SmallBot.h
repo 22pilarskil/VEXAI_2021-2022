@@ -6,6 +6,10 @@
 #include <vector>
 #include <deque>
 #include "system/json.hpp"
+#include "PID.h"
+#include "Moving.h"
+
+#include <atomic>
 using namespace pros;
 class SmallBot {
   public:
@@ -24,12 +28,16 @@ class SmallBot {
     static double cur_y_gps;
     static double cur_heading_gps;
     static Gps gps;
-
+    static PID angle_pid;
+    static PID distance_pid;
 
     static Imu IMU;
     static Rotation BE;
     // can't find radio api, will code for it once found
-
+    static Moving move;
+    static void dummy(void *ptr);
+    static void turn_by(double x);
+    static void move_by(double x);
     static void drive(void *ptr);
     static void receive_data(nlohmann::json msg);
     static void send_data();
@@ -40,5 +48,6 @@ class SmallBot {
     static void gps_test(void *ptr);
     static bool task_exists(std::string name);
     static void kill_task(std::string name);
+    //
 };
 #endif
