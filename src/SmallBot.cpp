@@ -19,7 +19,13 @@ const double inches_to_encoder = 41.669;
 const double meters_to_inches = 39.3701;
 const double pi = 3.141592653589793238;
 
-
+/*
+piston places:
+A: tilter clamp
+B: tilter tilting
+C: lift clamp
+D: arms
+*/
 
 
 Controller SmallBot::master(E_CONTROLLER_MASTER);
@@ -32,7 +38,11 @@ Motor SmallBot::BL(5, true);
 Motor SmallBot::FR(4);
 Motor SmallBot::MR(2);
 Motor SmallBot::BR(6);
-Motor SmallBot::four_bar(20, true);
+Motor SmallBot::four_bar(7, true);
+ADIDigitalOut SmallBot::tilter_clamp(1);
+ADIDigitalOut SmallBot::tilter_tilt(2);
+ADIDigitalOut SmallBot::lift_clamp(3);
+ADIDigitalOut SmallBot::arms(4);
 double SmallBot::cur_x_gps;
 double SmallBot::cur_y_gps;
 double SmallBot::cur_heading_gps;
@@ -48,8 +58,8 @@ void SmallBot::tank_drive(int power, int turn)
   int left_side;
   int right_side;
 
-  left_side = power + turn;
-  right_side = power - turn;
+  left_side = turn + power;
+  right_side = turn - power;
 
 
   FL = -left_side;
@@ -64,8 +74,18 @@ void SmallBot::tank_drive(int power, int turn)
 void SmallBot::drive(void *ptr){
   while(true){
     int power = master.get_analog(ANALOG_LEFT_Y);
-    int turn = master.get_analog(ANALOG_RIGHT_X);
-    int four_bar_power = master.get_analog(ANALOG_LEFT_Y);
+    int turn = master.get_analog(ANALOG_LEFT_X);
+    int four_bar_power = master.get_analog(ANALOG_RIGHT_Y);
+
+    if(master.get_digital(DIGITAL_R1)) tilter_clamp.set_value(true);
+    if(master.get_digital(DIGITAL_R2)) tilter_clamp.set_value(false);
+    if(master.get_digital(DIGITAL_L1)) tilter_tilt.set_value(true);
+    if(master.get_digital(DIGITAL_L2)) tilter_tilt.set_value(false);
+    if(master.get_digital(DIGITAL_A)) lift_clamp.set_value(true);
+    if(master.get_digital(DIGITAL_B)) lift_clamp.set_value(false);
+    if(master.get_digital(DIGITAL_X)) arms.set_value(true);
+    if(master.get_digital(DIGITAL_Y)) arms.set_value(false);
+    
     lcd::print(7, "%f, %f, %f", (float)cur_x_gps, (float)cur_y_gps, (float)cur_heading_gps);
     tank_drive(power, turn);
     four_bar = four_bar_power;

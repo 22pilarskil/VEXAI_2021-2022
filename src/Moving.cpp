@@ -2,10 +2,10 @@
 #include "Moving.h"
 #include "system/json.hpp"
 #include "system/Serial.h"
-#include "FifteenInch.h"
+#include "SmallBot.h"
 #include "system/Data.h"
 #include "PID.h"
-#include "GridMapper.cpp"
+#include "utils/GridMapper.cpp"
 #include <map>
 #include <cmath>
 #include <atomic>

@@ -24,6 +24,10 @@ class SmallBot {
     static Motor MR;
     static Motor BR;
     static Motor four_bar;
+    static ADIDigitalOut tilter_clamp;
+    static ADIDigitalOut tilter_tilt;
+    static ADIDigitalOut lift_clamp;
+    static ADIDigitalOut arms;
     static double cur_x_gps;
     static double cur_y_gps;
     static double cur_heading_gps;
