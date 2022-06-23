@@ -23,7 +23,7 @@ PD BigBot::power_PD(0.4, 0, 0);
 PD BigBot::strafe_PD(0.4, 0, 0);
 PD BigBot::turn_PD(1.0, 0, 0);
 
-Motor BigBot::BRB(1, true);
+Motor BigBot::BRB(1);
 Motor BigBot::BRT(3);
 //for some reason BRB can't be flipped to true, so I've added negatives to BRB and BRT's motor values in mecanum instead
 
@@ -98,7 +98,7 @@ std::atomic<int> move_to_count = 0;
 std::atomic<int> move_to_gps_count = 0;
 int mogo_count = 0;
 int corner = 0;
-int angler_finish = 0; 
+int angler_finish = 0;
 int angler_speed = 0;
 int angler_mode = 0;
 
@@ -241,7 +241,7 @@ void BigBot::ring_receive(vector<float> det) {
     while(abs(temp - heading) > 1 && stagnant < 10) delay(5);
     turn_coefficient = 3;
     new_heading = temp;
-    conveyor = -127;
+    conveyor = 127;
     double coefficient = lidar_depth * meters_to_inches * inches_to_encoder;
     double angle_threshold = 1;
 
@@ -286,7 +286,7 @@ void BigBot::reposition(void *ptr)
 {
     double turn_degree = 0;
     double last_imu_angle = 0;
-    
+
     while(true){
         if(!turn_in_place){
             last_imu_angle = heading;
@@ -434,9 +434,9 @@ void BigBot::check_depth(void *ptr){
 void BigBot::depth_angler(void *ptr){
     std::deque<double> depth_vals;
 
-    int depth_threshold = 45;
+    int depth_threshold = 50;
     int depth_coefficient = 12;
-    int cap = 1;
+    int cap = 10;
     bool reached = false;
     while (abs(angler_dist.get() - depth_threshold) > cap){
         angler = -127;
@@ -719,13 +719,13 @@ void BigBot::mecanum(int power, int strafe, int turn, int max_power) {
     double scalar = (true_max > max_power) ? max_power / true_max : 1;
 
     FLT = powers[0] * scalar;
-    FRT = powers[1] * scalar;
+    FRT = -powers[1] * scalar;
     BLT = powers[2] * scalar;
-    BRT = -powers[3] * scalar;
+    BRT = powers[3] * scalar;
     FLB = powers[0] * scalar;
     FRB = powers[1] * scalar;
     BLB = powers[2] * scalar;
-    BRB = powers[3] * scalar;
+    BRB = -powers[3] * scalar;
 }
 
 void BigBot::stay(){

@@ -7,7 +7,7 @@ using namespace pros;
 
 
 std::string bot = "big";
-int slot = 2;
+int slot = 1;
 
 
 void opcontrol() {
@@ -80,8 +80,12 @@ void opcontrol() {
 			lib7405x::Serial::Instance()->onReceive("whole_data",SmallBot::receive_data);
 			lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#@#");
 			SmallBot::start_task("DRIVE", SmallBot::drive);
-			
+
 			//slib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#continue#true#camera#l515_back#mode#false#@#");
+		}
+		if(slot == 2)
+		{
+			SmallBot::start_task("DRIVE", SmallBot::dummy);
 		}
 
 	}
